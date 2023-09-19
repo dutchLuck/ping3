@@ -1,0 +1,102 @@
+#! /bin/bash
+#
+# C O N F I G U R E
+#
+# configure last edited Mon Sep 18 21:02:16 2023
+#
+NAME1=ping3
+NAME2=genFun
+NAME3=dbgFun
+NAME4=ipFun
+NAME5=icmpFun
+NAME6=ipOptionsFun
+NAME7=timeFun
+NAME8=ipOptTS
+#
+OP_FILE_NAME=Makefile
+COMPILER=cc
+OPTIONS=-Wall
+LNK_OPTIONS=
+TRGT=$NAME1
+SRC1=$NAME1.c
+OBJ1=$NAME1.o
+SRC2=$NAME2.c
+OBJ2=$NAME2.o
+SRC3=$NAME3.c
+OBJ3=$NAME3.o
+SRC4=$NAME4.c
+OBJ4=$NAME4.o
+SRC5=$NAME5.c
+OBJ5=$NAME5.o
+SRC6=$NAME6.c
+OBJ6=$NAME6.o
+SRC7=$NAME7.c
+OBJ7=$NAME7.o
+HDR8=$NAME8.h
+#
+## echo $OSTYPE
+#
+if [[ "$OSTYPE" == "cygwin" ]] ; then
+  TRGT=$NAME1.exe
+elif [[ "$OSTYPE" == "msys" ]] ; then
+  TRGT=$NAME1.exe
+  COMPILER=gcc
+elif [[ "$OSTYPE" == "linux-gnu" ]] ; then
+  LNK_OPTIONS=-lm
+fi
+#
+echo "$TRGT: $OBJ1 $OBJ2 $OBJ3 $OBJ4 $OBJ5 $OBJ6 $OBJ7 $LNK_OPTIONS" > $OP_FILE_NAME
+echo -e "\t$COMPILER -o "'$@ $^' >> $OP_FILE_NAME
+echo "" >> $OP_FILE_NAME
+#
+echo "$OBJ1: $SRC1 $HDR8" >> $OP_FILE_NAME
+echo -e "\t$COMPILER $OPTIONS -c -UDEBUG "'$<' >> $OP_FILE_NAME
+echo "" >> $OP_FILE_NAME
+#
+echo "$OBJ2: $SRC2" >> $OP_FILE_NAME
+echo -e "\t$COMPILER $OPTIONS -c -UDEBUG "'$<' >> $OP_FILE_NAME
+echo "" >> $OP_FILE_NAME
+#
+echo "$OBJ3: $SRC3" >> $OP_FILE_NAME
+echo -e "\t$COMPILER $OPTIONS -c -UDEBUG "'$<' >> $OP_FILE_NAME
+echo "" >> $OP_FILE_NAME
+#
+echo "$OBJ4: $SRC4 $HDR6" >> $OP_FILE_NAME
+echo -e "\t$COMPILER $OPTIONS -c -UDEBUG "'$<' >> $OP_FILE_NAME
+echo "" >> $OP_FILE_NAME
+#
+echo "$OBJ5: $SRC5" >> $OP_FILE_NAME
+echo -e "\t$COMPILER $OPTIONS -c -UDEBUG "'$<' >> $OP_FILE_NAME
+echo "" >> $OP_FILE_NAME
+#
+echo "$OBJ6: $SRC6" >> $OP_FILE_NAME
+echo -e "\t$COMPILER $OPTIONS -c -UDEBUG "'$<' >> $OP_FILE_NAME
+echo "" >> $OP_FILE_NAME
+#
+echo "$OBJ7: $SRC7" >> $OP_FILE_NAME
+echo -e "\t$COMPILER $OPTIONS -c -UDEBUG "'$<' >> $OP_FILE_NAME
+echo "" >> $OP_FILE_NAME
+#
+echo "check: $TRGT" >> $OP_FILE_NAME
+echo -e "\tcd test; ./check" >> $OP_FILE_NAME
+echo "" >> $OP_FILE_NAME
+#
+echo "chk: $TRGT" >> $OP_FILE_NAME
+echo -e "\tcd test; ./chk" >> $OP_FILE_NAME
+echo "" >> $OP_FILE_NAME
+#
+echo "clean:" >> $OP_FILE_NAME
+echo -e "\trm -f $TRGT $TRGT.exe *.o" >> $OP_FILE_NAME
+echo "" >> $OP_FILE_NAME
+#
+echo "debug: clean" >> $OP_FILE_NAME
+echo -e "\t$COMPILER $OPTIONS -DDEBUG -c $SRC1" >> $OP_FILE_NAME
+echo -e "\t$COMPILER $OPTIONS -DDEBUG -c $SRC2" >> $OP_FILE_NAME
+echo -e "\t$COMPILER $OPTIONS -DDEBUG -c $SRC3" >> $OP_FILE_NAME
+echo -e "\t$COMPILER $OPTIONS -DDEBUG -c $SRC4" >> $OP_FILE_NAME
+echo -e "\t$COMPILER $OPTIONS -DDEBUG -c $SRC5" >> $OP_FILE_NAME
+echo -e "\t$COMPILER $OPTIONS -DDEBUG -c $SRC6" >> $OP_FILE_NAME
+echo -e "\t$COMPILER $OPTIONS -DDEBUG -c $SRC7" >> $OP_FILE_NAME
+echo -e "\t$COMPILER -o $TRGT $OBJ1 $OBJ2 $OBJ3 $OBJ4 $OBJ5 $OBJ6 $OBJ7 $LNK_OPTIONS" >> $OP_FILE_NAME
+echo "" >> $OP_FILE_NAME
+#
