@@ -1,0 +1,614 @@
+/*
+ * P I N G 3 . C
+ *
+ * ping3.c last edited Tue Sep 19 23:37:00 2023
+ * 
+ */
+
+/*
+ * See if a remote Network Device is alive with (possibly multiple) ICMP
+ * echo requests and replies encapsulated in IP version 4 datagrams. 
+ *
+ * On machines other than Apple Macs you will very likely need to have
+ * priveleges provided by sudo to run this program ( or this program must
+ * be suid to root) since it sends the ping datagram using a raw socket.
+ * 
+ */
+
+#include <stdlib.h> 	/* exit() */
+#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/socket.h>	/* inet_addr() inet_ntoa() */
+#include <sys/file.h>
+#include <time.h>		/* clock_gettime() nanosleep() */
+#include <sys/signal.h>
+#include <libgen.h>		/* basename() */
+
+#include <netinet/in_systm.h>
+#include <netinet/in.h>	/* inet_addr() inet_ntoa() */
+#include <arpa/inet.h>	/* inet_addr() inet_ntoa() */
+#include <netinet/ip.h>
+#include <netinet/ip_icmp.h>	/* struct icmp */
+#ifndef __linux__
+#include <netinet/ip_var.h>
+#endif
+#include <netdb.h>		/* gethostbyname() */
+#include <unistd.h>		/* gethostname() alarm() */
+#include <stdio.h>		/* printf() fprintf() perror() */
+#include <ctype.h>
+#include <errno.h>
+#include <string.h>		/* strncpy() */
+#include <math.h>		/* round() */
+#include  "genFun.h"	/* clearByteArray() */
+#include  "dbgFun.h"	/* printNamedByteArray() */
+#include  "ipFun.h"		/* calcCheckSum() display_ip() */
+#include  "ipOptionsFun.h"
+#include  "icmpFun.h"	/* displayICMP() */
+#include  "timeFun.h"	/* convertMilliSecondsSinceMidnightToHMS_String() calcTimeSpecClockDifferenceInSeconds() */
+
+#ifndef  FALSE
+#define  FALSE  ((int)0)
+#endif
+#ifndef  TRUE
+#define  TRUE  (! FALSE)
+#endif
+#ifndef  IPOPT_TS_OLDPRESPEC
+#define  IPOPT_TS_OLDPRESPEC  2		/* Really Old Linux kernels use 2 rather than 3 */
+#endif
+#define EXTENDED_TIME_OUT_PERIOD  10	/* extended time out period in seconds */
+#define DEFAULT_TIME_OUT_PERIOD  3	/* default time out period in seconds */
+#define DEFAULT_PING_COUNT  2		/* default number of pings to send */
+#define	MAX_IP4_PACKET_LEN	65535	/* max IP version 4 packet size - i.e. length is specified by 16 bit word */
+#define	STD_IP4_HDR_LEN	20
+#define MAX_IP4_HDR_OPTION_LEN	40	/* max IP version 4 extra header option length */
+#define ICMP_HDR_LEN	8
+#define	ICMP_PAYLOAD_LEN	12	/* default ICMP data length to 3 millisecond since midnight timestamps */
+#define CONTRIVED_NUMBER 0x1	/* start number for packet identifier */
+
+#ifdef __linux__
+#include "ipOptTS.h"
+typedef  struct ipOptTimestamp  IP_TIMESTAMP;
+#else
+typedef  struct ip_timestamp  IP_TIMESTAMP;
+#endif
+
+/* Apple devices can use SOCK_DGRAM sockets to send ICMP without needing sudo privelege */
+/* Other systems seem to require a raw socket for this purpose and also require sudo  privelege */
+#ifdef __APPLE__
+#define SOCK_TYPE_TO_USE SOCK_DGRAM
+#else
+#define SOCK_TYPE_TO_USE SOCK_RAW
+#endif
+
+extern int  errno;
+
+int	 verboseFlag;	/* when true more info is output */
+int	 quietFlag;		/* when true minimise the output info */
+int	 helpFlag;		/* when true help message is printed and program exits */
+int	 debugFlag;		/* when true output lots of info */
+int	 haveLocalHostNameFlag;	/* Local host name is known if true */
+int	 oldTS_Flag;	/* when true forces _TS_PRE.. to be 2 not 3 */
+int  c_Flag;		/* Ping count was found in the command line options */
+int	 pingCount;		/* attempt pingCount pings */
+int  l_Flag;		/* IP Header option length was found in the command line options */
+int  optionLength;	/* IP Header Option length */
+int  t_Flag;		/* Time stamp identifier was found in the command line options */
+int  ip4_OptionTS_Value;	/* Specifies the type of time stamp request and is -1 for none */
+int  w_Flag;		/*  Wait count was found in the command line options */
+int	 waitTimeInSec;		/* when true it waits for > 1 response */
+
+char *  exeName;	/* name of this executable */
+char *  exePath = ( char * ) NULL;	/* path of this executable */
+
+int	 responsesToICMP_Request;	/* counts responses to the ICMP request */
+
+struct sockaddr	 remoteDeviceToPingInfo;	/* target network device to ping */
+
+int	 sckt;
+char *  hostName;
+u_char  ip4_DataToSend[ ICMP_HDR_LEN + ICMP_PAYLOAD_LEN + MAX_IP4_HDR_OPTION_LEN ];
+u_short  ip4_Hdr_ID;	/* The identifier to put in the IP4 header */
+int  packetLen;
+u_char *  packet;		/* pointer to buffer to contain received IP4 ICMP reply packet */
+u_short  process_id;	/* process ID */
+
+struct timespec	 origTime;	/* originate time stamp */
+struct timespec  recvTime;	/* receive time stamp */
+long  tsorig;	/* originate & receive timestamps */
+long  tsrecv; 	/* timestamp = #millisec since midnight UTC */
+long  tstarget;	/* both host byte ordered */
+long  tsdiff;	/* adjustment must also be signed */
+struct timespec  sleepTime;
+struct timespec  sleepRemainder;
+
+
+void  sig_alrm( int  signo )  {
+	if( responsesToICMP_Request == 0 )  {
+		printf( "timeout\n" );
+		exit( 1 );
+	}
+	else  exit( 0 );
+}
+
+
+void  printClockRealTimeRxTxTimes( void )  {
+	printf( "Echo Request send time:  " );
+	printTimeSpecTime( &origTime );
+	printf( "\nEcho Reply receive time: " );
+	printTimeSpecTime( &recvTime );
+	printf( "\n" );
+}
+
+
+void  printClockRealTimeFlightTime( void )  {
+	double  flightTimeInSec;
+
+	flightTimeInSec = calcTimeSpecClockDifferenceInSeconds( &origTime, &recvTime );
+	if( flightTimeInSec <= 0.5 )  printf( "RTT %lg [mS]\n", flightTimeInSec * 1000 );
+	else   printf( "RTT %lg [Sec]\n", flightTimeInSec );
+}
+
+
+/*
+ * Send the icmp echo request.
+ */
+int  sendICMP_Request( int  socketID, u_char *  ip4_Data, int  dataBytesCount, u_short  seqID )  {
+	ssize_t	 numberOfBytesSent;
+	struct icmp	*  icmpHdrPtr;
+
+	numberOfBytesSent = 0;
+/* Set up the ICMP info if there is enough room in the ip_Data buffer */
+	if( dataBytesCount > ICMP_HDR_LEN )  {
+		icmpHdrPtr = (struct icmp *) ip4_Data;
+		icmpHdrPtr->icmp_type = ICMP_ECHO;
+		icmpHdrPtr->icmp_code = 0;
+		icmpHdrPtr->icmp_cksum = 0;	/* compute checksum below */
+		icmpHdrPtr->icmp_seq = htons( seqID ); /* seq and id must be reflected */
+		icmpHdrPtr->icmp_id = htons( process_id );
+
+		/*  fill in originate timestamp: have to convert 
+			from seconds since the Epoch to milliseconds
+			since midnight */
+	
+	     /* compute ICMP checksum */
+		icmpHdrPtr->icmp_cksum = calcCheckSum((u_short *) icmpHdrPtr, dataBytesCount );
+		if( debugFlag )  {
+			printNamedByteArray( ip4_Data, dataBytesCount, 20, "ip4 Data payload (send array contents)" );
+			printf( "\n" );
+		}
+		/* Send Packet */
+		clock_gettime( CLOCK_REALTIME, &origTime );		/* remember time just before the packet is sent */
+		numberOfBytesSent = sendto( socketID, (char *)ip4_Data, dataBytesCount, 0, &remoteDeviceToPingInfo, sizeof( struct sockaddr ));
+		tsorig = calcMillisecondsSinceMidnightFromTimeSpec( &origTime );
+		if(( numberOfBytesSent < 0 ) && ( ! quietFlag ))  perror( "?? sendto error" );
+		else if(( numberOfBytesSent != dataBytesCount ) && ( ! quietFlag )) {
+			printf("?? sendto() wrote %ld chars to %s, but it should have been %d chars\n",
+				numberOfBytesSent, hostName, dataBytesCount );
+		}
+	}
+	return( numberOfBytesSent );
+}
+
+
+/* Print the normal ping info */
+/* E.g. XX bytes from AAA.BBB.CCC.DDD: seq YYYYY, ttl ZZZ, RTT 0.994 [mS] */
+void  printStdPingInfo( struct ip *  ip, struct icmp *  icmpHdrPtr, int  ICMP_MsgSize )  {
+	pingVitalInfo( ip, ICMP_MsgSize );
+	printf( " seq %d, ", ntohs( icmpHdrPtr->icmp_seq));
+	pingTimeToLiveInfo( ip );
+	printf( ", " );
+	printClockRealTimeFlightTime();
+}
+
+
+/*
+ * Process a received datagram that should be an ICMP message.
+ * Since we receive all ICMP messages that the kernel receives,
+ * we may receive a type of ICMP message other than the
+ * reply we're waiting for.
+ */
+int  processReceivedDatagram( char *  buf, int  datagramSize, struct sockaddr_in *  from )  {
+	int  hdrLen;
+	u_short  chkSumResult;
+	struct icmp *  icmpHdrPtr;
+	struct ip *  ip;
+	IP_TIMESTAMP *  tsPntr;
+	struct ipt_ta *	 ipt_taPtr;
+	double  halfRoundTripTime;
+
+	tsrecv = calcMillisecondsSinceMidnightFromTimeSpec( &recvTime );
+ /* Check the IP datagram */
+	ip = (struct ip *) buf;
+	tsPntr = (IP_TIMESTAMP * ) ( buf + sizeof( struct ip ));
+ /* Received datagram is assumed to be an IP4 datagram, but check to make sure */
+    if( ip->ip_v != 4 )  {
+		fprintf( stderr, "\n?? Datagram from %s version ( %x ) indicates it isn't an IP4 datagram\n", 
+			inet_ntoa( *(struct in_addr *)&from->sin_addr.s_addr), ip->ip_v );
+		printNamedByteArray(( u_char *) ip, datagramSize, 20, "processReceivedDatagram(): non IP4 datagram received" );
+		return( -1 );
+	}
+	hdrLen = ip->ip_hl << 2;	/* determine the length of the IP datagram header */
+	icmpHdrPtr = (struct icmp *)( buf + hdrLen );	/* point to the start of the datagram payload (i.e. ICMP message) */
+	if( debugFlag )  {
+		printf( "Datagram Length is %d - Header Length is %d\n", datagramSize, hdrLen );
+		printNamedByteArray(( u_char *) ip, datagramSize, 20, "processReceivedDatagram(): Complete IP4 datagram received" );
+	}
+	ip->ip_len = htons( datagramSize );		/* restore total length in header in case it has been altered */
+	if(( chkSumResult = calcCheckSum( (u_short * ) ip, hdrLen )) != 0 )  {
+		fprintf( stderr, "\n?? Datagram from %s has invalid IP header checksum result 0x%04x\n", 
+			inet_ntoa( *(struct in_addr *)&from->sin_addr.s_addr), chkSumResult );
+	 /* Try zero the time option if there is one */
+		if( verboseFlag )
+			printNamedByteArray(( u_char *) ip, datagramSize, 20, "processReceivedDatagram(): IP4 header checksum failed datagram" );
+	}
+ /* Received datagram is assumed to be an ICMP datagram, but check to make sure */
+    if( ip->ip_p != 0x01 )  {
+		fprintf( stderr, "\n?? Datagram from %s header protocol ( %x ) isn't ICMP message\n", 
+			inet_ntoa( *(struct in_addr *)&from->sin_addr.s_addr), ip->ip_p );
+		if( verboseFlag )
+			printNamedByteArray(( u_char *) ip, datagramSize, 20, "processReceivedDatagram(): non ICMP IP4 received" );
+		return( -1 );
+	}
+	if ( datagramSize < ( hdrLen + ICMP_MINLEN )) {
+		fprintf( stderr, "\n?? Datagram from %s too short (%d bytes) to contain ICMP message\n", 
+			inet_ntoa( *(struct in_addr *)&from->sin_addr.s_addr), datagramSize );
+		if( verboseFlag )
+			printNamedByteArray(( u_char *) ip, datagramSize, 20, "processReceivedDatagram(): too short ICMP IP4 received" );
+		return( -1 );
+	}
+	if( debugFlag )  {
+		printf( "\n--==## processReceivedDatagram(): display IP4 datagram ##==--\n" );
+		display_ip( ip, datagramSize );
+	}
+     /* Now the ICMP body + header options (if there are any) */
+	
+     /* With a raw ICMP socket we get all ICMP packets that come into the kernel. */
+	if( icmpHdrPtr->icmp_type != ICMP_ECHOREPLY )  {
+		if( ! quietFlag )  {
+			printf( "\n? unexpected icmp type 0x%x, sub code 0x%x, from %s\n", icmpHdrPtr->icmp_type,
+				icmpHdrPtr->icmp_code, inet_ntoa(*(struct in_addr *) &from->sin_addr.s_addr ));
+			if( verboseFlag )  displayICMP( icmpHdrPtr );
+		}
+		if( verboseFlag )
+			printNamedByteArray(( u_char *) ip, datagramSize, 20, "processReceivedDatagram(): non Echo Reply ICMP IP4 received" );
+		return( -1 );	/* some other type of ICMP message */
+	}
+	if( ntohs( icmpHdrPtr->icmp_id ) != process_id )  {
+		printf("? processReceivedDatagram(): received id 0x%04x but expected 0x%04x\n",
+			ntohs( icmpHdrPtr->icmp_id ), process_id );
+		if( debugFlag )  display_ip( ip, datagramSize );
+	}
+	if( ntohs( icmpHdrPtr->icmp_seq ) != ip4_Hdr_ID )  {
+		printf( "? processReceivedDatagram(): received sequence # %d but expected %d\n",
+			ntohs( icmpHdrPtr->icmp_seq ), ip4_Hdr_ID );
+		if( debugFlag )  display_ip( ip, datagramSize );
+	}
+	if( hdrLen == STD_IP4_HDR_LEN )  {
+		printStdPingInfo( ip, icmpHdrPtr, datagramSize );
+		if( debugFlag )  printClockRealTimeRxTxTimes();
+	}
+	else  {
+		/* Print the normal ping info E.g. XX bytes from AAA.BBB.CCC.DDD: seq YYYYY, ttl ZZZ, RTT 0.994 [mS] */
+		printStdPingInfo( ip, icmpHdrPtr, datagramSize );
+		if( debugFlag )  printClockRealTimeRxTxTimes();
+		if(( hdrLen - STD_IP4_HDR_LEN ) > 0 )  {	/* when true there is a option section in the IP4 header */
+			if( debugFlag )  displayIpOptionList(( u_char *) tsPntr, hdrLen - STD_IP4_HDR_LEN );
+		}
+		if(( hdrLen - STD_IP4_HDR_LEN ) > 4 )  {	/* when true there is at least a valid option header to work on */
+			if( verboseFlag )  {
+				printf( " Local Tx time:" );
+				displayAbsTimeInMultipleFormats( calcMillisecondsSinceMidnightFromTimeSpec( &origTime ), verboseFlag );
+				printf( "\n" );
+			}
+			displayIpOptionTimeStamps( ( u_char *) tsPntr, hdrLen - STD_IP4_HDR_LEN,
+				calcMillisecondsSinceMidnightFromTimeSpec( &origTime ), verboseFlag );
+			if( verboseFlag )  {
+				printf( " Local Rx time:" );
+				displayAbsTimeInMultipleFormats( calcMillisecondsSinceMidnightFromTimeSpec( &recvTime ), verboseFlag );
+				printf( "\n" );
+			}
+			displayOnlyGreaterThanZeroTimeStampOverflowCount(( u_char *) tsPntr );
+		}
+		/* tsorig and tsrecv are both signed longs.  The icmp time
+		 * members in the structure are unsigned, but the max value
+		 * for the #millisec since midnight is (24*60*60*1000 - 1)
+		 * or 86,399,999, which easily fits into a signed long.
+		 * We want them signed to compute a signed difference. */
+		halfRoundTripTime = round( calcTimeSpecClockDifferenceInSeconds( &origTime, &recvTime ) * ( double ) 500.0 );
+		tstarget = ntohl( tsPntr->ipt_timestamp.ipt_ta[ 0 ].ipt_time );
+		ipt_taPtr = &tsPntr->ipt_timestamp.ipt_ta[ 0 ];
+		ipt_taPtr += 1;
+		/* ipt_taPtr->ipt_addr = ( struct in_addr ) ( rxdIP4_Packet->ip_dst ); */
+		tsrecv = ntohl( ipt_taPtr->ipt_time );
+#ifdef DEBUG
+		if( debugFlag )  {
+			printNamedByteArray(( u_char *) tsPntr, hdrLen - STD_IP4_HDR_LEN, 20, "processReceivedDatagram(): IP4 option received" );
+			displayIpOptions(( u_char *) tsPntr, hdrLen - STD_IP4_HDR_LEN );
+		}
+#endif
+		 /* Now get time according to target when return packet left */
+    	 /* Assume packets travel was same speed in both directions */
+    	 /* Thus time here when packet was actually processed by target */
+    	 /* is  tsorig + 0.5 * tsRTT, now subtract that from target time */
+		tstarget += ( int ) halfRoundTripTime;	/* adjusted time */		
+		tsdiff = tsrecv - tstarget;		/* difference in millisec */
+		if(( ip4_OptionTS_Value == IPOPT_TS_PRESPEC ) && verboseFlag ) { /* time difference output only if known and verbose required */
+			if( tsrecv < 0 )
+				printf( "? Non standard time format %ld ms (0x%lx)", tsrecv, tsrecv );
+			printf( "Local device clock is " );
+			if( tsdiff < 0 )  {
+				displayDeltaTimeInMultipleFormats( -1 * tsdiff, verboseFlag );
+				printf(" behind " );
+			}
+			else  {
+				displayDeltaTimeInMultipleFormats( tsdiff, verboseFlag );
+				printf(" ahead of " );
+			}
+			printf( "Remote device clock\n" );
+		}
+		if( debugFlag )
+			printf( "Orig = %ld, Target %ld, Recv = %ld, Estimated diff = %ld\n",
+				tsorig, tstarget, tsrecv, tsdiff );
+	} 
+	return( 0 );	/* done */
+}
+
+
+int sendICMP_RequestAndGetResponse( int socketID, int  dataByteCnt, u_short  ip4_HdrID )  {
+	int  response = 0;
+	socklen_t  fromLen;
+	struct sockaddr_in  from;
+	register int  numOfBytesRcvd;
+
+	if( sendICMP_Request( sckt, ip4_DataToSend, dataByteCnt, ip4_HdrID ) != dataByteCnt )  {	/* send the stock standard icmp echo request */
+		printf( "?? Unable to send the expected number of bytes in the network datagram" );
+	}
+	else {
+		if( waitTimeInSec > 0 )  alarm( waitTimeInSec );	/* Specify 1 to 15 second time limit */
+		else  alarm( DEFAULT_TIME_OUT_PERIOD );	/* default to 2 second time limit for a response */
+		for( response = 0;; )  {
+			fromLen = sizeof( from );
+			if(( numOfBytesRcvd = recvfrom( socketID, (char *)packet, packetLen, 0,
+			    ( struct sockaddr *) &from, &fromLen )) < 0 ) {
+				clock_gettime( CLOCK_REALTIME, &recvTime );	/* Remember time of error */
+				if( errno == EINTR )
+					continue;
+				perror( "?? recvfrom error" );
+				continue;
+			}
+			clock_gettime( CLOCK_REALTIME, &recvTime );		/* Remember time of received ICMP packet */
+			/* process received ICMP message */
+			if( processReceivedDatagram((char *)packet, numOfBytesRcvd, &from ) == 0 )
+				response++;	/* terminate if reply received */
+			if(( waitTimeInSec > 0 ) && ( response > 0 ))  break;
+		}
+		alarm( 0 );	/* Cancel timeout alarm */
+	}
+	return( response );
+}
+
+
+int  sendICMP_RequestWithTimeStampOptionInTheIP4_Hdr( struct sockaddr_in *  to, struct ip *  rxdIP4_Packet, u_short  ip4_HdrID )  {
+	int  returnValue = 1;
+	u_char  inetTimeStamp[ MAX_IP4_HDR_OPTION_LEN ];	/* Storage for optional IP4 header options */
+	IP_TIMESTAMP *  tsPtr;		/* time stamp pointer */
+	struct ipt_ta *	 ipt_taPtr;
+
+	rxdIP4_Packet = ( struct ip * ) packet;
+	tsPtr = (IP_TIMESTAMP *) inetTimeStamp;
+	bzero((char *) tsPtr, MAX_IP4_HDR_OPTION_LEN );
+	tsPtr->ipt_code = IPOPT_TS;
+	tsPtr->ipt_len = optionLength;
+	tsPtr->ipt_ptr = 5;
+	if( oldTS_Flag )  tsPtr->ipt_flg = IPOPT_TS_OLDPRESPEC;
+	else  tsPtr->ipt_flg = ip4_OptionTS_Value;
+	tsPtr->ipt_oflw = 0;
+	tsPtr->ipt_timestamp.ipt_ta[0].ipt_addr = to->sin_addr;		/* insert remote network device IP address */
+	tsPtr->ipt_timestamp.ipt_ta[0].ipt_time = 0;
+	ipt_taPtr = &tsPtr->ipt_timestamp.ipt_ta[0];
+	ipt_taPtr += 1;
+	ipt_taPtr->ipt_addr = ( struct in_addr ) ( rxdIP4_Packet->ip_dst );
+	ipt_taPtr->ipt_time = 0;
+	if( setsockopt( sckt, IPPROTO_IP, IP_OPTIONS, tsPtr, optionLength ) != 0 )  {
+		perror("?? main(): setsocketopt() unable to set up time stamp option" );
+	}
+	else  {
+		if( debugFlag ) {
+			printNamedByteArray( ( u_char *) tsPtr, optionLength, 20, "inetTimeStamp Structure" );
+			printf( "\n" );
+			displayIpOptions( ( u_char *) tsPtr, optionLength, verboseFlag );
+		}
+		sendICMP_RequestAndGetResponse( sckt, ICMP_HDR_LEN + ICMP_PAYLOAD_LEN, ip4_HdrID );
+		returnValue = 0;
+	}
+	return( returnValue );
+}
+
+/* Help/Usage information */
+void  useage( char *  name )  {
+	printf( "\nuseage: %s NetworkDeviceName [-cX][-D][-h][-lXX][-o][-q][-tX][-v][-wX]\n", name );
+	printf( "or      %s NetworkDeviceIP_Number [-cX][-D][-h][-lXX][-o][-q][-tX][-v][-wX]\n", name );
+	printf( "\nwhere options; -\n" );
+	printf( "        -cX  specifies number of times to ping remote network device\n" );
+	printf( "        -D  switches on debug output\n" );
+	printf( "        -h  switches on this help output and then terminates %s\n", name );
+	printf( "        -lXX  specifies header option length (default is 40)\n" );
+	printf( "        -o  switches to old timestamp request\n" );
+	printf( "        -q  forces quiet (minimum) output and overrides -v\n" );
+	printf( "        -tX  specifies header option time stamp type (default is none)\n" );
+	printf( "        -v  switches on verbose output\n" );
+	printf( "        -wX  ensures the program waits for X seconds for a response\n" );
+	printf( "\n" );
+} 
+
+
+void  processCommandLineOptions( int  argc, char *  argv[] )  {
+	char *	tmpChrPtr_c;
+	char *	tmpChrPtr_l;
+	char *	tmpChrPtr_t;
+	char *	tmpChrPtr_w;
+
+	tmpChrPtr_c = tmpChrPtr_l = tmpChrPtr_t = tmpChrPtr_w = (char * ) NULL;
+ /* Process any switch parameters at the end of the command line */
+	for( ; (( *argv[ argc - 1 ] == '-' ) && ( argc > 1 )); argc-- )  {
+		switch( *( argv[ argc - 1 ] + 1))  {
+			case 'c' : c_Flag = TRUE; tmpChrPtr_c = argv[ argc - 1 ] + 2; break;
+			case 'D' : debugFlag = TRUE; break;
+			case 'h' : helpFlag = TRUE; break;
+			case 'l' : l_Flag = TRUE; tmpChrPtr_l = argv[ argc - 1 ] + 2; break;
+			case 'o' : oldTS_Flag = TRUE; break;
+			case 'q' : quietFlag = TRUE; break;
+			case 't' : t_Flag = TRUE; tmpChrPtr_t = argv[ argc - 1 ] + 2; break;
+			case 'v' : verboseFlag = TRUE; break;
+			case 'w' : w_Flag = TRUE; tmpChrPtr_w = argv[ argc - 1 ] + 2; break;
+			default : printf( "? switch -%c is undefined - ignored\n",
+				*( argv[ argc - 1 ] + 1)); break;
+		}
+	}
+	pingCount = convertOptionStringToInteger( 3, tmpChrPtr_c, "-c", &c_Flag );
+	pingCount = limitIntegerValueToEqualOrWithinRange( pingCount, 1, 128 );
+	optionLength = convertOptionStringToInteger( MAX_IP4_HDR_OPTION_LEN, tmpChrPtr_l, "-l", &l_Flag );
+	optionLength = limitIntegerValueToEqualOrWithinRange( optionLength, 20, MAX_IP4_HDR_OPTION_LEN );
+	ip4_OptionTS_Value = convertOptionStringToInteger( -1, tmpChrPtr_t, "-t", &t_Flag );
+	ip4_OptionTS_Value = limitIntegerValueToEqualOrWithinRange( ip4_OptionTS_Value, -1, 3 );
+	waitTimeInSec = convertOptionStringToInteger( DEFAULT_TIME_OUT_PERIOD, tmpChrPtr_t, "-w", &w_Flag );
+	waitTimeInSec = limitIntegerValueToEqualOrWithinRange( waitTimeInSec, 1, 15 );
+ 	if( debugFlag )  printf( "Option length is %d bytes\n", optionLength );
+    /* quiet flag over-rides verbose flag if they are both TRUE */
+	if( quietFlag )  verboseFlag = FALSE;
+}
+
+
+/* Preset switch option Flags and Data */
+void  setGlobalFlagDefaults( char *  argv[] )  {	/* Set up any Global variables not already set at declaration */
+
+	helpFlag = oldTS_Flag = debugFlag = verboseFlag = quietFlag = FALSE;
+	c_Flag = FALSE;
+	pingCount = DEFAULT_PING_COUNT;
+	l_Flag = FALSE;
+	optionLength = MAX_IP4_HDR_OPTION_LEN;
+	t_Flag = FALSE;
+	ip4_OptionTS_Value = -1;		/* I.E. no header option time stamp */
+	w_Flag = FALSE;
+	waitTimeInSec = DEFAULT_TIME_OUT_PERIOD;
+	responsesToICMP_Request = 0;
+	bzero((char *) &remoteDeviceToPingInfo, sizeof( struct sockaddr ));
+	process_id = (u_short)( getpid() & 0xffff );
+    /* Isolate the name of the executable */
+    exeName = argv[0];	/* set global variable to default */
+    if(( exePath = strdup( argv[0] )) == NULL )
+    	perror( "Warning: Unable to create duplicate of path to this executable" );
+    else if(( exeName = basename( exePath )) == NULL )  {
+    	perror( "Warning: Unable to obtain the name of this executable" );
+    	exeName = argv[0];	/* set back to the default again */
+    }
+}
+
+
+int  main( int  argc, char *  argv[] )  {
+	int  i, returnValue;
+	struct hostent *  hp;		/* host pointer */
+	struct sockaddr_in *  to;	/* pointer to remote network device info */
+	struct protoent	*  proto;	/* allows protocol to be set to ICMP */
+	char  remoteDeviceNameBuffer[ MAXHOSTNAMELEN ];
+	char  localDeviceNameBuffer[ MAXHOSTNAMELEN ];
+
+/* Preset Global variables, switch option Flags and Data */
+	setGlobalFlagDefaults( argv );	/* Set up any Global variables not already set at declaration */
+
+/* Preset Local variables, option Flags and Data */
+	returnValue = 1;
+
+/* Process switch options from the command line */
+	processCommandLineOptions( argc, argv );
+
+/* Print useage message and exit if the "-h" flag was amongst the command line options */
+/*  or if only the program name is specified (i.e. no icmp echo target is specified ) */
+	if( helpFlag || ( argc < 2 )) {
+		useage( exeName );
+		return(0);
+	}
+
+/* Attempt to get the name of the Local network device */	
+	haveLocalHostNameFlag = ( gethostname( localDeviceNameBuffer, MAXHOSTNAMELEN ) != -1 );
+	if( ! haveLocalHostNameFlag )  {
+		if( verboseFlag )  printf( "? unable to get actual Local host name, using 'localhost' instead.\n" );
+		strncpy( localDeviceNameBuffer, "localhost", sizeof( localDeviceNameBuffer ));
+	}
+	else if( verboseFlag )  printf( "Local Network Device name is: '%s'\n", localDeviceNameBuffer );
+
+/* Set up the address to send the icmp echo request */
+	to = ( struct sockaddr_in *) &remoteDeviceToPingInfo;
+	to->sin_family = AF_INET;
+	hp = NULL;	/* Make sure host entry pointer is initialized to NULL for later test */
+     /* Try to convert command line Remote Network Device specifier as dotted quad (decimals) address, */
+     /* else if that fails assume it's a Network Device name */
+	to->sin_addr.s_addr = inet_addr( argv[1] );	/* attempt to set address from a Dotted Quad IP address */
+	if( to->sin_addr.s_addr == (u_int) -1 )  {	/* test for failure to set address through inet_addr() */
+		hp = gethostbyname( argv[1] );
+		if( hp == NULL )  {
+			if( verboseFlag )  fprintf( stderr, "?? gethostbyname() put h_errno = %d for target %s\n", h_errno, argv[1]);
+			fprintf( stderr, "?? Network Device '%s': %s\n", argv[1], hstrerror( h_errno ));
+			exit( 1 );
+		}
+		to->sin_family = hp->h_addrtype;
+		bcopy( hp->h_addr, (caddr_t)&to->sin_addr, hp->h_length);
+		strncpy( remoteDeviceNameBuffer, hp->h_name, sizeof( remoteDeviceNameBuffer ) - 1);	/* copy official name of remote Network Device */
+		if( verboseFlag )  {
+			printf( "Remote Network Device official name is: '%s'\n", remoteDeviceNameBuffer );
+		 /* Print other names of same Network Device if there are any */
+			for( i = 0; hp->h_aliases[ i ] != NULL; i++ )  {
+				printf( "Remote Network Device name alias %d is: '%s'\n", i + 1, hp->h_aliases[ i ] );
+			}
+		}
+	}
+	if( verboseFlag )  {
+		printf( "Remote Network Device is: %s\n", inet_ntoa( *(struct in_addr *) &to->sin_addr.s_addr ));
+	 /* Print other addresses if there are any */
+	    if( hp != NULL )  {
+			for( i = 1; hp->h_addr_list[ i ] != NULL; i++ )  {
+				printf( "Remote Network Device alias %d is: '%s'\n", i, inet_ntoa( *(struct in_addr *) hp->h_addr_list[ i ] ));
+			}
+		}
+	}
+
+	packetLen = STD_IP4_HDR_LEN + MAX_IP4_HDR_OPTION_LEN + sizeof( ip4_DataToSend );
+	if(( packet = (u_char *) malloc( (u_int) packetLen )) == NULL ) {
+		fprintf( stderr, "?? Unable to create storage of %d bytes for datagram data\n", packetLen );
+	}
+	else if(( proto = getprotobyname( "icmp" )) == NULL ) {
+		fprintf(stderr, "?? Unknown protocol ICMP\n");
+	}
+	else if(( sckt = socket( AF_INET, SOCK_TYPE_TO_USE, proto->p_proto )) < 0 ) {
+		perror("?? Unable to create socket to send ICMP packets");
+	}
+	else  {
+		/* Do first ping WITHOUT IP4 header option, just to make sure ICMP echo/echo-reply is working */
+		/*
+		 * We send one request and wait TIME_OUT_PERIOD seconds for a reply.
+		 */
+		signal( SIGALRM, sig_alrm );
+
+		ip4_Hdr_ID = ( u_short ) CONTRIVED_NUMBER;
+		sendICMP_RequestAndGetResponse( sckt, ICMP_HDR_LEN + ICMP_PAYLOAD_LEN + MAX_IP4_HDR_OPTION_LEN, ip4_Hdr_ID );
+
+ 		/* Do more pings if required */
+		for( i = 1; i < pingCount; i++ )  {
+	 		/* Set up a break between echo requests */
+    		sleepTime.tv_sec = 0L;
+			sleepTime.tv_nsec = 500000000L;	/* half a second sleep time */
+			nanosleep( &sleepTime, &sleepRemainder );
+			ip4_Hdr_ID += 1;	/* bump the packet ID */
+	    	if( ip4_OptionTS_Value < 0 )  {
+			/* Do second & greater pings as normal ICMP echo without any IP header options */
+				sendICMP_RequestAndGetResponse( sckt, ICMP_HDR_LEN + ICMP_PAYLOAD_LEN + MAX_IP4_HDR_OPTION_LEN, ip4_Hdr_ID );	/* Another ping like the first */
+				returnValue = 0;
+			}
+			else  {
+			/* Do second & greater pings with IP4 header option requesting time stamp info */
+				returnValue = sendICMP_RequestWithTimeStampOptionInTheIP4_Hdr( to, ( struct ip * ) packet, ip4_Hdr_ID );
+			}
+		}
+	}
+	return( returnValue );
+}
