@@ -1,7 +1,7 @@
 /*
  * P I N G 3 . C
  *
- * ping3.c last edited Wed Sep 20 14:29:00 2023
+ * ping3.c last edited Wed Sep 20 22:39:55 2023
  * 
  */
 
@@ -88,7 +88,8 @@ int  c_Flag;		/* Ping count was found in the command line options */
 int	 pingCount;		/* attempt pingCount pings */
 int  l_Flag;		/* IP Header option length was found in the command line options */
 int  optionLength;	/* IP Header Option length */
-int  t_Flag;		/* Time stamp identifier was found in the command line options */
+int  T_Flag;		/* ICMP Time stamp identifier was found in the command line options */
+int  t_Flag;		/* IP4 Header options Time stamp identifier was found in the command line options */
 int  ip4_OptionTS_Value;	/* Specifies the type of time stamp request and is -1 for none */
 int  w_Flag;		/*  Wait count was found in the command line options */
 int	 waitTimeInSec;		/* when true it waits for > 1 response */
@@ -108,7 +109,7 @@ int  packetLen;
 u_char *  packet;		/* pointer to buffer to contain received IP4 ICMP reply packet */
 u_short  process_id;	/* process ID */
 
-struct timespec	 timeStoredInSentICMP;	/* time stamp put in the sent Echo Request */
+struct timespec	 timeToBeStoredInSentICMP;	/* time stamp put in the sent Echo Request */
 struct timespec	 timeStoredInReceivedICMP;	/* time stamp retrieved from the Echo Reply */
 struct timespec	 origTime;	/* originate time stamp */
 struct timespec  recvTime;	/* receive time stamp */
@@ -142,15 +143,63 @@ void  printClockRealTimeFlightTime( void )  {
 	double  flightTimeInSec;
 
 	flightTimeInSec = calcTimeSpecClockDifferenceInSeconds( &origTime, &recvTime );
-	if( flightTimeInSec <= 0.5 )  printf( "RTT %lg [mS]\n", flightTimeInSec * 1000 );
-	else   printf( "RTT %lg [Sec]\n", flightTimeInSec );
+	if( flightTimeInSec <= 0.5 )  printf( "RTT %lg [mS]", flightTimeInSec * 1000 );
+	else   printf( "RTT %lg [Sec]", flightTimeInSec );
+}
+
+
+/*
+ * Send the icmp timestamp request.
+ */
+int  sendICMP_TimestampRequest( int  socketID, u_char *  ip4_Data, int  dataBytesCnt, u_short  seqID )  {
+	ssize_t	 numberOfBytesSent;
+	struct icmp	*  icmpHdrPtr;
+	u_char *  icmpDataPtr;
+	u_int32_t *  icmpOrigTimestampPtr;
+
+	numberOfBytesSent = 0;
+	if( debugFlag )  {
+		printf( "Data Byte Count %d, Sequence ID 0x%04x", dataBytesCnt, seqID );
+	}
+/* Set up the ICMP info if there is enough room in the ip_Data buffer */
+	if( dataBytesCnt > ICMP_HDR_LEN )  {
+		clearByteArray( ip4_Data, dataBytesCnt );	/* ensure data is zero'd each time as this storage is reused */
+		icmpHdrPtr = (struct icmp *) ip4_Data;
+		icmpHdrPtr->icmp_type = ICMP_TSTAMP;
+		icmpHdrPtr->icmp_code = 0;
+		icmpHdrPtr->icmp_cksum = 0;	/* compute checksum below */
+		icmpHdrPtr->icmp_seq = htons( seqID ); /* seq and id must be reflected in Echo Reply*/
+		icmpHdrPtr->icmp_id = htons( process_id );
+		icmpDataPtr = ip4_Data + 8;	/* point to icmp Data area */
+		icmpOrigTimestampPtr = ( u_int32_t * ) icmpDataPtr;
+		if( dataBytesCnt >= 20 )  {	/* put mS time in the icmp data section if there is space */
+			clock_gettime( CLOCK_REALTIME, &timeToBeStoredInSentICMP );		/* get time to put in the packet about to be sent */
+			*icmpOrigTimestampPtr = htonl( calcMillisecondsSinceMidnightFromTimeSpec( &timeToBeStoredInSentICMP ));
+	    }
+		 /* compute ICMP checksum */
+		icmpHdrPtr->icmp_cksum = calcCheckSum((u_short *) icmpHdrPtr, dataBytesCnt );
+		if( debugFlag )  {
+			printNamedByteArray( ip4_Data, dataBytesCnt, 20, "ip4 Data payload (send array contents)" );
+			printf( "\n" );
+		}
+		/* Send Packet */
+		clock_gettime( CLOCK_REALTIME, &origTime );		/* remember time just before the packet is sent */
+		numberOfBytesSent = sendto( socketID, (char *)ip4_Data, dataBytesCnt, 0, &remoteDeviceToPingInfo, sizeof( struct sockaddr ));
+		tsorig = calcMillisecondsSinceMidnightFromTimeSpec( &origTime );
+		if(( numberOfBytesSent < 0 ) && ( ! quietFlag ))  perror( "?? sendto error" );
+		else if(( numberOfBytesSent != dataBytesCnt ) && ( ! quietFlag )) {
+			printf("?? sendto() wrote %ld chars to %s, but it should have been %d chars\n",
+				numberOfBytesSent, hostName, dataBytesCnt );
+		}
+	}
+	return( numberOfBytesSent );
 }
 
 
 /*
  * Send the icmp echo request.
  */
-int  sendICMP_Request( int  socketID, u_char *  ip4_Data, int  dataBytesCount, u_short  seqID )  {
+int  sendICMP_EchoRequest( int  socketID, u_char *  ip4_Data, int  dataBytesCount, u_short  seqID )  {
 	ssize_t	 numberOfBytesSent;
 	struct icmp	*  icmpHdrPtr;
 	u_char *  icmpDataPtr;
@@ -167,8 +216,8 @@ int  sendICMP_Request( int  socketID, u_char *  ip4_Data, int  dataBytesCount, u
 		icmpHdrPtr->icmp_id = htons( process_id );
 		icmpDataPtr = ip4_Data + 8;	/* point to icmp Data area */
 		if( dataBytesCount >= 24 )  {	/* put nS time in the icmp data section if there is space */
-			clock_gettime( CLOCK_REALTIME, &timeStoredInSentICMP );		/* get time to put in the packet about to be sent */
-			memcpy( (void *) icmpDataPtr, ( void * ) &timeStoredInSentICMP, sizeof( struct timespec )); /* Don't worry about endianess */	
+			clock_gettime( CLOCK_REALTIME, &timeToBeStoredInSentICMP );		/* get time to put in the packet about to be sent */
+			memcpy( (void *) icmpDataPtr, ( void * ) &timeToBeStoredInSentICMP, sizeof( struct timespec )); /* Don't worry about endianess */	
 	    }
 		 /* compute ICMP checksum */
 		icmpHdrPtr->icmp_cksum = calcCheckSum((u_short *) icmpHdrPtr, dataBytesCount );
@@ -198,6 +247,17 @@ void  printStdPingInfo( struct ip *  ip, struct icmp *  icmpHdrPtr, int  ICMP_Ms
 	pingTimeToLiveInfo( ip );
 	printf( ", " );
 	printClockRealTimeFlightTime();
+}
+
+
+void  printLineOfPingInfo( struct ip *  ip, struct icmp *  icmpHdrPtr, int  ICMP_MsgSize )  {
+	printStdPingInfo( ip, icmpHdrPtr, ICMP_MsgSize );
+	if( icmpHdrPtr->icmp_type == ICMP_TSTAMPREPLY )  {
+		printf( " " );
+		displayTimeStampReplyTimestamps( icmpHdrPtr );
+	}
+	printf( "\n" );
+	if( debugFlag )  printClockRealTimeRxTxTimes();
 }
 
 
@@ -264,8 +324,8 @@ int  processReceivedDatagram( char *  buf, int  datagramSize, struct sockaddr_in
 	}
      /* Now the ICMP body + header options (if there are any) */
 	
-     /* With a raw ICMP socket we get all ICMP packets that come into the kernel. */
-	if( icmpHdrPtr->icmp_type != ICMP_ECHOREPLY )  {
+     /* With a raw ICMP socket we get all ICMP packets that come into the kernel. Only accept Echo or Timestamp reply */
+	if( ! (( icmpHdrPtr->icmp_type == ICMP_ECHOREPLY ) || ( icmpHdrPtr->icmp_type == ICMP_TSTAMPREPLY )))  {
 		if( ! quietFlag )  {
 			printf( "\n? unexpected icmp type 0x%x, sub code 0x%x, from %s\n", icmpHdrPtr->icmp_type,
 				icmpHdrPtr->icmp_code, inet_ntoa(*(struct in_addr *) &from->sin_addr.s_addr ));
@@ -286,13 +346,11 @@ int  processReceivedDatagram( char *  buf, int  datagramSize, struct sockaddr_in
 		if( debugFlag )  display_ip( ip, datagramSize );
 	}
 	if( hdrLen == STD_IP4_HDR_LEN )  {
-		printStdPingInfo( ip, icmpHdrPtr, datagramSize );
-		if( debugFlag )  printClockRealTimeRxTxTimes();
+		printLineOfPingInfo( ip, icmpHdrPtr, datagramSize );
 	}
 	else  {
 		/* Print the normal ping info E.g. XX bytes from AAA.BBB.CCC.DDD: seq YYYYY, ttl ZZZ, RTT 0.994 [mS] */
-		printStdPingInfo( ip, icmpHdrPtr, datagramSize );
-		if( debugFlag )  printClockRealTimeRxTxTimes();
+		printLineOfPingInfo( ip, icmpHdrPtr, datagramSize );
 		if(( hdrLen - STD_IP4_HDR_LEN ) > 0 )  {	/* when true there is a option section in the IP4 header */
 			if( debugFlag )  displayIpOptionList(( u_char *) tsPntr, hdrLen - STD_IP4_HDR_LEN );
 		}
@@ -356,14 +414,35 @@ int  processReceivedDatagram( char *  buf, int  datagramSize, struct sockaddr_in
 }
 
 
+int sendICMP_Request(  int  socketID, u_char *  ip4_Data, int  dataBytesCount, u_short  seqID )  {
+	int  successFlag;
+	int  bytesSent;
+
+	successFlag = FALSE;
+	if( T_Flag )  {
+		bytesSent = sendICMP_TimestampRequest( socketID, ip4_Data, 20, seqID );	/* ICMP Time stamp is 8 byte Header + 12 byte Data */
+		successFlag = ( bytesSent == 20 );
+		if( ! successFlag )
+			printf( "?? Unable to send 20 bytes of ICMP Timestamp Request in the network datagram" );
+	}
+	else  {
+		bytesSent = sendICMP_EchoRequest( socketID, ip4_Data, dataBytesCount, seqID );
+		successFlag = ( bytesSent == dataBytesCount );
+		if( ! successFlag )
+			printf( "?? Unable to send %d bytes of ICMP Echo Request in the network datagram", dataBytesCount );
+	}
+	return( successFlag );	
+}
+
+
 int sendICMP_RequestAndGetResponse( int socketID, int  dataByteCnt, u_short  ip4_HdrID )  {
 	int  response = 0;
 	socklen_t  fromLen;
 	struct sockaddr_in  from;
 	register int  numOfBytesRcvd;
 
-	if( sendICMP_Request( sckt, ip4_DataToSend, dataByteCnt, ip4_HdrID ) != dataByteCnt )  {	/* send the stock standard icmp echo request */
-		printf( "?? Unable to send the expected number of bytes in the network datagram" );
+	if( ! sendICMP_Request( sckt, ip4_DataToSend, dataByteCnt, ip4_HdrID ))  {	/* send the stock standard icmp echo request */
+		printf( "?? Unable to send the expected number of bytes in the network datagram\n" );
 	}
 	else {
 		if( waitTimeInSec > 0 )  alarm( waitTimeInSec );	/* Specify 1 to 15 second time limit */
@@ -436,6 +515,7 @@ void  useage( char *  name )  {
 	printf( "        -lXX  specifies header option length (default is 40)\n" );
 	printf( "        -q  forces quiet (minimum) output and overrides -v\n" );
 	printf( "        -tX  specifies header option time stamp type (default is none)\n" );
+	printf( "        -T  specifies ICMP time stamp instead of ICMP echo for ping\n" );
 	printf( "        -v  switches on verbose output\n" );
 	printf( "        -wX  ensures the program waits for X seconds for a response\n" );
 	printf( "\n" );
@@ -458,6 +538,7 @@ void  processCommandLineOptions( int  argc, char *  argv[] )  {
 			case 'l' : l_Flag = TRUE; tmpChrPtr_l = argv[ argc - 1 ] + 2; break;
 			case 'q' : quietFlag = TRUE; break;
 			case 't' : t_Flag = TRUE; tmpChrPtr_t = argv[ argc - 1 ] + 2; break;
+			case 'T' : T_Flag = TRUE; break;
 			case 'v' : verboseFlag = TRUE; break;
 			case 'w' : w_Flag = TRUE; tmpChrPtr_w = argv[ argc - 1 ] + 2; break;
 			default : printf( "? switch -%c is undefined - ignored\n",
@@ -487,9 +568,10 @@ void  setGlobalFlagDefaults( char *  argv[] )  {	/* Set up any Global variables 
 	pingCount = DEFAULT_PING_COUNT;
 	l_Flag = FALSE;
 	optionLength = MAX_IP4_HDR_OPTION_LEN;
-	t_Flag = FALSE;
+	T_Flag = FALSE;		/* ICMP Timestamp */
+	t_Flag = FALSE;		/* IP header options timestamp */
 	ip4_OptionTS_Value = -1;		/* I.E. no header option time stamp */
-	w_Flag = FALSE;
+	w_Flag = FALSE;		/* Wait time */
 	waitTimeInSec = DEFAULT_TIME_OUT_PERIOD;
 	responsesToICMP_Request = 0;
 	bzero((char *) &remoteDeviceToPingInfo, sizeof( struct sockaddr ));

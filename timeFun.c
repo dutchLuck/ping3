@@ -1,7 +1,7 @@
 /*
  * T I M E F U N . C
  *
- * timeFun.c last edited on Mon Sep 11 22:18:22 2023
+ * timeFun.c last edited on Wed Sep 20 22:40:23 2023
  *
  * Functions to handle time
  * 
@@ -53,6 +53,14 @@ void  convertMilliSecondsSinceMidnightToHMS_String( long  millisecs, char *  str
 	else if( millisecs < 0L )  sprintf( str, "? Non Std time" );
 	else if( millisecs > 86399999L )  sprintf( str, "? Time too big" );
 	else  convertMilliSecondsToHMS_String( millisecs, str );
+}
+
+
+void  printMilliSecondsSinceMidnightInHMS_Format( long  millisecs )  {
+	char  hmsStr[ 20 ];
+
+	convertMilliSecondsToHMS_String( millisecs, hmsStr );
+	printf( "%s", hmsStr );
 }
 
 

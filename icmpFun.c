@@ -1,7 +1,7 @@
 /*
  * I C M P F U N . C
  *
- * icmpFun.c last edited Mon Sep 18 19:54:32 2023
+ * icmpFun.c last edited Wed Sep 20 22:40:12 2023
  *
  * Functions to handle ICMP Protocol message in the IP datagram payload.
  *
@@ -20,6 +20,7 @@
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
 #include "ipFun.h"
+#include "timeFun.h"	/* printMilliSecondsSinceMidnightInHMS_Format() */
 
 
 void  displayEchoReply( struct icmp *  ptr )  {
@@ -115,6 +116,21 @@ void  displayTimeStampRequest( struct icmp *  ptr )  {
 	printf( "ICMP Time Stamp Request\n" );
 	printf( "\nICMP: Type %d, Code %d, Checksum 0x%04x\n", ptr->icmp_type,
 		ptr->icmp_code, ntohs( ptr->icmp_cksum ));
+}
+
+
+void  displayTimeStampReplyTimestamps( struct icmp *  ptr )  {
+	u_char *  u_Ptr;
+	u_int32_t *  timePtr;
+
+	u_Ptr = ( u_char * ) ptr;
+	timePtr = ( u_int32_t * )( u_Ptr + 8 );
+	printf( "tso " );
+	printMilliSecondsSinceMidnightInHMS_Format( ntohl( *timePtr ) );
+	printf( " tsr " );
+	printMilliSecondsSinceMidnightInHMS_Format( ntohl( timePtr[ 1 ] ) );
+	printf( " tst " );
+	printMilliSecondsSinceMidnightInHMS_Format( ntohl( timePtr[ 2 ] ) );
 }
 
 

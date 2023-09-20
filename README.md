@@ -78,7 +78,7 @@ $
 The help / usage information for ping3 can be seen by using the "-h"
 command line option as follows; -
 ```
-% ./ping3 -h
+% ./ping3
 
 useage: ping3 NetworkDeviceName [-cX][-D][-h][-lXX][-q][-tX][-v][-wX]
 or      ping3 NetworkDeviceIP_Number [-cX][-D][-h][-lXX][-q][-tX][-v][-wX]
@@ -90,6 +90,7 @@ where options; -
         -lXX  specifies header option length (default is 40)
         -q  forces quiet (minimum) output and overrides -v
         -tX  specifies header option time stamp type (default is none)
+        -T  specifies ICMP time stamp instead of ICMP echo for ping
         -v  switches on verbose output
         -wX  ensures the program waits for X seconds for a response
 
