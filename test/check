@@ -1,0 +1,75 @@
+#! /bin/bash
+#
+# C H E C K
+#
+# check last edited Thu Oct  5 10:29:57 2023
+#
+TARGET=192.168.1.1
+PROGRAM=ping3
+#
+echo
+echo "Operating System designation is $OSTYPE"
+echo
+#
+if [[ "$OSTYPE" == "darwin"* ]] ; then
+  PRIV=""
+else
+  PRIV="sudo"
+fi
+#
+# Compare standard ICMP ECHO request pings
+#
+echo "Test standard ICMP ECHO request pings"
+echo
+#
+echo "$PRIV ../$PROGRAM $TARGET"
+$PRIV ../$PROGRAM  $TARGET
+sleep 1
+echo
+#
+echo "ping -c 3 $TARGET"
+ping -c 3 $TARGET
+sleep 1
+echo
+#
+# Test the IPv4 Header Option Timestamp
+# added to a standard ICMP ECHO request ping
+#
+echo "Test IPv4 Header Option Timestamps"
+echo
+#
+echo "$PRIV ../$PROGRAM $TARGET -t0"
+$PRIV ../$PROGRAM $TARGET -t0
+sleep 1
+echo
+#
+echo "$PRIV ../$PROGRAM $TARGET -t1"
+$PRIV ../$PROGRAM $TARGET -t1
+sleep 1
+echo
+#
+echo "$PRIV ../$PROGRAM $TARGET -t3"
+$PRIV ../$PROGRAM $TARGET -t3
+sleep 1
+echo
+#
+# Test the ICMP TIMESTAMP option and
+# compare to ping output if on macOS
+#
+echo "Test ICMP TIMESTAMP option"
+echo
+#
+echo "$PRIV ../$PROGRAM $TARGET -T"
+$PRIV ../$PROGRAM $TARGET -T
+sleep 1
+#
+# On macOS the ping utility has the capability to send
+# ICMP TIMESTAMP requests, but sudo is needed if the
+# "-s 0" is left out of the command line
+if [[ "$OSTYPE" == "darwin"* ]] ; then
+  echo
+  echo "ping -c 2 -M time -s 0 --apple-time $TARGET"
+  ping -c 2 -M time -s 0 --apple-time $TARGET
+fi
+#
+
