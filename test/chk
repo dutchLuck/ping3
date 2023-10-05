@@ -1,0 +1,72 @@
+#! /bin/bash
+#
+# C H K
+#
+# chk last edited Thu Oct  5 14:22:50 2023
+#
+PROGRAM=ping3
+TARGET=www.apple.com
+LOCAL_GATEWAY=192.168.1.1
+#
+if [[ "$OSTYPE" == "darwin"* ]] ; then
+  PRIV=""
+else
+  PRIV=sudo
+fi
+#
+LOCAL_INTERFACE=`$PRIV ../$PROGRAM $LOCAL_GATEWAY -D -c1 | awk '/Destination Address/{print $4}'`
+#
+# Test standard ICMP ECHO request ping
+# Compare output against standard ping if on
+# Linux system
+#
+echo "Test standard ICMP ECHO request pings"
+echo
+#
+echo "$PRIV ../$PROGRAM $TARGET"
+$PRIV ../$PROGRAM $TARGET
+sleep 1
+echo
+#
+if [[ "$OSTYPE" == "linux-gnu" ]] ; then
+  echo "ping -4 -c 3 $TARGET"
+  ping -4 -c 3 $TARGET
+else
+  echo "ping -c 3 $TARGET"
+  ping -c 3 $TARGET
+fi
+sleep 1
+echo
+#
+# Test the IPv4 Header Option Timestamp
+# added to a standard ICMP ECHO request ping
+# Compare output against standard ping if on
+# Linux system
+#
+echo "Test verbose IPv4 Header Option Timestamp pings"
+echo
+#
+echo "$PRIV ../$PROGRAM $TARGET -t0 -v"
+$PRIV ../$PROGRAM $TARGET -t0 -v
+sleep 1
+echo
+#
+if [[ "$OSTYPE" == "linux-gnu" ]] ; then
+  echo "ping -4 -c 2 -T tsonly $TARGET"
+  ping -4 -c 2 -T tsonly $TARGET
+  sleep 1
+  echo
+fi
+#
+echo "$PRIV ../$PROGRAM $TARGET -t3 -v"
+$PRIV ../$PROGRAM $TARGET -t3 -v
+sleep 1
+#
+if [[ "$LOCAL_INTERFACE" != "" ]] ; then  # Test that we have local interface info
+  if [[ "$OSTYPE" == "linux-gnu" ]] ; then
+    echo
+    echo "ping -4 -c 2 -T tsprespec $LOCAL $TARGET $LOCAL_INTERFACE $TARGET"
+    ping -4 -c 2 -T tsprespec $LOCAL $TARGET $LOCAL_INTERFACE $TARGET
+  fi
+fi
+#
