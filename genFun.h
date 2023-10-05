@@ -1,7 +1,7 @@
 /*
  * G E N F U N . H
  *
- * genFun.h last edited Tue Sep 19 23:36:33 2023
+ * genFun.h last edited Thu Oct  5 22:48:15 2023
  * 
  */
 
@@ -18,7 +18,7 @@ unsigned int  limitUnsignedIntegerValueToEqualOrWithinRange( unsigned int, unsig
 int  limitIntegerValueToEqualOrWithinRange( int, int, int );
 unsigned char  limitUnsignedCharValueToEqualOrWithinRange( unsigned char, unsigned char, unsigned char );
 char  limitCharValueToEqualOrWithinRange( char, char, char );
-long  convertOptionStringToLong( long, char *, char *, int * );
-int  convertOptionStringToInteger( int, char *, char *, int * );
+long  convertOptionStringToLong( long, char *, char *, int *, int );
+int  convertOptionStringToInteger( int, char *, char *, int *, int );
 
 #endif

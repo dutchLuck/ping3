@@ -5,7 +5,16 @@
 # check last edited Thu Oct  5 14:22:54 2023
 #
 PROGRAM=ping3
+#
+# A network device on your local network is the target
+#  change this IPv4 Address to suit your circumstances.
 TARGET=192.168.1.1
+#
+# A Microsoft Windows device on your local network
+#  change this IPv4 Address to suit your circumstances.
+#  If you want a response the Windows firewall may have
+#  to be adjusted to allow the ICMP request through.
+WINDOWS_TARGET=192.168.1.121
 #
 echo
 echo "Operating System designation is $OSTYPE"
@@ -70,8 +79,8 @@ sleep 1
 echo
 #
 if [[ "$OSTYPE" == "linux-gnu" ]] ; then
-  echo "ping -4 -c 2 -T tsprespec $TARGET $TARGET"
-  ping -4 -c 2 -T tsprespec $TARGET $TARGET
+  echo "ping -4 -c 2 -T tsprespec $TARGET $TARGET localhost"
+  ping -4 -c 2 -T tsprespec $TARGET $TARGET localhost
   sleep 1
   echo
 fi
@@ -85,13 +94,29 @@ echo
 echo "$PRIV ../$PROGRAM $TARGET -T"
 $PRIV ../$PROGRAM $TARGET -T
 sleep 1
+echo
 #
 # On macOS the ping utility has the capability to send
 # ICMP TIMESTAMP requests, but sudo is needed if the
 # "-s 0" is left out of the command line
+#
+if [[ "$OSTYPE" == "darwin"* ]] ; then
+  echo "ping -c 3 -M time -s 0 $TARGET"
+  ping -c 3 -M time -s 0 $TARGET
+  echo
+fi
+#
+# Compare output on a Microsoft Windows target
+# which by default appears to have little endian
+# timestamp replies
+#
+echo "$PRIV ../$PROGRAM $WINDOWS_TARGET -T1"
+$PRIV ../$PROGRAM $WINDOWS_TARGET -T1
+sleep 1
+#
 if [[ "$OSTYPE" == "darwin"* ]] ; then
   echo
-  echo "ping -c 3 -M time -s 0 --apple-time $TARGET"
-  ping -c 3 -M time -s 0 --apple-time $TARGET
+  echo "ping -c 3 -M time -s 0 $WINDOWS_TARGET"
+  ping -c 3 -M time -s 0 $WINDOWS_TARGET
 fi
 #

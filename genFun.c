@@ -1,7 +1,7 @@
 /*
  * G E N F U N . C
  *
- * genFun.c last edited Tue Sep 19 23:36:30 2023
+ * genFun.c last edited Thu Oct  5 22:48:07 2023
  * 
  */
 
@@ -73,18 +73,22 @@ char  limitCharValueToEqualOrWithinRange( char  value, char  loBoundary, char  h
 }
 
 
-long  convertOptionStringToLong( long  defltValue, char *  strng, char *  flgName, int *  flgActive )  {
+long  convertOptionStringToLong( long  defltValue, char *  strng, char *  flgName, int *  flgActive, int  strictFlag )  {
 	long  result;
 
 	result = defltValue;
 	if( *flgActive )  {
 		if( strng == ( char * ) NULL )  {
-    		*flgActive = FALSE;
-    		printf( "Warning: Parameter value for option %s is uninitialised, ignoring option %s\n", flgName, flgName );
+			if( strictFlag )  {
+    			*flgActive = FALSE;
+    			printf( "Warning: Parameter value for option %s is uninitialised, ignoring option %s\n", flgName, flgName );
+			}
 		}
 		else if( *strng == '\0' )  {	/* Assume "" used as option value so return default */
-    		*flgActive = FALSE;
-			printf( "Warning: Parameter value for option %s contains no information, ignoring option %s\n", flgName, flgName );
+			if( strictFlag )  {
+    			*flgActive = FALSE;
+				printf( "Warning: Parameter value for option %s contains no information, ignoring option %s\n", flgName, flgName );
+			}
 		}
 		else  {
 #ifdef DEBUG  
@@ -108,11 +112,11 @@ long  convertOptionStringToLong( long  defltValue, char *  strng, char *  flgNam
 }
 
 
-int  convertOptionStringToInteger( int  defltValue, char *  strng, char *  flgName, int *  flgActive )  {
+int  convertOptionStringToInteger( int  defltValue, char *  strng, char *  flgName, int *  flgActive, int  strictFlg )  {
 	long  tempResult;
 	int  result;
 
-	tempResult = convertOptionStringToLong(( long ) defltValue, strng, flgName, flgActive );	/* use long int code */
+	tempResult = convertOptionStringToLong(( long ) defltValue, strng, flgName, flgActive, strictFlg );	/* use long int code */
 	result = ( int ) limitLongValueToEqualOrWithinRange( tempResult, ( long ) INT_MIN, ( long ) INT_MAX );	/* ensure result fits in an integer */
 	return( result );
 }

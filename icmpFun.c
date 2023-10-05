@@ -1,7 +1,7 @@
 /*
  * I C M P F U N . C
  *
- * icmpFun.c last edited Wed Sep 20 22:40:12 2023
+ * icmpFun.c last edited Thu Oct  5 22:48:24 2023
  *
  * Functions to handle ICMP Protocol message in the IP datagram payload.
  *
@@ -119,18 +119,18 @@ void  displayTimeStampRequest( struct icmp *  ptr )  {
 }
 
 
-void  displayTimeStampReplyTimestamps( struct icmp *  ptr )  {
+void  displayTimeStampReplyTimestamps( struct icmp *  ptr, int  nonStdFlag )  {
 	u_char *  u_Ptr;
 	u_int32_t *  timePtr;
 
 	u_Ptr = ( u_char * ) ptr;
 	timePtr = ( u_int32_t * )( u_Ptr + 8 );
 	printf( "tso " );
-	printMilliSecondsSinceMidnightInHMS_Format( ntohl( *timePtr ) );
+	printMilliSecondsSinceMidnightInHMS_Format( ntohl( *timePtr ));		/* We sent the correctly formatted time */
 	printf( " tsr " );
-	printMilliSecondsSinceMidnightInHMS_Format( ntohl( timePtr[ 1 ] ) );
+	printMilliSecondsSinceMidnightInHMS_Format( ( nonStdFlag == 1 ) ? timePtr[ 1 ] : ntohl( timePtr[ 1 ] ));
 	printf( " tst " );
-	printMilliSecondsSinceMidnightInHMS_Format( ntohl( timePtr[ 2 ] ) );
+	printMilliSecondsSinceMidnightInHMS_Format( ( nonStdFlag == 1 ) ? timePtr[ 2 ] : ntohl( timePtr[ 2 ] ));
 }
 
 

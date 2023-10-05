@@ -8,6 +8,10 @@ PROGRAM=ping3
 TARGET=www.apple.com
 LOCAL_GATEWAY=192.168.1.1
 #
+echo
+echo "Operating System designation is $OSTYPE"
+echo
+#
 if [[ "$OSTYPE" == "darwin"* ]] ; then
   PRIV=""
 else

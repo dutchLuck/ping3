@@ -1,7 +1,7 @@
 /*
  * P I N G 3 . C
  *
- * ping3.c last edited Wed Sep 20 22:39:55 2023
+ * ping3.c last edited Thu Oct  5 22:49:10 2023
  * 
  */
 
@@ -89,6 +89,7 @@ int	 pingCount;		/* attempt pingCount pings */
 int  l_Flag;		/* IP Header option length was found in the command line options */
 int  optionLength;	/* IP Header Option length */
 int  T_Flag;		/* ICMP Time stamp identifier was found in the command line options */
+int  icmpTS_Value;	/* Specifies the type of time stamp request and is -1 for none */
 int  t_Flag;		/* IP4 Header options Time stamp identifier was found in the command line options */
 int  ip4_OptionTS_Value;	/* Specifies the type of time stamp request and is -1 for none */
 int  w_Flag;		/*  Wait count was found in the command line options */
@@ -254,7 +255,7 @@ void  printLineOfPingInfo( struct ip *  ip, struct icmp *  icmpHdrPtr, int  ICMP
 	printStdPingInfo( ip, icmpHdrPtr, ICMP_MsgSize );
 	if( icmpHdrPtr->icmp_type == ICMP_TSTAMPREPLY )  {
 		printf( " " );
-		displayTimeStampReplyTimestamps( icmpHdrPtr );
+		displayTimeStampReplyTimestamps( icmpHdrPtr, icmpTS_Value );
 	}
 	printf( "\n" );
 	if( debugFlag )  printClockRealTimeRxTxTimes();
@@ -506,8 +507,8 @@ int  sendICMP_RequestWithTimeStampOptionInTheIP4_Hdr( struct sockaddr_in *  to, 
 
 /* Help/Usage information */
 void  useage( char *  name )  {
-	printf( "\nuseage: %s NetworkDeviceName [-cX][-D][-h][-lXX][-q][-tX][-v][-wX]\n", name );
-	printf( "or      %s NetworkDeviceIP_Number [-cX][-D][-h][-lXX][-q][-tX][-v][-wX]\n", name );
+	printf( "\nuseage: %s NetworkDeviceName [-cX][-D][-h][-lXX][-q][-tX][-T[X]][-v][-wX]\n", name );
+	printf( "or      %s NetworkDeviceIP_Number [-cX][-D][-h][-lXX][-q][-tX][-T[X]][-v][-wX]\n", name );
 	printf( "\nwhere options; -\n" );
 	printf( "        -cX  specifies number of times to ping remote network device\n" );
 	printf( "        -D  switches on debug output\n" );
@@ -515,7 +516,15 @@ void  useage( char *  name )  {
 	printf( "        -lXX  specifies header option length (default is 40)\n" );
 	printf( "        -q  forces quiet (minimum) output and overrides -v\n" );
 	printf( "        -tX  specifies header option time stamp type (default is none)\n" );
-	printf( "        -T  specifies ICMP time stamp instead of ICMP echo for ping\n" );
+	printf( "          where X is an integer ( 0 <= X <= 3 ).\n" );
+	printf( "            If 0 then Time Stamp Only,\n" );
+	printf( "            if 1 then Time Stamp and Address,\n" );
+	printf( "            if 3 then Time Stamp prespecified Addresses,\n" );
+	printf( "        -T[X]  specifies ICMP Time Stamp request instead of ICMP Echo for ping\n" );
+	printf( "          where optional [X] is missing or an integer.\n" );
+	printf( "            If greater than 0 then tsr & tst are treated as little endian\n" );
+	printf( "            (i.e. Windows default response, if the ICMP Time Stamp request\n" );
+	printf( "            is allowed through the Windows firewall. )\n" );
 	printf( "        -v  switches on verbose output\n" );
 	printf( "        -wX  ensures the program waits for X seconds for a response\n" );
 	printf( "\n" );
@@ -526,9 +535,10 @@ void  processCommandLineOptions( int  argc, char *  argv[] )  {
 	char *	tmpChrPtr_c;
 	char *	tmpChrPtr_l;
 	char *	tmpChrPtr_t;
+	char *	tmpChrPtr_T;
 	char *	tmpChrPtr_w;
 
-	tmpChrPtr_c = tmpChrPtr_l = tmpChrPtr_t = tmpChrPtr_w = (char * ) NULL;
+	tmpChrPtr_c = tmpChrPtr_l = tmpChrPtr_t = tmpChrPtr_T = tmpChrPtr_w = (char * ) NULL;
  /* Process any switch parameters at the end of the command line */
 	for( ; (( *argv[ argc - 1 ] == '-' ) && ( argc > 1 )); argc-- )  {
 		switch( *( argv[ argc - 1 ] + 1))  {
@@ -538,21 +548,23 @@ void  processCommandLineOptions( int  argc, char *  argv[] )  {
 			case 'l' : l_Flag = TRUE; tmpChrPtr_l = argv[ argc - 1 ] + 2; break;
 			case 'q' : quietFlag = TRUE; break;
 			case 't' : t_Flag = TRUE; tmpChrPtr_t = argv[ argc - 1 ] + 2; break;
-			case 'T' : T_Flag = TRUE; break;
+			case 'T' : T_Flag = TRUE; tmpChrPtr_T = argv[ argc - 1 ] + 2; break;
 			case 'v' : verboseFlag = TRUE; break;
 			case 'w' : w_Flag = TRUE; tmpChrPtr_w = argv[ argc - 1 ] + 2; break;
 			default : printf( "? switch -%c is undefined - ignored\n",
 				*( argv[ argc - 1 ] + 1)); break;
 		}
 	}
-	pingCount = convertOptionStringToInteger( 3, tmpChrPtr_c, "-c", &c_Flag );
+	pingCount = convertOptionStringToInteger( 3, tmpChrPtr_c, "-c", &c_Flag, TRUE );
 	pingCount = limitIntegerValueToEqualOrWithinRange( pingCount, 1, 128 );
-	optionLength = convertOptionStringToInteger( MAX_IP4_HDR_OPTION_LEN, tmpChrPtr_l, "-l", &l_Flag );
+	optionLength = convertOptionStringToInteger( MAX_IP4_HDR_OPTION_LEN, tmpChrPtr_l, "-l", &l_Flag, TRUE );
 	optionLength = limitIntegerValueToEqualOrWithinRange( optionLength, 20, MAX_IP4_HDR_OPTION_LEN );
-	ip4_OptionTS_Value = convertOptionStringToInteger( -1, tmpChrPtr_t, "-t", &t_Flag );
+	ip4_OptionTS_Value = convertOptionStringToInteger( -1, tmpChrPtr_t, "-t", &t_Flag, TRUE );
 	ip4_OptionTS_Value = limitIntegerValueToEqualOrWithinRange( ip4_OptionTS_Value, -1, 3 );
 	if( ip4_OptionTS_Value == 2 )  ip4_OptionTS_Value = 3;	/* Force 2 (not used) to 3 (PRE_SPEC) */
-	waitTimeInSec = convertOptionStringToInteger( DEFAULT_TIME_OUT_PERIOD, tmpChrPtr_t, "-w", &w_Flag );
+	icmpTS_Value = convertOptionStringToInteger( 0, tmpChrPtr_T, "-T", &T_Flag, FALSE );
+	icmpTS_Value = limitIntegerValueToEqualOrWithinRange( icmpTS_Value, 0, 1 );
+	waitTimeInSec = convertOptionStringToInteger( DEFAULT_TIME_OUT_PERIOD, tmpChrPtr_t, "-w", &w_Flag, TRUE );
 	waitTimeInSec = limitIntegerValueToEqualOrWithinRange( waitTimeInSec, 1, 15 );
  	if( debugFlag )  printf( "Option length is %d bytes\n", optionLength );
     /* quiet flag over-rides verbose flag if they are both TRUE */
@@ -568,9 +580,10 @@ void  setGlobalFlagDefaults( char *  argv[] )  {	/* Set up any Global variables 
 	pingCount = DEFAULT_PING_COUNT;
 	l_Flag = FALSE;
 	optionLength = MAX_IP4_HDR_OPTION_LEN;
-	T_Flag = FALSE;		/* ICMP Timestamp */
 	t_Flag = FALSE;		/* IP header options timestamp */
-	ip4_OptionTS_Value = -1;		/* I.E. no header option time stamp */
+	ip4_OptionTS_Value = -1;	/* I.E. no header option time stamp */
+	T_Flag = FALSE;		/* ICMP Timestamp */
+	icmpTS_Value = -1;	/* I.E. no need to reverse time stamp */
 	w_Flag = FALSE;		/* Wait time */
 	waitTimeInSec = DEFAULT_TIME_OUT_PERIOD;
 	responsesToICMP_Request = 0;
