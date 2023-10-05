@@ -1,10 +1,12 @@
 # ping3
-Send multiple Internet Protocol version 4 ICMP echo requests to a
-remote network device and display round trip time information if
+Send multiple Internet Protocol version 4 (IPv4) ICMP Echo
+requests or multiple IPv4 ICMP Time Stamp requests to a remote
+network device and display round trip time information if
 echo replies are received back.
 
-This utility program is named "ping3" because it sends an ICMP
-echo request to a network device and waits for the device to reply.
+This utility program is named "ping3" because it defaults to sending
+three ICMP echo/timestamp request to a network device and waits for
+the device to reply to each request.
 If the device replies then some information on how long the round-
 trip-time (RTT) was is printed out. If the device doesn't respond
 then a time-out message is printed instead.
@@ -16,9 +18,10 @@ utility, but differs considerably for more rarely used modes of
 operation. Linux ping provides a timestamp and record route
 capability through header options and macOS ping doesn't. However
 macOS ping provides a timestamp capability through ICMP timestamp
-request, although this mode requires elevated priveleges via sudo. 
+requests. This mode requires elevated priveleges via sudo, unless
+the "-s 0" option is included with the "-M time" option. 
 The ping3 utility provides timestamp in the header options on a
-macOS system.
+macOS system and provides ICMP timestamp pings on a linux system.
 
 The default output of ping3 on a macOS system is somewhat similar
 to the ping utility output minus the summary statistics.
@@ -41,7 +44,7 @@ round-trip min/avg/max/stddev = 24.187/25.471/26.968/1.145 ms
 %
 ```
 There doesn't appear to be equivalent options on the macOS ping
-that give timestamps in the following fashion; -
+that give "tsonly" timestamps in the following fashion; -
 ```
 % ./ping3 www.apple.com -t0 -c2
 60 bytes from 23.202.170.41: seq 0, ttl 59, RTT 21.581 [mS]
@@ -55,7 +58,8 @@ that give timestamps in the following fashion; -
  12:50:10.239 ( 105 [mS]))
 %
 ```
-Linux ping can output timestamps in the following way; -
+Linux ping can output IPv4 header option timestamps in the
+following way; -
 ```
 $ ping -4 -n -c 1 -T tsonly www.apple.com
 PING  (23.202.170.41) 56(124) bytes of data.
@@ -80,8 +84,8 @@ command line option as follows; -
 ```
 % ./ping3
 
-useage: ping3 NetworkDeviceName [-cX][-D][-h][-lXX][-q][-tX][-v][-wX]
-or      ping3 NetworkDeviceIP_Number [-cX][-D][-h][-lXX][-q][-tX][-v][-wX]
+useage: ping3 NetworkDeviceName [-cX][-D][-h][-lXX][-q][-tX][-T[X]][-v][-wX]
+or      ping3 NetworkDeviceIP_Number [-cX][-D][-h][-lXX][-q][-tX][-T[X]][-v][-wX]
 
 where options; -
         -cX  specifies number of times to ping remote network device
@@ -90,7 +94,15 @@ where options; -
         -lXX  specifies header option length (default is 40)
         -q  forces quiet (minimum) output and overrides -v
         -tX  specifies header option time stamp type (default is none)
-        -T  specifies ICMP time stamp instead of ICMP echo for ping
+          where X is an integer ( 0 <= X <= 3 ).
+            If 0 then Time Stamp Only,
+            if 1 then Time Stamp and Address,
+            if 3 then Time Stamp prespecified Addresses,
+        -T[X]  specifies ICMP Time Stamp request instead of ICMP Echo for ping
+          where optional [X] is missing or an integer.
+            If greater than 0 then tsr & tst are treated as little endian
+            (i.e. Windows default response, if the ICMP Time Stamp request
+            is allowed through the Windows firewall. )
         -v  switches on verbose output
         -wX  ensures the program waits for X seconds for a response
 
