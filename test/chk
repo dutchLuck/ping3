@@ -2,7 +2,7 @@
 #
 # C H K
 #
-# chk last edited Thu Oct  5 14:22:50 2023
+# chk last edited Thu Oct  5 23:14:45 2023
 #
 PROGRAM=ping3
 TARGET=www.apple.com
@@ -69,8 +69,8 @@ sleep 1
 if [[ "$LOCAL_INTERFACE" != "" ]] ; then  # Test that we have local interface info
   if [[ "$OSTYPE" == "linux-gnu" ]] ; then
     echo
-    echo "ping -4 -c 2 -T tsprespec $LOCAL $TARGET $LOCAL_INTERFACE $TARGET"
-    ping -4 -c 2 -T tsprespec $LOCAL $TARGET $LOCAL_INTERFACE $TARGET
+    echo "ping -4 -c 2 -T tsprespec $TARGET $LOCAL_INTERFACE $TARGET"
+    ping -4 -c 2 -T tsprespec $TARGET $LOCAL_INTERFACE $TARGET
   fi
 fi
 #
