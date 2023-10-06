@@ -2,7 +2,7 @@
 #
 # C H E C K
 #
-# check last edited Thu Oct  5 14:22:54 2023
+# check last edited Fri Oct  6 19:59:03 2023
 #
 PROGRAM=ping3
 #
@@ -25,6 +25,9 @@ if [[ "$OSTYPE" == "darwin"* ]] ; then
 else
   PRIV="sudo"
 fi
+#
+#
+LOCAL_INTERFACE=`$PRIV ../$PROGRAM $TARGET -D -c1 | awk '/Destination Address/{print $4}'`
 #
 # Compare standard ICMP ECHO request pings
 #
@@ -79,8 +82,8 @@ sleep 1
 echo
 #
 if [[ "$OSTYPE" == "linux-gnu" ]] ; then
-  echo "ping -4 -c 2 -T tsprespec $TARGET $TARGET localhost"
-  ping -4 -c 2 -T tsprespec $TARGET $TARGET localhost
+  echo "ping -4 -c 2 -T tsprespec $TARGET $LOCAL_INTERFACE $TARGET" 
+  ping -4 -c 2 -T tsprespec $TARGET $LOCAL_INTERFACE $TARGET
   sleep 1
   echo
 fi
