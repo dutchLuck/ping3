@@ -1,7 +1,7 @@
 /*
  * I C M P F U N . H
  *
- * icmpFun.h last edited Thu Oct  5 22:48:26 2023
+ * icmpFun.h last edited Fri Oct  6 23:57:44 2023
  *
  * Function headers to output ICMP Protocol field in the IP.
  *
@@ -24,7 +24,7 @@
 #include <netinet/ip_icmp.h>	/* struct icmp */
 #include  "ipFun.h"
 
-
+void  displayMaskReplyMask( struct icmp * );
 void  displayTimeStampReplyTimestamps( struct icmp *, int );
 void  displayTimeStampReply( struct icmp *  );
 void  displayEchoReply( struct icmp *  );

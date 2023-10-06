@@ -84,14 +84,15 @@ command line option as follows; -
 ```
 % ./ping3
 
-useage: ping3 NetworkDeviceName [-cX][-D][-h][-lXX][-q][-tX][-T[X]][-v][-wX]
-or      ping3 NetworkDeviceIP_Number [-cX][-D][-h][-lXX][-q][-tX][-T[X]][-v][-wX]
+useage: ping3 NetworkDeviceName [-cX][-D][-h][-lXX][-M][-q][-tX][-T[X]][-v][-wX]
+or      ping3 NetworkDeviceIP_Number [-cX][-D][-h][-lXX][-M][-q][-tX][-T[X]][-v][-wX]
 
 where options; -
         -cX  specifies number of times to ping remote network device
         -D  switches on debug output
         -h  switches on this help output and then terminates ping3
         -lXX  specifies header option length (default is 40)
+        -M  specifies ICMP Mask request instead of ICMP Echo for ping
         -q  forces quiet (minimum) output and overrides -v
         -tX  specifies header option time stamp type (default is none)
           where X is an integer ( 0 <= X <= 3 ).

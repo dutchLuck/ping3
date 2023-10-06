@@ -1,7 +1,7 @@
 /*
  * I C M P F U N . C
  *
- * icmpFun.c last edited Thu Oct  5 22:48:24 2023
+ * icmpFun.c last edited Fri Oct  6 23:57:40 2023
  *
  * Functions to handle ICMP Protocol message in the IP datagram payload.
  *
@@ -159,6 +159,17 @@ void displayMaskRequest( struct icmp *  ptr )  {
 	printf( "ICMP Mask Request\n" );
 	printf( "\nICMP: Type %d, Code %d, Checksum 0x%04x\n", ptr->icmp_type,
 		ptr->icmp_code, ntohs( ptr->icmp_cksum ));
+}
+
+
+void  displayMaskReplyMask( struct icmp *  ptr )  {
+	u_char *  u_Ptr;
+	u_int32_t *  maskPtr;
+
+	u_Ptr = ( u_char * ) ptr;
+	maskPtr = ( u_int32_t * )( u_Ptr + 8 );
+	printf( "mask " );
+	printf( "0x%08x", ntohl( *maskPtr ));
 }
 
 

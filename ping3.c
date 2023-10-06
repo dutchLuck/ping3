@@ -1,7 +1,7 @@
 /*
  * P I N G 3 . C
  *
- * ping3.c last edited Thu Oct  5 22:49:10 2023
+ * ping3.c last edited Fri Oct  6 23:57:33 2023
  * 
  */
 
@@ -88,6 +88,7 @@ int  c_Flag;		/* Ping count was found in the command line options */
 int	 pingCount;		/* attempt pingCount pings */
 int  l_Flag;		/* IP Header option length was found in the command line options */
 int  optionLength;	/* IP Header Option length */
+int  M_Flag;		/* ICMP Mask identifier was found in the command line options */
 int  T_Flag;		/* ICMP Time stamp identifier was found in the command line options */
 int  icmpTS_Value;	/* Specifies the type of time stamp request and is -1 for none */
 int  t_Flag;		/* IP4 Header options Time stamp identifier was found in the command line options */
@@ -146,6 +147,53 @@ void  printClockRealTimeFlightTime( void )  {
 	flightTimeInSec = calcTimeSpecClockDifferenceInSeconds( &origTime, &recvTime );
 	if( flightTimeInSec <= 0.5 )  printf( "RTT %lg [mS]", flightTimeInSec * 1000 );
 	else   printf( "RTT %lg [Sec]", flightTimeInSec );
+}
+
+
+/*
+ * Send the icmp mask request (RFC 950).
+ */
+int  sendICMP_MaskRequest( int  socketID, u_char *  ip4_Data, int  dataBytesCnt, u_short  seqID )  {
+	ssize_t	 numberOfBytesSent;
+	struct icmp	*  icmpHdrPtr;
+	u_char *  icmpDataPtr;
+	u_int32_t *  icmpMaskPtr;
+
+	numberOfBytesSent = 0;
+	if( debugFlag )  {
+		printf( "Data Byte Count %d, Sequence ID 0x%04x", dataBytesCnt, seqID );
+	}
+/* Set up the ICMP info if there is enough room in the ip_Data buffer */
+	if( dataBytesCnt > ICMP_HDR_LEN )  {
+		clearByteArray( ip4_Data, dataBytesCnt );	/* ensure data is zero'd each time as this storage is reused */
+		icmpHdrPtr = (struct icmp *) ip4_Data;
+		icmpHdrPtr->icmp_type = ICMP_MASKREQ;
+		icmpHdrPtr->icmp_code = 0;
+		icmpHdrPtr->icmp_cksum = 0;	/* compute checksum below */
+		icmpHdrPtr->icmp_seq = htons( seqID ); /* seq and id must be reflected in Echo Reply*/
+		icmpHdrPtr->icmp_id = htons( process_id );
+		icmpDataPtr = ip4_Data + 8;	/* point to icmp Data area */
+		icmpMaskPtr = ( u_int32_t * ) icmpDataPtr;
+		if( dataBytesCnt >= 12 )  {	/* put in mask of zero if there is space */
+			*icmpMaskPtr = htonl( 0 );
+	    }
+		 /* compute ICMP checksum */
+		icmpHdrPtr->icmp_cksum = calcCheckSum((u_short *) icmpHdrPtr, dataBytesCnt );
+		if( debugFlag )  {
+			printNamedByteArray( ip4_Data, dataBytesCnt, 20, "ip4 Data payload (send array contents)" );
+			printf( "\n" );
+		}
+		/* Send Packet */
+		clock_gettime( CLOCK_REALTIME, &origTime );		/* remember time just before the packet is sent */
+		numberOfBytesSent = sendto( socketID, (char *)ip4_Data, dataBytesCnt, 0, &remoteDeviceToPingInfo, sizeof( struct sockaddr ));
+		tsorig = calcMillisecondsSinceMidnightFromTimeSpec( &origTime );
+		if(( numberOfBytesSent < 0 ) && ( ! quietFlag ))  perror( "?? sendto error" );
+		else if(( numberOfBytesSent != dataBytesCnt ) && ( ! quietFlag )) {
+			printf("?? sendto() wrote %ld chars to %s, but it should have been %d chars\n",
+				numberOfBytesSent, hostName, dataBytesCnt );
+		}
+	}
+	return( numberOfBytesSent );
 }
 
 
@@ -257,6 +305,10 @@ void  printLineOfPingInfo( struct ip *  ip, struct icmp *  icmpHdrPtr, int  ICMP
 		printf( " " );
 		displayTimeStampReplyTimestamps( icmpHdrPtr, icmpTS_Value );
 	}
+	else if( icmpHdrPtr->icmp_type == ICMP_MASKREPLY )  {
+		printf( " " );
+		displayMaskReplyMask( icmpHdrPtr );
+	}
 	printf( "\n" );
 	if( debugFlag )  printClockRealTimeRxTxTimes();
 }
@@ -326,7 +378,9 @@ int  processReceivedDatagram( char *  buf, int  datagramSize, struct sockaddr_in
      /* Now the ICMP body + header options (if there are any) */
 	
      /* With a raw ICMP socket we get all ICMP packets that come into the kernel. Only accept Echo or Timestamp reply */
-	if( ! (( icmpHdrPtr->icmp_type == ICMP_ECHOREPLY ) || ( icmpHdrPtr->icmp_type == ICMP_TSTAMPREPLY )))  {
+	if( ! (( icmpHdrPtr->icmp_type == ICMP_ECHOREPLY ) ||
+	       ( icmpHdrPtr->icmp_type == ICMP_TSTAMPREPLY ) ||
+	       ( icmpHdrPtr->icmp_type == ICMP_MASKREPLY )))  {
 		if( ! quietFlag )  {
 			printf( "\n? unexpected icmp type 0x%x, sub code 0x%x, from %s\n", icmpHdrPtr->icmp_type,
 				icmpHdrPtr->icmp_code, inet_ntoa(*(struct in_addr *) &from->sin_addr.s_addr ));
@@ -426,6 +480,12 @@ int sendICMP_Request(  int  socketID, u_char *  ip4_Data, int  dataBytesCount, u
 		if( ! successFlag )
 			printf( "?? Unable to send 20 bytes of ICMP Timestamp Request in the network datagram" );
 	}
+	else if( M_Flag )  {
+		bytesSent = sendICMP_MaskRequest( socketID, ip4_Data, 12, seqID );	/* ICMP Mask is 8 byte Header + 4 byte Data */
+		successFlag = ( bytesSent == 12 );
+		if( ! successFlag )
+			printf( "?? Unable to send 12 bytes of ICMP Mask Request in the network datagram" );
+	}
 	else  {
 		bytesSent = sendICMP_EchoRequest( socketID, ip4_Data, dataBytesCount, seqID );
 		successFlag = ( bytesSent == dataBytesCount );
@@ -507,13 +567,14 @@ int  sendICMP_RequestWithTimeStampOptionInTheIP4_Hdr( struct sockaddr_in *  to, 
 
 /* Help/Usage information */
 void  useage( char *  name )  {
-	printf( "\nuseage: %s NetworkDeviceName [-cX][-D][-h][-lXX][-q][-tX][-T[X]][-v][-wX]\n", name );
-	printf( "or      %s NetworkDeviceIP_Number [-cX][-D][-h][-lXX][-q][-tX][-T[X]][-v][-wX]\n", name );
+	printf( "\nuseage: %s NetworkDeviceName [-cX][-D][-h][-lXX][-M][-q][-tX][-T[X]][-v][-wX]\n", name );
+	printf( "or      %s NetworkDeviceIP_Number [-cX][-D][-h][-lXX][-M][-q][-tX][-T[X]][-v][-wX]\n", name );
 	printf( "\nwhere options; -\n" );
 	printf( "        -cX  specifies number of times to ping remote network device\n" );
 	printf( "        -D  switches on debug output\n" );
 	printf( "        -h  switches on this help output and then terminates %s\n", name );
 	printf( "        -lXX  specifies header option length (default is 40)\n" );
+	printf( "        -M  specifies ICMP Mask request instead of ICMP Echo for ping\n" );
 	printf( "        -q  forces quiet (minimum) output and overrides -v\n" );
 	printf( "        -tX  specifies header option time stamp type (default is none)\n" );
 	printf( "          where X is an integer ( 0 <= X <= 3 ).\n" );
@@ -546,6 +607,7 @@ void  processCommandLineOptions( int  argc, char *  argv[] )  {
 			case 'D' : debugFlag = TRUE; break;
 			case 'h' : helpFlag = TRUE; break;
 			case 'l' : l_Flag = TRUE; tmpChrPtr_l = argv[ argc - 1 ] + 2; break;
+			case 'M' : M_Flag = TRUE; break;
 			case 'q' : quietFlag = TRUE; break;
 			case 't' : t_Flag = TRUE; tmpChrPtr_t = argv[ argc - 1 ] + 2; break;
 			case 'T' : T_Flag = TRUE; tmpChrPtr_T = argv[ argc - 1 ] + 2; break;
@@ -580,6 +642,7 @@ void  setGlobalFlagDefaults( char *  argv[] )  {	/* Set up any Global variables 
 	pingCount = DEFAULT_PING_COUNT;
 	l_Flag = FALSE;
 	optionLength = MAX_IP4_HDR_OPTION_LEN;
+	M_Flag = FALSE;		/* ICMP Mask */
 	t_Flag = FALSE;		/* IP header options timestamp */
 	ip4_OptionTS_Value = -1;	/* I.E. no header option time stamp */
 	T_Flag = FALSE;		/* ICMP Timestamp */
