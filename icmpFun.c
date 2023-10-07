@@ -19,6 +19,7 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
+#include <arpa/inet.h>		/* inet_ntoa() */
 #include "ipFun.h"
 #include "timeFun.h"	/* printMilliSecondsSinceMidnightInHMS_Format() */
 
@@ -169,7 +170,7 @@ void  displayMaskReplyMask( struct icmp *  ptr )  {
 	u_Ptr = ( u_char * ) ptr;
 	maskPtr = ( u_int32_t * )( u_Ptr + 8 );
 	printf( "mask " );
-	printf( "0x%08x", ntohl( *maskPtr ));
+	printf( "%s", inet_ntoa( *(struct in_addr *) maskPtr ));
 }
 
 

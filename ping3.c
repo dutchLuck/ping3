@@ -150,13 +150,21 @@ void  printClockRealTimeFlightTime( void )  {
 }
 
 
+void  fillInICMP_HdrInfo( struct icmp *  hdrPtr, u_char  icmpType, u_short sequncID )  {
+	hdrPtr->icmp_type = icmpType;
+    hdrPtr->icmp_code = 0;
+	hdrPtr->icmp_cksum = 0;	/* compute checksum later, after data is in place */
+	hdrPtr->icmp_seq = htons( sequncID ); /* seq and id must be reflected in Echo/Timestamp/Netmask Reply*/
+	hdrPtr->icmp_id = htons( process_id );
+}
+
+
 /*
  * Send the icmp mask request (RFC 950).
  */
 int  sendICMP_MaskRequest( int  socketID, u_char *  ip4_Data, int  dataBytesCnt, u_short  seqID )  {
 	ssize_t	 numberOfBytesSent;
 	struct icmp	*  icmpHdrPtr;
-	u_char *  icmpDataPtr;
 	u_int32_t *  icmpMaskPtr;
 
 	numberOfBytesSent = 0;
@@ -167,13 +175,8 @@ int  sendICMP_MaskRequest( int  socketID, u_char *  ip4_Data, int  dataBytesCnt,
 	if( dataBytesCnt > ICMP_HDR_LEN )  {
 		clearByteArray( ip4_Data, dataBytesCnt );	/* ensure data is zero'd each time as this storage is reused */
 		icmpHdrPtr = (struct icmp *) ip4_Data;
-		icmpHdrPtr->icmp_type = ICMP_MASKREQ;
-		icmpHdrPtr->icmp_code = 0;
-		icmpHdrPtr->icmp_cksum = 0;	/* compute checksum below */
-		icmpHdrPtr->icmp_seq = htons( seqID ); /* seq and id must be reflected in Echo Reply*/
-		icmpHdrPtr->icmp_id = htons( process_id );
-		icmpDataPtr = ip4_Data + 8;	/* point to icmp Data area */
-		icmpMaskPtr = ( u_int32_t * ) icmpDataPtr;
+		fillInICMP_HdrInfo( icmpHdrPtr, ICMP_MASKREQ, seqID );
+		icmpMaskPtr = ( u_int32_t * ) ( ip4_Data + 8 );		/* point to icmp Data area */
 		if( dataBytesCnt >= 12 )  {	/* put in mask of zero if there is space */
 			*icmpMaskPtr = htonl( 0 );
 	    }
@@ -203,7 +206,6 @@ int  sendICMP_MaskRequest( int  socketID, u_char *  ip4_Data, int  dataBytesCnt,
 int  sendICMP_TimestampRequest( int  socketID, u_char *  ip4_Data, int  dataBytesCnt, u_short  seqID )  {
 	ssize_t	 numberOfBytesSent;
 	struct icmp	*  icmpHdrPtr;
-	u_char *  icmpDataPtr;
 	u_int32_t *  icmpOrigTimestampPtr;
 
 	numberOfBytesSent = 0;
@@ -214,13 +216,8 @@ int  sendICMP_TimestampRequest( int  socketID, u_char *  ip4_Data, int  dataByte
 	if( dataBytesCnt > ICMP_HDR_LEN )  {
 		clearByteArray( ip4_Data, dataBytesCnt );	/* ensure data is zero'd each time as this storage is reused */
 		icmpHdrPtr = (struct icmp *) ip4_Data;
-		icmpHdrPtr->icmp_type = ICMP_TSTAMP;
-		icmpHdrPtr->icmp_code = 0;
-		icmpHdrPtr->icmp_cksum = 0;	/* compute checksum below */
-		icmpHdrPtr->icmp_seq = htons( seqID ); /* seq and id must be reflected in Echo Reply*/
-		icmpHdrPtr->icmp_id = htons( process_id );
-		icmpDataPtr = ip4_Data + 8;	/* point to icmp Data area */
-		icmpOrigTimestampPtr = ( u_int32_t * ) icmpDataPtr;
+		fillInICMP_HdrInfo( icmpHdrPtr, ICMP_TSTAMP, seqID );
+		icmpOrigTimestampPtr = ( u_int32_t * ) ( ip4_Data + 8 );		/* point to icmp Data area */
 		if( dataBytesCnt >= 20 )  {	/* put mS time in the icmp data section if there is space */
 			clock_gettime( CLOCK_REALTIME, &timeToBeStoredInSentICMP );		/* get time to put in the packet about to be sent */
 			*icmpOrigTimestampPtr = htonl( calcMillisecondsSinceMidnightFromTimeSpec( &timeToBeStoredInSentICMP ));
@@ -258,17 +255,13 @@ int  sendICMP_EchoRequest( int  socketID, u_char *  ip4_Data, int  dataBytesCoun
 	if( dataBytesCount > ICMP_HDR_LEN )  {
 		clearByteArray( ip4_Data, dataBytesCount );	/* ensure data is zero'd each time as this storage is reused */
 		icmpHdrPtr = (struct icmp *) ip4_Data;
-		icmpHdrPtr->icmp_type = ICMP_ECHO;
-		icmpHdrPtr->icmp_code = 0;
-		icmpHdrPtr->icmp_cksum = 0;	/* compute checksum below */
-		icmpHdrPtr->icmp_seq = htons( seqID ); /* seq and id must be reflected in Echo Reply*/
-		icmpHdrPtr->icmp_id = htons( process_id );
+		fillInICMP_HdrInfo( icmpHdrPtr, ICMP_ECHO, seqID );
 		icmpDataPtr = ip4_Data + 8;	/* point to icmp Data area */
 		if( dataBytesCount >= 24 )  {	/* put nS time in the icmp data section if there is space */
 			clock_gettime( CLOCK_REALTIME, &timeToBeStoredInSentICMP );		/* get time to put in the packet about to be sent */
 			memcpy( (void *) icmpDataPtr, ( void * ) &timeToBeStoredInSentICMP, sizeof( struct timespec )); /* Don't worry about endianess */	
 	    }
-		 /* compute ICMP checksum */
+		 /* Compute ICMP checksum now that the data as well as the header are in place */
 		icmpHdrPtr->icmp_cksum = calcCheckSum((u_short *) icmpHdrPtr, dataBytesCount );
 		if( debugFlag )  {
 			printNamedByteArray( ip4_Data, dataBytesCount, 20, "ip4 Data payload (send array contents)" );

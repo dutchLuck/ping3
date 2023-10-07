@@ -4,9 +4,12 @@ requests or multiple IPv4 ICMP Time Stamp requests to a remote
 network device and display round trip time information if
 echo replies are received back.
 
-This utility program is named "ping3" because it defaults to sending
-three ICMP echo/timestamp request to a network device and waits for
-the device to reply to each request.
+This utility program is named "ping3" because it has the ability
+to ping a remote network device with three types of ICMP requests
+in similar fashion to the macOS system utility named "ping". These
+three ICMP requests are Echo or Timestamp or Mask. "ping3" also
+defaults to sending three ICMP echo/timestamp/mask request to a
+network device and waits for the device to reply to each request.
 If the device replies then some information on how long the round-
 trip-time (RTT) was is printed out. If the device doesn't respond
 then a time-out message is printed instead.
@@ -19,9 +22,14 @@ operation. Linux ping provides a timestamp and record route
 capability through header options and macOS ping doesn't. However
 macOS ping provides a timestamp capability through ICMP timestamp
 requests. This mode requires elevated priveleges via sudo, unless
-the "-s 0" option is included with the "-M time" option. 
+the "-s 0" option is included with the "-M time" option. The macOS
+ping also provides a netmask capability through ICMP netmask
+requests, but Linux ping has no similar capability. Once again
+the "-M mask" option on macOS ping also should be teamed with
+a "-s 0" to avoid requiring sudo priveleges to send the request.
+
 The ping3 utility provides timestamp in the header options on a
-macOS system and provides ICMP timestamp pings on a linux system.
+macOS system and provides ICMP timestamp/mask pings on a Linux system.
 
 The default output of ping3 on a macOS system is somewhat similar
 to the ping utility output minus the summary statistics.
@@ -78,6 +86,48 @@ TS: 	46977144 absolute
 1 packets transmitted, 1 received, 0% packet loss, time 0ms
 rtt min/avg/max/mdev = 76.737/76.737/76.737/0.000 ms
 $
+```
+Successful ICMP Timestamp request pings produces the following output; -
+```
+% ./ping3 ntp-m.obspm.fr -T       
+40 bytes from 145.238.187.55: seq 1, ttl 38, RTT 0.546179 [Sec] tso 05:19:35.508 tsr 05:19:35.836 tst 05:19:35.836
+40 bytes from 145.238.187.55: seq 2, ttl 38, RTT 414.445 [mS] tso 05:19:36.559 tsr 05:19:36.769 tst 05:19:36.769
+40 bytes from 145.238.187.55: seq 3, ttl 38, RTT 421.83 [mS] tso 05:19:37.475 tsr 05:19:37.689 tst 05:19:37.689
+%
+```
+The comparison with macOS ping is; -
+```
+% ping -M time -s 0 -c 3 ntp-m.obspm.fr
+ICMP_TSTAMP
+PING korriban.obspm.fr (145.238.187.55): 0 data bytes
+20 bytes from 145.238.187.55: icmp_seq=0 ttl=38 tso=05:19:53 tsr=05:19:53 tst=05:19:53
+20 bytes from 145.238.187.55: icmp_seq=1 ttl=38 tso=05:19:54 tsr=05:19:54 tst=05:19:54
+20 bytes from 145.238.187.55: icmp_seq=2 ttl=38 tso=05:19:55 tsr=05:19:55 tst=05:19:55
+
+--- korriban.obspm.fr ping statistics ---
+3 packets transmitted, 3 packets received, 0.0% packet loss
+%
+```
+Successful ICMP Netmask request pings produce the following output; -
+```
+% ./ping3 192.168.1.103 -M
+32 bytes from 192.168.1.103: seq 1, ttl 64, RTT 3.375 [mS] mask 255.255.255.0
+32 bytes from 192.168.1.103: seq 2, ttl 64, RTT 5.805 [mS] mask 255.255.255.0
+32 bytes from 192.168.1.103: seq 3, ttl 64, RTT 4.521 [mS] mask 255.255.255.0
+%
+```
+The comparison with macOS ping is; -
+```
+% ping -M mask -s 0 -c 3 192.168.1.103
+ICMP_MASKREQ
+PING 192.168.1.103 (192.168.1.103): 0 data bytes
+12 bytes from 192.168.1.103: icmp_seq=0 ttl=64 mask=255.255.255.0
+12 bytes from 192.168.1.103: icmp_seq=1 ttl=64 mask=255.255.255.0
+12 bytes from 192.168.1.103: icmp_seq=2 ttl=64 mask=255.255.255.0
+
+--- 192.168.1.103 ping statistics ---
+3 packets transmitted, 3 packets received, 0.0% packet loss
+%
 ```
 The help / usage information for ping3 can be seen by using the "-h"
 command line option as follows; -

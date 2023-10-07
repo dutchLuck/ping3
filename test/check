@@ -2,7 +2,7 @@
 #
 # C H E C K
 #
-# check last edited Fri Oct  6 19:59:03 2023
+# check last edited Sat Oct  7 15:50:04 2023
 #
 PROGRAM=ping3
 #
@@ -15,6 +15,12 @@ TARGET=192.168.1.1
 #  If you want a response the Windows firewall may have
 #  to be adjusted to allow the ICMP request through.
 WINDOWS_TARGET=192.168.1.121
+#
+# A network device on your local network that responds
+# to ICMP NETMASK requests. This may be a macOS system
+# which has been set to respond with the command; -
+# sudo sysctl net.inet.icmp.maskrepl=1
+NETMASK_TARGET=192.168.1.103
 #
 echo
 echo "Operating System designation is $OSTYPE"
@@ -31,7 +37,9 @@ LOCAL_INTERFACE=`$PRIV ../$PROGRAM $TARGET -D -c1 | awk '/Destination Address/{p
 #
 # Compare standard ICMP ECHO request pings
 #
-echo "Test standard ICMP ECHO request pings"
+echo "##############################################"
+echo "# 1(a) Test standard ICMP ECHO request pings #"
+echo "##############################################"
 echo
 #
 echo "$PRIV ../$PROGRAM $TARGET"
@@ -49,7 +57,9 @@ echo
 # Compare output against standard OS system
 # ping if on Linux system
 #
-echo "Test IPv4 Header Option Timestamps"
+echo "###########################################"
+echo "# 1(b) Test IPv4 Header Option Timestamps #"
+echo "###########################################"
 echo
 #
 echo "$PRIV ../$PROGRAM $TARGET -t0"
@@ -91,7 +101,9 @@ fi
 # Test the ICMP TIMESTAMP option and
 # compare to ping output if on macOS
 #
-echo "Test ICMP TIMESTAMP option"
+echo "###################################"
+echo "# 2(a) Test ICMP TIMESTAMP option #"
+echo "###################################"
 echo
 #
 echo "$PRIV ../$PROGRAM $TARGET -T"
@@ -106,6 +118,7 @@ echo
 if [[ "$OSTYPE" == "darwin"* ]] ; then
   echo "ping -c 3 -M time -s 0 $TARGET"
   ping -c 3 -M time -s 0 $TARGET
+  sleep 1
   echo
 fi
 #
@@ -113,13 +126,40 @@ fi
 # which by default appears to have little endian
 # timestamp replies
 #
+echo "######################################################"
+echo "# 2(b) Test ICMP TIMESTAMP option for Windows target #"
+echo "######################################################"
+echo
 echo "$PRIV ../$PROGRAM $WINDOWS_TARGET -T1"
 $PRIV ../$PROGRAM $WINDOWS_TARGET -T1
 sleep 1
+echo
 #
 if [[ "$OSTYPE" == "darwin"* ]] ; then
-  echo
   echo "ping -c 3 -M time -s 0 $WINDOWS_TARGET"
   ping -c 3 -M time -s 0 $WINDOWS_TARGET
+  sleep 1
+  echo
 fi
 #
+# Test the ICMP NETMASK option and
+# compare to ping -M mask output if on macOS
+#
+echo "###############################"
+echo "# 3. Test ICMP NETMASK option #"
+echo "###############################"
+echo
+#
+echo "$PRIV ../$PROGRAM $NETMASK_TARGET -M"
+$PRIV ../$PROGRAM $NETMASK_TARGET -M
+#
+# On macOS the ping utility has the capability to send
+# ICMP NETMASK requests, but sudo is needed if the
+# "-s 0" is left out of the command line
+#
+if [[ "$OSTYPE" == "darwin"* ]] ; then
+sleep 1
+echo
+  echo "ping -c 3 -M mask -s 0 $NETMASK_TARGET"
+  ping -c 3 -M mask -s 0 $NETMASK_TARGET
+fi
