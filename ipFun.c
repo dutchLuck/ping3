@@ -1,7 +1,7 @@
 /*
  * I P F U N . C
  *
- * ipFun.c last edited Mon Sep 18 20:24:31 2023
+ * ipFun.c last edited Sat Oct  7 20:25:37 2023
  *
  * Functions to handle aspects of IP datagrams
  *
@@ -48,12 +48,26 @@ u_short  calcCheckSum( u_short *  addr, int  len)  {
 }
 
 
-void  pingVitalInfo( struct ip *  ipPkt, int  len )  {
-	printf( "%d bytes from %s:", len, inet_ntoa( ipPkt->ip_src ));
+void  printIPv4_AddressAsDottedQuad( struct in_addr *  ipAddress )  {
+	u_char *  bytePtr;
+
+	bytePtr = ( u_char * ) ipAddress;
+	printf( "%d.", *bytePtr++ & 0xff );
+	printf( "%d.", *bytePtr++ & 0xff );
+	printf( "%d.", *bytePtr++ & 0xff );
+	printf( "%d", *bytePtr & 0xff );
+
 }
 
 
-void  pingTimeToLiveInfo( struct ip *  ipPkt )  {
+void  printPingCommonInfo( struct ip *  ipPkt, int  len )  {
+	printf( "%d bytes from ", len );
+	printIPv4_AddressAsDottedQuad( &ipPkt->ip_src );
+	printf( ":" );
+}
+
+
+void  printIPv4_TimeToLiveInfo( struct ip *  ipPkt )  {
 	printf( "ttl %d", ipPkt->ip_ttl );
 }
 
@@ -98,9 +112,11 @@ void  displayIpHeader( struct ip *  ipPkt )  {
 	printf( "Protocol :\t\t%d", ipPkt->ip_p );
 	displayIpProtocol( (unsigned char ) ipPkt->ip_p );
 	printf( "\nChecksum :\t\t0x%04x\n", ntohs( ipPkt->ip_sum ));
-	printf( "Source Address :\t%s\n", inet_ntoa( ipPkt->ip_src ));
-	printf( "Destination Address :\t%s\n", inet_ntoa( ipPkt->ip_dst ));
-	printf( "Options Length :\t%d\n", ipHeaderOptionsLength );
+	printf( "Source Address :\t" );
+	printIPv4_AddressAsDottedQuad( &ipPkt->ip_src );
+	printf( "\nDestination Address :\t" );
+	printIPv4_AddressAsDottedQuad( &ipPkt->ip_dst );
+	printf( "\nOptions Length :\t%d\n", ipHeaderOptionsLength );
 	if( ipHeaderOptionsLength > 0 )  {
 		uc_ptr = ( u_char * ) ipPkt;
 		uc_ptr += 20;

@@ -265,7 +265,7 @@ int  sendICMP_EchoRequest( int  socketID, u_char *  ip4_Data, int  dataBytesCoun
 		icmpHdrPtr->icmp_cksum = calcCheckSum((u_short *) icmpHdrPtr, dataBytesCount );
 		if( debugFlag )  {
 			printNamedByteArray( ip4_Data, dataBytesCount, 20, "ip4 Data payload (send array contents)" );
-			printf( "\n" );
+			printf( "ICMP message check sum calculates as 0x%04x\n", calcCheckSum((u_short *) icmpHdrPtr, dataBytesCount ));
 		}
 		/* Send Packet */
 		clock_gettime( CLOCK_REALTIME, &origTime );		/* remember time just before the packet is sent */
@@ -284,9 +284,9 @@ int  sendICMP_EchoRequest( int  socketID, u_char *  ip4_Data, int  dataBytesCoun
 /* Print the normal ping info */
 /* E.g. XX bytes from AAA.BBB.CCC.DDD: seq YYYYY, ttl ZZZ, RTT 0.994 [mS] */
 void  printStdPingInfo( struct ip *  ip, struct icmp *  icmpHdrPtr, int  ICMP_MsgSize )  {
-	pingVitalInfo( ip, ICMP_MsgSize );
+	printPingCommonInfo( ip, ICMP_MsgSize );
 	printf( " seq %d, ", ntohs( icmpHdrPtr->icmp_seq));
-	pingTimeToLiveInfo( ip );
+	printIPv4_TimeToLiveInfo( ip );
 	printf( ", " );
 	printClockRealTimeFlightTime();
 }
@@ -619,7 +619,7 @@ void  processCommandLineOptions( int  argc, char *  argv[] )  {
 	if( ip4_OptionTS_Value == 2 )  ip4_OptionTS_Value = 3;	/* Force 2 (not used) to 3 (PRE_SPEC) */
 	icmpTS_Value = convertOptionStringToInteger( 0, tmpChrPtr_T, "-T", &T_Flag, FALSE );
 	icmpTS_Value = limitIntegerValueToEqualOrWithinRange( icmpTS_Value, 0, 1 );
-	waitTimeInSec = convertOptionStringToInteger( DEFAULT_TIME_OUT_PERIOD, tmpChrPtr_t, "-w", &w_Flag, TRUE );
+	waitTimeInSec = convertOptionStringToInteger( DEFAULT_TIME_OUT_PERIOD, tmpChrPtr_w, "-w", &w_Flag, TRUE );
 	waitTimeInSec = limitIntegerValueToEqualOrWithinRange( waitTimeInSec, 1, 15 );
  	if( debugFlag )  printf( "Option length is %d bytes\n", optionLength );
     /* quiet flag over-rides verbose flag if they are both TRUE */

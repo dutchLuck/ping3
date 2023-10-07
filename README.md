@@ -87,7 +87,7 @@ TS: 	46977144 absolute
 rtt min/avg/max/mdev = 76.737/76.737/76.737/0.000 ms
 $
 ```
-Successful ICMP Timestamp request pings produces the following output; -
+Successful ICMP Timestamp request pings produce the following output; -
 ```
 % ./ping3 ntp-m.obspm.fr -T       
 40 bytes from 145.238.187.55: seq 1, ttl 38, RTT 0.546179 [Sec] tso 05:19:35.508 tsr 05:19:35.836 tst 05:19:35.836

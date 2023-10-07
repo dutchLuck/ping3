@@ -1,7 +1,7 @@
 /*
  * I C M P F U N . C
  *
- * icmpFun.c last edited Fri Oct  6 23:57:40 2023
+ * icmpFun.c last edited Sat Oct  7 20:25:23 2023
  *
  * Functions to handle ICMP Protocol message in the IP datagram payload.
  *
@@ -19,7 +19,7 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
-#include <arpa/inet.h>		/* inet_ntoa() */
+#include <arpa/inet.h>		/* */
 #include "ipFun.h"
 #include "timeFun.h"	/* printMilliSecondsSinceMidnightInHMS_Format() */
 
@@ -170,7 +170,7 @@ void  displayMaskReplyMask( struct icmp *  ptr )  {
 	u_Ptr = ( u_char * ) ptr;
 	maskPtr = ( u_int32_t * )( u_Ptr + 8 );
 	printf( "mask " );
-	printf( "%s", inet_ntoa( *(struct in_addr *) maskPtr ));
+	printIPv4_AddressAsDottedQuad( (struct in_addr * ) maskPtr );
 }
 
 

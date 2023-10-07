@@ -1,7 +1,7 @@
 /*
  * I P F U N . C
  *
- * ipFun.h last edited Mon Sep 18 20:24:29 2023
+ * ipFun.h last edited Sat Oct  7 20:25:39 2023
  *
  * header for ipFun.c functions
  *
@@ -43,9 +43,10 @@
 #endif
 
 u_short  calcCheckSum( u_short *, int );
+void  printIPv4_AddressAsDottedQuad( struct in_addr * );
 void  display_ip( struct ip  *, int );
-void  pingVitalInfo( struct ip  *, int );
-void  pingTimeToLiveInfo( struct ip  * );
+void  printPingCommonInfo( struct ip  *, int );
+void  printIPv4_TimeToLiveInfo( struct ip  * );
 void  displayIpProtocol( unsigned char  protocolCode );
 
 #endif
