@@ -1,7 +1,7 @@
 /*
  * P I N G 3 . C
  *
- * ping3.c last edited Fri Oct  6 23:57:33 2023
+ * ping3.c last edited Sun Oct  8 22:21:20 2023
  * 
  */
 
@@ -522,27 +522,35 @@ int sendICMP_RequestAndGetResponse( int socketID, int  dataByteCnt, u_short  ip4
 	return( response );
 }
 
-
+/*
+ * IP Header Options are in RFC 791, but also see RFC 1349, RFC 2474, RFC 6864
+ */
 int  sendICMP_RequestWithTimeStampOptionInTheIP4_Hdr( struct sockaddr_in *  to, struct ip *  rxdIP4_Packet, u_short  ip4_HdrID )  {
 	int  returnValue = 1;
 	u_char  inetTimeStamp[ MAX_IP4_HDR_OPTION_LEN ];	/* Storage for optional IP4 header options */
 	IP_TIMESTAMP *  tsPtr;		/* time stamp pointer */
 	struct ipt_ta *	 ipt_taPtr;
 
-	rxdIP4_Packet = ( struct ip * ) packet;
 	tsPtr = (IP_TIMESTAMP *) inetTimeStamp;
 	bzero((char *) tsPtr, MAX_IP4_HDR_OPTION_LEN );
 	tsPtr->ipt_code = IPOPT_TS;
-	tsPtr->ipt_len = optionLength;
 	tsPtr->ipt_ptr = 5;
-	tsPtr->ipt_flg = ip4_OptionTS_Value;
+	tsPtr->ipt_flg = ip4_OptionTS_Value;	/* tsonly is 0, tsandaddr 1, tsprespec 3 */
 	tsPtr->ipt_oflw = 0;
-	tsPtr->ipt_timestamp.ipt_ta[0].ipt_addr = to->sin_addr;		/* insert remote network device IP address */
-	tsPtr->ipt_timestamp.ipt_ta[0].ipt_time = 0;
-	ipt_taPtr = &tsPtr->ipt_timestamp.ipt_ta[0];
-	ipt_taPtr += 1;
-	ipt_taPtr->ipt_addr = ( struct in_addr ) ( rxdIP4_Packet->ip_dst );
-	ipt_taPtr->ipt_time = 0;
+	if( ip4_OptionTS_Value > 1 )  {		/* Only set up prespecified addresses if 2 or 3 */
+		tsPtr->ipt_timestamp.ipt_ta[0].ipt_addr = to->sin_addr;		/* insert remote network device IP address */
+		tsPtr->ipt_timestamp.ipt_ta[0].ipt_time = 0;
+		ipt_taPtr = &tsPtr->ipt_timestamp.ipt_ta[0];
+		ipt_taPtr += 1;
+		ipt_taPtr->ipt_addr = ( struct in_addr ) ( rxdIP4_Packet->ip_dst );
+		ipt_taPtr->ipt_time = 0;
+		optionLength = 20;	/* Over-ride option size to 4 octets for option header + 16 for two address + time pairs */
+	}
+	else if( ip4_OptionTS_Value == 1 )  {
+		if( optionLength < 12 )  optionLength = 12;		/* Makes no sense to be smaller than header + 1 address + time pair */
+		else  optionLength = 4 + ( 8 * (( optionLength - 4 ) / 8 ));	/* trim to header + an exact number of pairs */
+	}
+	tsPtr->ipt_len = optionLength;
 	if( setsockopt( sckt, IPPROTO_IP, IP_OPTIONS, tsPtr, optionLength ) != 0 )  {
 		perror("?? main(): setsocketopt() unable to set up time stamp option" );
 	}
@@ -557,6 +565,7 @@ int  sendICMP_RequestWithTimeStampOptionInTheIP4_Hdr( struct sockaddr_in *  to, 
 	}
 	return( returnValue );
 }
+
 
 /* Help/Usage information */
 void  useage( char *  name )  {
@@ -613,7 +622,8 @@ void  processCommandLineOptions( int  argc, char *  argv[] )  {
 	pingCount = convertOptionStringToInteger( 3, tmpChrPtr_c, "-c", &c_Flag, TRUE );
 	pingCount = limitIntegerValueToEqualOrWithinRange( pingCount, 1, 128 );
 	optionLength = convertOptionStringToInteger( MAX_IP4_HDR_OPTION_LEN, tmpChrPtr_l, "-l", &l_Flag, TRUE );
-	optionLength = limitIntegerValueToEqualOrWithinRange( optionLength, 20, MAX_IP4_HDR_OPTION_LEN );
+	optionLength = 4 * (( optionLength + 3 ) / 4 );	/* force option length to be a multiple of 4 bytes */
+	optionLength = limitIntegerValueToEqualOrWithinRange( optionLength, 8, MAX_IP4_HDR_OPTION_LEN );
 	ip4_OptionTS_Value = convertOptionStringToInteger( -1, tmpChrPtr_t, "-t", &t_Flag, TRUE );
 	ip4_OptionTS_Value = limitIntegerValueToEqualOrWithinRange( ip4_OptionTS_Value, -1, 3 );
 	if( ip4_OptionTS_Value == 2 )  ip4_OptionTS_Value = 3;	/* Force 2 (not used) to 3 (PRE_SPEC) */
