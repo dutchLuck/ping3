@@ -2,7 +2,7 @@
 #
 # C H E C K
 #
-# check last edited Sat Oct  7 15:50:04 2023
+# check last edited Mon Oct  9 20:54:40 2023
 #
 PROGRAM=ping3
 #
@@ -62,8 +62,8 @@ echo "# 1(b) Test IPv4 Header Option Timestamps #"
 echo "###########################################"
 echo
 #
-echo "$PRIV ../$PROGRAM $TARGET -t0"
-$PRIV ../$PROGRAM $TARGET -t0
+echo "$PRIV ../$PROGRAM -t0 $TARGET"
+$PRIV ../$PROGRAM -t0 $TARGET
 sleep 1
 echo
 #
@@ -74,8 +74,8 @@ if [[ "$OSTYPE" == "linux-gnu" ]] ; then
   echo
 fi
 #
-echo "$PRIV ../$PROGRAM $TARGET -t1"
-$PRIV ../$PROGRAM $TARGET -t1
+echo "$PRIV ../$PROGRAM -t1 $TARGET"
+$PRIV ../$PROGRAM -t1 $TARGET
 sleep 1
 echo
 #
@@ -86,8 +86,8 @@ if [[ "$OSTYPE" == "linux-gnu" ]] ; then
   echo
 fi
 #
-echo "$PRIV ../$PROGRAM $TARGET -t3"
-$PRIV ../$PROGRAM $TARGET -t3
+echo "$PRIV ../$PROGRAM -t3 $TARGET"
+$PRIV ../$PROGRAM -t3 $TARGET
 sleep 1
 echo
 #
@@ -106,8 +106,8 @@ echo "# 2(a) Test ICMP TIMESTAMP option #"
 echo "###################################"
 echo
 #
-echo "$PRIV ../$PROGRAM $TARGET -T"
-$PRIV ../$PROGRAM $TARGET -T
+echo "$PRIV ../$PROGRAM -T $TARGET"
+$PRIV ../$PROGRAM -T $TARGET
 sleep 1
 echo
 #
@@ -130,8 +130,8 @@ echo "######################################################"
 echo "# 2(b) Test ICMP TIMESTAMP option for Windows target #"
 echo "######################################################"
 echo
-echo "$PRIV ../$PROGRAM $WINDOWS_TARGET -T1"
-$PRIV ../$PROGRAM $WINDOWS_TARGET -T1
+echo "$PRIV ../$PROGRAM -T1 $WINDOWS_TARGET"
+$PRIV ../$PROGRAM -T1 $WINDOWS_TARGET
 sleep 1
 echo
 #
@@ -150,8 +150,8 @@ echo "# 3. Test ICMP NETMASK option #"
 echo "###############################"
 echo
 #
-echo "$PRIV ../$PROGRAM $NETMASK_TARGET -M"
-$PRIV ../$PROGRAM $NETMASK_TARGET -M
+echo "$PRIV ../$PROGRAM -M $NETMASK_TARGET"
+$PRIV ../$PROGRAM -M $NETMASK_TARGET
 #
 # On macOS the ping utility has the capability to send
 # ICMP NETMASK requests, but sudo is needed if the

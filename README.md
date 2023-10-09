@@ -54,7 +54,7 @@ round-trip min/avg/max/stddev = 24.187/25.471/26.968/1.145 ms
 There doesn't appear to be equivalent options on the macOS ping
 that give "tsonly" timestamps in the following fashion; -
 ```
-% ./ping3 www.apple.com -t0 -c2
+% ./ping3 -t0 -c2 www.apple.com
 60 bytes from 23.202.170.41: seq 0, ttl 59, RTT 21.581 [mS]
 100 bytes from 23.202.170.41: seq 1, ttl 59, RTT 23.66 [mS]
  12:50:09.212 ( -103 [mS]))
@@ -89,7 +89,7 @@ $
 ```
 Successful ICMP Timestamp request pings produce the following output; -
 ```
-% ./ping3 ntp-m.obspm.fr -T       
+% ./ping3 -T ntp-m.obspm.fr       
 40 bytes from 145.238.187.55: seq 1, ttl 38, RTT 0.546179 [Sec] tso 05:19:35.508 tsr 05:19:35.836 tst 05:19:35.836
 40 bytes from 145.238.187.55: seq 2, ttl 38, RTT 414.445 [mS] tso 05:19:36.559 tsr 05:19:36.769 tst 05:19:36.769
 40 bytes from 145.238.187.55: seq 3, ttl 38, RTT 421.83 [mS] tso 05:19:37.475 tsr 05:19:37.689 tst 05:19:37.689
@@ -110,7 +110,7 @@ PING korriban.obspm.fr (145.238.187.55): 0 data bytes
 ```
 Successful ICMP Netmask request pings produce the following output; -
 ```
-% ./ping3 192.168.1.103 -M
+% ./ping3 -M 192.168.1.103
 32 bytes from 192.168.1.103: seq 1, ttl 64, RTT 3.375 [mS] mask 255.255.255.0
 32 bytes from 192.168.1.103: seq 2, ttl 64, RTT 5.805 [mS] mask 255.255.255.0
 32 bytes from 192.168.1.103: seq 3, ttl 64, RTT 4.521 [mS] mask 255.255.255.0
@@ -132,10 +132,10 @@ PING 192.168.1.103 (192.168.1.103): 0 data bytes
 The help / usage information for ping3 can be seen by using the "-h"
 command line option as follows; -
 ```
-% ./ping3
+% ./ping3 -h
 
-useage: ping3 NetworkDeviceName [-cX][-D][-h][-lXX][-M][-q][-tX][-T[X]][-v][-wX]
-or      ping3 NetworkDeviceIP_Number [-cX][-D][-h][-lXX][-M][-q][-tX][-T[X]][-v][-wX]
+useage: ping3 [-cX][-D][-h][-lXX][-M][-q][-tX][-T[X]][-v][-wX] NetworkDeviceName
+or      ping3 [-cX][-D][-h][-lXX][-M][-q][-tX][-T[X]][-v][-wX] NetworkDeviceIP_Number
 
 where options; -
         -cX  specifies number of times to ping remote network device

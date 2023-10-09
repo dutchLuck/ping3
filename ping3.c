@@ -1,7 +1,7 @@
 /*
  * P I N G 3 . C
  *
- * ping3.c last edited Sun Oct  8 22:21:20 2023
+ * ping3.c last edited Mon Oct  9 20:54:30 2023
  * 
  */
 
@@ -33,7 +33,7 @@
 #include <netinet/ip_var.h>
 #endif
 #include <netdb.h>		/* gethostbyname() */
-#include <unistd.h>		/* gethostname() alarm() */
+#include <unistd.h>		/* gethostname() alarm() getopt() */
 #include <stdio.h>		/* printf() fprintf() perror() */
 #include <ctype.h>
 #include <errno.h>
@@ -79,21 +79,31 @@ typedef  struct ip_timestamp  IP_TIMESTAMP;
 
 extern int  errno;
 
+/* Command line Optional Switches: */
+/*  beginOffset, ByteCount, charAlternate, Cryptogram, decimal, Debug, */
+/*  fieldSepWidth, help, Hex, Index, outFile, columnSeparator, space, verbosity, width */
+const char  optionStr[] = "c:Dhl:Mqt:T::vw:";
+
 int	 verboseFlag;	/* when true more info is output */
 int	 quietFlag;		/* when true minimise the output info */
 int	 helpFlag;		/* when true help message is printed and program exits */
 int	 debugFlag;		/* when true output lots of info */
 int	 haveLocalHostNameFlag;	/* Local host name is known if true */
 int  c_Flag;		/* Ping count was found in the command line options */
+char *  c_Strng = ( char * ) NULL;	/*  pointer to -c value as there should be a value */
 int	 pingCount;		/* attempt pingCount pings */
 int  l_Flag;		/* IP Header option length was found in the command line options */
+char * l_Strng = ( char * ) NULL;	/* pointer to -l value */
 int  optionLength;	/* IP Header Option length */
 int  M_Flag;		/* ICMP Mask identifier was found in the command line options */
 int  T_Flag;		/* ICMP Time stamp identifier was found in the command line options */
-int  icmpTS_Value;	/* Specifies the type of time stamp request and is -1 for none */
+char *  T_Strng = ( char * ) NULL;	/* pointer to -t value */
+int  icmpTS_Value;	/* Specifies the time stamp replies as little endian i.e. Windows replies */
 int  t_Flag;		/* IP4 Header options Time stamp identifier was found in the command line options */
+char *  t_Strng = ( char * ) NULL;	/* pointer to -t value */
 int  ip4_OptionTS_Value;	/* Specifies the type of time stamp request and is -1 for none */
 int  w_Flag;		/*  Wait count was found in the command line options */
+char *  w_Strng = ( char * ) NULL;	/* pointer to -w value */
 int	 waitTimeInSec;		/* when true it waits for > 1 response */
 
 char *  exeName;	/* name of this executable */
@@ -569,8 +579,8 @@ int  sendICMP_RequestWithTimeStampOptionInTheIP4_Hdr( struct sockaddr_in *  to, 
 
 /* Help/Usage information */
 void  useage( char *  name )  {
-	printf( "\nuseage: %s NetworkDeviceName [-cX][-D][-h][-lXX][-M][-q][-tX][-T[X]][-v][-wX]\n", name );
-	printf( "or      %s NetworkDeviceIP_Number [-cX][-D][-h][-lXX][-M][-q][-tX][-T[X]][-v][-wX]\n", name );
+	printf( "\nuseage: %s [-cX][-D][-h][-lXX][-M][-q][-tX][-T[X]][-v][-wX] NetworkDeviceName\n", name );
+	printf( "or      %s [-cX][-D][-h][-lXX][-M][-q][-tX][-T[X]][-v][-wX] NetworkDeviceIP_Number\n", name );
 	printf( "\nwhere options; -\n" );
 	printf( "        -cX  specifies number of times to ping remote network device\n" );
 	printf( "        -D  switches on debug output\n" );
@@ -594,46 +604,48 @@ void  useage( char *  name )  {
 } 
 
 
-void  processCommandLineOptions( int  argc, char *  argv[] )  {
-	char *	tmpChrPtr_c;
-	char *	tmpChrPtr_l;
-	char *	tmpChrPtr_t;
-	char *	tmpChrPtr_T;
-	char *	tmpChrPtr_w;
+int  processCommandLineOptions( int  argc, char *  argv[] )  {
+	int  result;
 
-	tmpChrPtr_c = tmpChrPtr_l = tmpChrPtr_t = tmpChrPtr_T = tmpChrPtr_w = (char * ) NULL;
- /* Process any switch parameters at the end of the command line */
-	for( ; (( *argv[ argc - 1 ] == '-' ) && ( argc > 1 )); argc-- )  {
-		switch( *( argv[ argc - 1 ] + 1))  {
-			case 'c' : c_Flag = TRUE; tmpChrPtr_c = argv[ argc - 1 ] + 2; break;
-			case 'D' : debugFlag = TRUE; break;
-			case 'h' : helpFlag = TRUE; break;
-			case 'l' : l_Flag = TRUE; tmpChrPtr_l = argv[ argc - 1 ] + 2; break;
+	/* Set all the global flags from command line options */
+	opterr = 0;	/* Suppress error messages from getopt() to stderr */
+	/* Process switch options from the command line */
+	while(( result = getopt( argc, argv, optionStr )) != -1 )  {
+    	switch( result )  {
+    		case 'c' :  c_Flag = TRUE; c_Strng = optarg; break;
+			case 'D' :  debugFlag = TRUE; break;
+			case 'h' :  helpFlag = TRUE; break;
+			case 'l' :  l_Flag = TRUE; l_Strng = optarg; break;
 			case 'M' : M_Flag = TRUE; break;
 			case 'q' : quietFlag = TRUE; break;
-			case 't' : t_Flag = TRUE; tmpChrPtr_t = argv[ argc - 1 ] + 2; break;
-			case 'T' : T_Flag = TRUE; tmpChrPtr_T = argv[ argc - 1 ] + 2; break;
-			case 'v' : verboseFlag = TRUE; break;
-			case 'w' : w_Flag = TRUE; tmpChrPtr_w = argv[ argc - 1 ] + 2; break;
-			default : printf( "? switch -%c is undefined - ignored\n",
-				*( argv[ argc - 1 ] + 1)); break;
-		}
+			case 't' :  t_Flag = TRUE; t_Strng = optarg; break;
+    		case 'T' :  T_Flag = TRUE; T_Strng = optarg; break;
+    		case 'v' :  verboseFlag = TRUE; break;
+    		case 'w' :  w_Flag = TRUE; w_Strng = optarg; break;
+    		default :
+        		printf( "Warning: command line option -%c is unrecognised or incomplete and has been ignored\n", optopt );
+        		printf( "Information: For help on command line options run \"%s -h\"\n", exeName );
+        		break;
+    	}
 	}
-	pingCount = convertOptionStringToInteger( 3, tmpChrPtr_c, "-c", &c_Flag, TRUE );
+
+	pingCount = convertOptionStringToInteger( 3, c_Strng, "-c", &c_Flag, TRUE );
 	pingCount = limitIntegerValueToEqualOrWithinRange( pingCount, 1, 128 );
-	optionLength = convertOptionStringToInteger( MAX_IP4_HDR_OPTION_LEN, tmpChrPtr_l, "-l", &l_Flag, TRUE );
+	optionLength = convertOptionStringToInteger( MAX_IP4_HDR_OPTION_LEN, l_Strng, "-l", &l_Flag, TRUE );
 	optionLength = 4 * (( optionLength + 3 ) / 4 );	/* force option length to be a multiple of 4 bytes */
 	optionLength = limitIntegerValueToEqualOrWithinRange( optionLength, 8, MAX_IP4_HDR_OPTION_LEN );
-	ip4_OptionTS_Value = convertOptionStringToInteger( -1, tmpChrPtr_t, "-t", &t_Flag, TRUE );
+	ip4_OptionTS_Value = convertOptionStringToInteger( -1, t_Strng, "-t", &t_Flag, TRUE );
 	ip4_OptionTS_Value = limitIntegerValueToEqualOrWithinRange( ip4_OptionTS_Value, -1, 3 );
 	if( ip4_OptionTS_Value == 2 )  ip4_OptionTS_Value = 3;	/* Force 2 (not used) to 3 (PRE_SPEC) */
-	icmpTS_Value = convertOptionStringToInteger( 0, tmpChrPtr_T, "-T", &T_Flag, FALSE );
+	icmpTS_Value = convertOptionStringToInteger( 0, T_Strng, "-T", &T_Flag, FALSE );
 	icmpTS_Value = limitIntegerValueToEqualOrWithinRange( icmpTS_Value, 0, 1 );
-	waitTimeInSec = convertOptionStringToInteger( DEFAULT_TIME_OUT_PERIOD, tmpChrPtr_w, "-w", &w_Flag, TRUE );
+	waitTimeInSec = convertOptionStringToInteger( DEFAULT_TIME_OUT_PERIOD, w_Strng, "-w", &w_Flag, TRUE );
 	waitTimeInSec = limitIntegerValueToEqualOrWithinRange( waitTimeInSec, 1, 15 );
  	if( debugFlag )  printf( "Option length is %d bytes\n", optionLength );
     /* quiet flag over-rides verbose flag if they are both TRUE */
 	if( quietFlag )  verboseFlag = FALSE;
+	/* return the index of the first positional argument (i.e. input file name?) */
+	return( optind );
 }
 
 
@@ -667,7 +679,7 @@ void  setGlobalFlagDefaults( char *  argv[] )  {	/* Set up any Global variables 
 
 
 int  main( int  argc, char *  argv[] )  {
-	int  i, returnValue;
+	int  i, returnValue, commandLineIndex;
 	struct hostent *  hp;		/* host pointer */
 	struct sockaddr_in *  to;	/* pointer to remote network device info */
 	struct protoent	*  proto;	/* allows protocol to be set to ICMP */
@@ -681,11 +693,11 @@ int  main( int  argc, char *  argv[] )  {
 	returnValue = 1;
 
 /* Process switch options from the command line */
-	processCommandLineOptions( argc, argv );
+	commandLineIndex = processCommandLineOptions( argc, argv );
 
 /* Print useage message and exit if the "-h" flag was amongst the command line options */
 /*  or if only the program name is specified (i.e. no icmp echo target is specified ) */
-	if( helpFlag || ( argc < 2 )) {
+	if( helpFlag || ( argc == commandLineIndex )) {
 		useage( exeName );
 		return(0);
 	}
@@ -704,9 +716,9 @@ int  main( int  argc, char *  argv[] )  {
 	hp = NULL;	/* Make sure host entry pointer is initialized to NULL for later test */
      /* Try to convert command line Remote Network Device specifier as dotted quad (decimals) address, */
      /* else if that fails assume it's a Network Device name */
-	to->sin_addr.s_addr = inet_addr( argv[1] );	/* attempt to set address from a Dotted Quad IP address */
+	to->sin_addr.s_addr = inet_addr( argv[ commandLineIndex ] );	/* attempt to set address from a Dotted Quad IP address */
 	if( to->sin_addr.s_addr == (u_int) -1 )  {	/* test for failure to set address through inet_addr() */
-		hp = gethostbyname( argv[1] );
+		hp = gethostbyname( argv[ commandLineIndex ] );	
 		if( hp == NULL )  {
 			if( verboseFlag )  fprintf( stderr, "?? gethostbyname() put h_errno = %d for target %s\n", h_errno, argv[1]);
 			fprintf( stderr, "?? Network Device '%s': %s\n", argv[1], hstrerror( h_errno ));
