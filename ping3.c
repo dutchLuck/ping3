@@ -82,7 +82,7 @@ extern int  errno;
 /* Command line Optional Switches: */
 /*  beginOffset, ByteCount, charAlternate, Cryptogram, decimal, Debug, */
 /*  fieldSepWidth, help, Hex, Index, outFile, columnSeparator, space, verbosity, width */
-const char  optionStr[] = "c:Dhl:Mqt:T::vw:";
+const char  optionStr[] = "c:Dhl:Mqt::T:vw:";
 
 int	 verboseFlag;	/* when true more info is output */
 int	 quietFlag;		/* when true minimise the output info */
@@ -96,11 +96,11 @@ int  l_Flag;		/* IP Header option length was found in the command line options *
 char * l_Strng = ( char * ) NULL;	/* pointer to -l value */
 int  optionLength;	/* IP Header Option length */
 int  M_Flag;		/* ICMP Mask identifier was found in the command line options */
-int  T_Flag;		/* ICMP Time stamp identifier was found in the command line options */
-char *  T_Strng = ( char * ) NULL;	/* pointer to -t value */
-int  icmpTS_Value;	/* Specifies the time stamp replies as little endian i.e. Windows replies */
-int  t_Flag;		/* IP4 Header options Time stamp identifier was found in the command line options */
+int  t_Flag;		/* ICMP Time stamp identifier was found in the command line options */
 char *  t_Strng = ( char * ) NULL;	/* pointer to -t value */
+int  icmpTS_Value;	/* Specifies the time stamp replies as little endian i.e. Windows replies */
+int  T_Flag;		/* IP4 Header options Time stamp identifier was found in the command line options */
+char *  T_Strng = ( char * ) NULL;	/* pointer to -T value */
 int  ip4_OptionTS_Value;	/* Specifies the type of time stamp request and is -1 for none */
 int  w_Flag;		/*  Wait count was found in the command line options */
 char *  w_Strng = ( char * ) NULL;	/* pointer to -w value */
@@ -477,7 +477,7 @@ int sendICMP_Request(  int  socketID, u_char *  ip4_Data, int  dataBytesCount, u
 	int  bytesSent;
 
 	successFlag = FALSE;
-	if( T_Flag )  {
+	if( t_Flag )  {
 		bytesSent = sendICMP_TimestampRequest( socketID, ip4_Data, 20, seqID );	/* ICMP Time stamp is 8 byte Header + 12 byte Data */
 		successFlag = ( bytesSent == 20 );
 		if( ! successFlag )
@@ -579,8 +579,8 @@ int  sendICMP_RequestWithTimeStampOptionInTheIP4_Hdr( struct sockaddr_in *  to, 
 
 /* Help/Usage information */
 void  useage( char *  name )  {
-	printf( "\nuseage: %s [-cX][-D][-h][-lXX][-M][-q][-tX][-T[X]][-v][-wX] NetworkDeviceName\n", name );
-	printf( "or      %s [-cX][-D][-h][-lXX][-M][-q][-tX][-T[X]][-v][-wX] NetworkDeviceIP_Number\n", name );
+	printf( "\nuseage: %s [-cX][-D][-h][-lXX][-M][-q][-t[X]][-T ABC][-v][-wX] NetworkDeviceName\n", name );
+	printf( "or      %s [-cX][-D][-h][-lXX][-M][-q][-t[X]][-T ABC][-v][-wX] NetworkDeviceIP_Number\n", name );
 	printf( "\nwhere options; -\n" );
 	printf( "        -cX  specifies number of times to ping remote network device\n" );
 	printf( "        -D  switches on debug output\n" );
@@ -588,12 +588,12 @@ void  useage( char *  name )  {
 	printf( "        -lXX  specifies header option length (default is 40)\n" );
 	printf( "        -M  specifies ICMP Mask request instead of ICMP Echo for ping\n" );
 	printf( "        -q  forces quiet (minimum) output and overrides -v\n" );
-	printf( "        -tX  specifies header option time stamp type (default is none)\n" );
-	printf( "          where X is an integer ( 0 <= X <= 3 ).\n" );
-	printf( "            If 0 then Time Stamp Only,\n" );
-	printf( "            if 1 then Time Stamp and Address,\n" );
-	printf( "            if 3 then Time Stamp prespecified Addresses,\n" );
-	printf( "        -T[X]  specifies ICMP Time Stamp request instead of ICMP Echo for ping\n" );
+	printf( "        -T ABC  specifies header option time stamp type.\n" );
+	printf( "          where ABC is a sting of characters.\n" );
+	printf( "            If \"tsonly\" then Time Stamp Only,\n" );
+	printf( "            if \"tsandaddr\" then Time Stamp and Address,\n" );
+	printf( "            if \"tsprespec\" then Time Stamp prespecified Addresses.\n" );
+	printf( "        -t[X]  specifies ICMP Time Stamp request instead of ICMP Echo for ping\n" );
 	printf( "          where optional [X] is missing or an integer.\n" );
 	printf( "            If greater than 0 then tsr & tst are treated as little endian\n" );
 	printf( "            (i.e. Windows default response, if the ICMP Time Stamp request\n" );
@@ -634,10 +634,15 @@ int  processCommandLineOptions( int  argc, char *  argv[] )  {
 	optionLength = convertOptionStringToInteger( MAX_IP4_HDR_OPTION_LEN, l_Strng, "-l", &l_Flag, TRUE );
 	optionLength = 4 * (( optionLength + 3 ) / 4 );	/* force option length to be a multiple of 4 bytes */
 	optionLength = limitIntegerValueToEqualOrWithinRange( optionLength, 8, MAX_IP4_HDR_OPTION_LEN );
-	ip4_OptionTS_Value = convertOptionStringToInteger( -1, t_Strng, "-t", &t_Flag, TRUE );
+	ip4_OptionTS_Value = -1;
+	if( T_Flag && ( T_Strng != NULL ))  {
+		if( strncmp( T_Strng, "tsonly", 6 ) == 0 ) ip4_OptionTS_Value = 0;
+		else if( strncmp( T_Strng, "tsandaddr", 9 ) == 0 ) ip4_OptionTS_Value = 1;
+		else if( strncmp( T_Strng, "tsprespec", 9 ) == 0 ) ip4_OptionTS_Value = 3;
+	}
 	ip4_OptionTS_Value = limitIntegerValueToEqualOrWithinRange( ip4_OptionTS_Value, -1, 3 );
 	if( ip4_OptionTS_Value == 2 )  ip4_OptionTS_Value = 3;	/* Force 2 (not used) to 3 (PRE_SPEC) */
-	icmpTS_Value = convertOptionStringToInteger( 0, T_Strng, "-T", &T_Flag, FALSE );
+	icmpTS_Value = convertOptionStringToInteger( 0, t_Strng, "-t", &t_Flag, FALSE );
 	icmpTS_Value = limitIntegerValueToEqualOrWithinRange( icmpTS_Value, 0, 1 );
 	waitTimeInSec = convertOptionStringToInteger( DEFAULT_TIME_OUT_PERIOD, w_Strng, "-w", &w_Flag, TRUE );
 	waitTimeInSec = limitIntegerValueToEqualOrWithinRange( waitTimeInSec, 1, 15 );
@@ -696,7 +701,7 @@ int  main( int  argc, char *  argv[] )  {
 	commandLineIndex = processCommandLineOptions( argc, argv );
 
 /* Print useage message and exit if the "-h" flag was amongst the command line options */
-/*  or if only the program name is specified (i.e. no icmp echo target is specified ) */
+/*  or if no icmp echo target is specified ) */
 	if( helpFlag || ( argc == commandLineIndex )) {
 		useage( exeName );
 		return(0);

@@ -2,7 +2,7 @@
 #
 # C H K
 #
-# chk last edited Mon Oct  9 21:01:34 2023
+# chk last edited Mon Oct  9 22:45:44 2023
 #
 PROGRAM=ping3
 TARGET=www.apple.com
@@ -50,8 +50,8 @@ echo
 echo "Test verbose IPv4 Header Option Timestamp pings"
 echo
 #
-echo "$PRIV ../$PROGRAM -t0 -v $TARGET"
-$PRIV ../$PROGRAM -t0 -v $TARGET
+echo "$PRIV ../$PROGRAM -T tsonly -v $TARGET"
+$PRIV ../$PROGRAM -T tsonly -v $TARGET
 sleep 1
 echo
 #
@@ -62,8 +62,8 @@ if [[ "$OSTYPE" == "linux-gnu" ]] ; then
   echo
 fi
 #
-echo "$PRIV ../$PROGRAM -t3 -v $TARGET"
-$PRIV ../$PROGRAM -t3 -v $TARGET
+echo "$PRIV ../$PROGRAM -T tsprespec -v $TARGET"
+$PRIV ../$PROGRAM -T tsprespec -v $TARGET
 sleep 1
 #
 if [[ "$LOCAL_INTERFACE" != "" ]] ; then  # Test that we have local interface info

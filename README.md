@@ -54,7 +54,7 @@ round-trip min/avg/max/stddev = 24.187/25.471/26.968/1.145 ms
 There doesn't appear to be equivalent options on the macOS ping
 that give "tsonly" timestamps in the following fashion; -
 ```
-% ./ping3 -t0 -c2 www.apple.com
+% ./ping3 -T tsonly -c2 www.apple.com
 60 bytes from 23.202.170.41: seq 0, ttl 59, RTT 21.581 [mS]
 100 bytes from 23.202.170.41: seq 1, ttl 59, RTT 23.66 [mS]
  12:50:09.212 ( -103 [mS]))
@@ -89,7 +89,7 @@ $
 ```
 Successful ICMP Timestamp request pings produce the following output; -
 ```
-% ./ping3 -T ntp-m.obspm.fr       
+% ./ping3 -t ntp-m.obspm.fr       
 40 bytes from 145.238.187.55: seq 1, ttl 38, RTT 0.546179 [Sec] tso 05:19:35.508 tsr 05:19:35.836 tst 05:19:35.836
 40 bytes from 145.238.187.55: seq 2, ttl 38, RTT 414.445 [mS] tso 05:19:36.559 tsr 05:19:36.769 tst 05:19:36.769
 40 bytes from 145.238.187.55: seq 3, ttl 38, RTT 421.83 [mS] tso 05:19:37.475 tsr 05:19:37.689 tst 05:19:37.689
@@ -134,8 +134,8 @@ command line option as follows; -
 ```
 % ./ping3 -h
 
-useage: ping3 [-cX][-D][-h][-lXX][-M][-q][-tX][-T[X]][-v][-wX] NetworkDeviceName
-or      ping3 [-cX][-D][-h][-lXX][-M][-q][-tX][-T[X]][-v][-wX] NetworkDeviceIP_Number
+useage: ping3 [-cX][-D][-h][-lXX][-M][-q][-t[X]][-T ABC][-v][-wX] NetworkDeviceName
+or      ping3 [-cX][-D][-h][-lXX][-M][-q][-t[X]][-T ABC][-v][-wX] NetworkDeviceIP_Number
 
 where options; -
         -cX  specifies number of times to ping remote network device
@@ -144,12 +144,12 @@ where options; -
         -lXX  specifies header option length (default is 40)
         -M  specifies ICMP Mask request instead of ICMP Echo for ping
         -q  forces quiet (minimum) output and overrides -v
-        -tX  specifies header option time stamp type (default is none)
-          where X is an integer ( 0 <= X <= 3 ).
-            If 0 then Time Stamp Only,
-            if 1 then Time Stamp and Address,
-            if 3 then Time Stamp prespecified Addresses,
-        -T[X]  specifies ICMP Time Stamp request instead of ICMP Echo for ping
+        -T ABC  specifies header option time stamp type.
+          where ABC is a sting of characters.
+            If "tsonly" then Time Stamp Only,
+            if "tsandaddr" then Time Stamp and Address,
+            if "tsprespec" then Time Stamp prespecified Addresses.
+        -t[X]  specifies ICMP Time Stamp request instead of ICMP Echo for ping
           where optional [X] is missing or an integer.
             If greater than 0 then tsr & tst are treated as little endian
             (i.e. Windows default response, if the ICMP Time Stamp request
