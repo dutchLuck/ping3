@@ -89,7 +89,7 @@ $
 ```
 Successful ICMP Timestamp request pings produce the following output; -
 ```
-% ./ping3 -t ntp-m.obspm.fr       
+% ./ping3 -M time ntp-m.obspm.fr       
 40 bytes from 145.238.187.55: seq 1, ttl 38, RTT 0.546179 [Sec] tso 05:19:35.508 tsr 05:19:35.836 tst 05:19:35.836
 40 bytes from 145.238.187.55: seq 2, ttl 38, RTT 414.445 [mS] tso 05:19:36.559 tsr 05:19:36.769 tst 05:19:36.769
 40 bytes from 145.238.187.55: seq 3, ttl 38, RTT 421.83 [mS] tso 05:19:37.475 tsr 05:19:37.689 tst 05:19:37.689
@@ -110,7 +110,7 @@ PING korriban.obspm.fr (145.238.187.55): 0 data bytes
 ```
 Successful ICMP Netmask request pings produce the following output; -
 ```
-% ./ping3 -M 192.168.1.103
+% ./ping3 -M mask 192.168.1.103
 32 bytes from 192.168.1.103: seq 1, ttl 64, RTT 3.375 [mS] mask 255.255.255.0
 32 bytes from 192.168.1.103: seq 2, ttl 64, RTT 5.805 [mS] mask 255.255.255.0
 32 bytes from 192.168.1.103: seq 3, ttl 64, RTT 4.521 [mS] mask 255.255.255.0
@@ -134,26 +134,27 @@ command line option as follows; -
 ```
 % ./ping3 -h
 
-useage: ping3 [-cX][-D][-h][-lXX][-M][-q][-t[X]][-T ABC][-v][-wX] NetworkDeviceName
-or      ping3 [-cX][-D][-h][-lXX][-M][-q][-t[X]][-T ABC][-v][-wX] NetworkDeviceIP_Number
+useage: ping3 [-cX][-D][-h][-lXX][-M ABC][-q][-T ABC][-v][-wX] NetworkDeviceName
+or      ping3 [-cX][-D][-h][-lXX][-M ABC][-q][-T ABC][-v][-wX] NetworkDeviceIP_Number
 
 where options; -
         -cX  specifies number of times to ping remote network device
         -D  switches on debug output
         -h  switches on this help output and then terminates ping3
         -lXX  specifies header option length (default is 40)
-        -M  specifies ICMP Mask request instead of ICMP Echo for ping
+        -M ABC  specifies ping with ICMP Mask/Timestamp request instead of ICMP Echo.
+          where ABC is a sting of characters.
+            If "mask" then send ICMP Mask request,
+            if "time" then send ICMP Time Stamp request,
+            if "timew" as above, but treat tsr and tst timestamps as little endian.
+            (i.e. Windows default response, if the ICMP Time Stamp request
+            is allowed through the Windows firewall. )
         -q  forces quiet (minimum) output and overrides -v
         -T ABC  specifies header option time stamp type.
           where ABC is a sting of characters.
             If "tsonly" then Time Stamp Only,
             if "tsandaddr" then Time Stamp and Address,
             if "tsprespec" then Time Stamp prespecified Addresses.
-        -t[X]  specifies ICMP Time Stamp request instead of ICMP Echo for ping
-          where optional [X] is missing or an integer.
-            If greater than 0 then tsr & tst are treated as little endian
-            (i.e. Windows default response, if the ICMP Time Stamp request
-            is allowed through the Windows firewall. )
         -v  switches on verbose output
         -wX  ensures the program waits for X seconds for a response
 

@@ -62,6 +62,10 @@
 #define	ICMP_PAYLOAD_LEN	12	/* default ICMP data length to 3 millisecond since midnight timestamps */
 #define CONTRIVED_NUMBER 0x1	/* start number for packet identifier */
 
+#define ICMP_TIMEW 3	/* ICMP Timestamp request with little endian replies expected */
+#define ICMP_TIME 2		/* ICMP Timestamp request with standard replies expected */
+#define ICMP_MASK 1		/* ICMP Mask request with standard replies expected */
+
 #ifdef __linux__
 #include "ipOptTS.h"
 typedef  struct ipOptTimestamp  IP_TIMESTAMP;
@@ -82,7 +86,7 @@ extern int  errno;
 /* Command line Optional Switches: */
 /*  beginOffset, ByteCount, charAlternate, Cryptogram, decimal, Debug, */
 /*  fieldSepWidth, help, Hex, Index, outFile, columnSeparator, space, verbosity, width */
-const char  optionStr[] = "c:Dhl:Mqt::T:vw:";
+const char  optionStr[] = "c:Dhl:M:qT:vw:";
 
 int	 verboseFlag;	/* when true more info is output */
 int	 quietFlag;		/* when true minimise the output info */
@@ -96,8 +100,7 @@ int  l_Flag;		/* IP Header option length was found in the command line options *
 char * l_Strng = ( char * ) NULL;	/* pointer to -l value */
 int  optionLength;	/* IP Header Option length */
 int  M_Flag;		/* ICMP Mask identifier was found in the command line options */
-int  t_Flag;		/* ICMP Time stamp identifier was found in the command line options */
-char *  t_Strng = ( char * ) NULL;	/* pointer to -t value */
+char *  M_Strng = ( char * ) NULL;	/* pointer to -M type value */
 int  icmpTS_Value;	/* Specifies the time stamp replies as little endian i.e. Windows replies */
 int  T_Flag;		/* IP4 Header options Time stamp identifier was found in the command line options */
 char *  T_Strng = ( char * ) NULL;	/* pointer to -T value */
@@ -306,7 +309,7 @@ void  printLineOfPingInfo( struct ip *  ip, struct icmp *  icmpHdrPtr, int  ICMP
 	printStdPingInfo( ip, icmpHdrPtr, ICMP_MsgSize );
 	if( icmpHdrPtr->icmp_type == ICMP_TSTAMPREPLY )  {
 		printf( " " );
-		displayTimeStampReplyTimestamps( icmpHdrPtr, icmpTS_Value );
+		displayTimeStampReplyTimestamps( icmpHdrPtr, ( icmpTS_Value == ICMP_TIMEW ));
 	}
 	else if( icmpHdrPtr->icmp_type == ICMP_MASKREPLY )  {
 		printf( " " );
@@ -477,13 +480,13 @@ int sendICMP_Request(  int  socketID, u_char *  ip4_Data, int  dataBytesCount, u
 	int  bytesSent;
 
 	successFlag = FALSE;
-	if( t_Flag )  {
+	if( M_Flag && ( icmpTS_Value > 1 ))  {
 		bytesSent = sendICMP_TimestampRequest( socketID, ip4_Data, 20, seqID );	/* ICMP Time stamp is 8 byte Header + 12 byte Data */
 		successFlag = ( bytesSent == 20 );
 		if( ! successFlag )
 			printf( "?? Unable to send 20 bytes of ICMP Timestamp Request in the network datagram" );
 	}
-	else if( M_Flag )  {
+	else if( M_Flag && ( icmpTS_Value == 1 ))  {
 		bytesSent = sendICMP_MaskRequest( socketID, ip4_Data, 12, seqID );	/* ICMP Mask is 8 byte Header + 4 byte Data */
 		successFlag = ( bytesSent == 12 );
 		if( ! successFlag )
@@ -547,7 +550,7 @@ int  sendICMP_RequestWithTimeStampOptionInTheIP4_Hdr( struct sockaddr_in *  to, 
 	tsPtr->ipt_ptr = 5;
 	tsPtr->ipt_flg = ip4_OptionTS_Value;	/* tsonly is 0, tsandaddr 1, tsprespec 3 */
 	tsPtr->ipt_oflw = 0;
-	if( ip4_OptionTS_Value > 1 )  {		/* Only set up prespecified addresses if 2 or 3 */
+	if( ip4_OptionTS_Value > IPOPT_TS_TSANDADDR )  {		/* Only set up prespecified addresses if 2 or 3 */
 		tsPtr->ipt_timestamp.ipt_ta[0].ipt_addr = to->sin_addr;		/* insert remote network device IP address */
 		tsPtr->ipt_timestamp.ipt_ta[0].ipt_time = 0;
 		ipt_taPtr = &tsPtr->ipt_timestamp.ipt_ta[0];
@@ -556,7 +559,7 @@ int  sendICMP_RequestWithTimeStampOptionInTheIP4_Hdr( struct sockaddr_in *  to, 
 		ipt_taPtr->ipt_time = 0;
 		optionLength = 20;	/* Over-ride option size to 4 octets for option header + 16 for two address + time pairs */
 	}
-	else if( ip4_OptionTS_Value == 1 )  {
+	else if( ip4_OptionTS_Value == IPOPT_TS_TSANDADDR )  {
 		if( optionLength < 12 )  optionLength = 12;		/* Makes no sense to be smaller than header + 1 address + time pair */
 		else  optionLength = 4 + ( 8 * (( optionLength - 4 ) / 8 ));	/* trim to header + an exact number of pairs */
 	}
@@ -579,25 +582,26 @@ int  sendICMP_RequestWithTimeStampOptionInTheIP4_Hdr( struct sockaddr_in *  to, 
 
 /* Help/Usage information */
 void  useage( char *  name )  {
-	printf( "\nuseage: %s [-cX][-D][-h][-lXX][-M][-q][-t[X]][-T ABC][-v][-wX] NetworkDeviceName\n", name );
-	printf( "or      %s [-cX][-D][-h][-lXX][-M][-q][-t[X]][-T ABC][-v][-wX] NetworkDeviceIP_Number\n", name );
+	printf( "\nuseage: %s [-cX][-D][-h][-lXX][-M ABC][-q][-T ABC][-v][-wX] NetworkDeviceName\n", name );
+	printf( "or      %s [-cX][-D][-h][-lXX][-M ABC][-q][-T ABC][-v][-wX] NetworkDeviceIP_Number\n", name );
 	printf( "\nwhere options; -\n" );
 	printf( "        -cX  specifies number of times to ping remote network device\n" );
 	printf( "        -D  switches on debug output\n" );
 	printf( "        -h  switches on this help output and then terminates %s\n", name );
 	printf( "        -lXX  specifies header option length (default is 40)\n" );
-	printf( "        -M  specifies ICMP Mask request instead of ICMP Echo for ping\n" );
+	printf( "        -M ABC  specifies ping with ICMP Mask/Timestamp request instead of ICMP Echo.\n" );
+	printf( "          where ABC is a sting of characters.\n" );
+	printf( "            If \"mask\" then send ICMP Mask request,\n" );
+	printf( "            if \"time\" then send ICMP Time Stamp request,\n" );
+	printf( "            if \"timew\" as above, but treat tsr and tst timestamps as little endian.\n" );
+	printf( "            (i.e. Windows default response, if the ICMP Time Stamp request\n" );
+	printf( "            is allowed through the Windows firewall. )\n" );
 	printf( "        -q  forces quiet (minimum) output and overrides -v\n" );
 	printf( "        -T ABC  specifies header option time stamp type.\n" );
 	printf( "          where ABC is a sting of characters.\n" );
 	printf( "            If \"tsonly\" then Time Stamp Only,\n" );
 	printf( "            if \"tsandaddr\" then Time Stamp and Address,\n" );
 	printf( "            if \"tsprespec\" then Time Stamp prespecified Addresses.\n" );
-	printf( "        -t[X]  specifies ICMP Time Stamp request instead of ICMP Echo for ping\n" );
-	printf( "          where optional [X] is missing or an integer.\n" );
-	printf( "            If greater than 0 then tsr & tst are treated as little endian\n" );
-	printf( "            (i.e. Windows default response, if the ICMP Time Stamp request\n" );
-	printf( "            is allowed through the Windows firewall. )\n" );
 	printf( "        -v  switches on verbose output\n" );
 	printf( "        -wX  ensures the program waits for X seconds for a response\n" );
 	printf( "\n" );
@@ -616,9 +620,8 @@ int  processCommandLineOptions( int  argc, char *  argv[] )  {
 			case 'D' :  debugFlag = TRUE; break;
 			case 'h' :  helpFlag = TRUE; break;
 			case 'l' :  l_Flag = TRUE; l_Strng = optarg; break;
-			case 'M' : M_Flag = TRUE; break;
-			case 'q' : quietFlag = TRUE; break;
-			case 't' :  t_Flag = TRUE; t_Strng = optarg; break;
+			case 'M' :  M_Flag = TRUE; M_Strng = optarg; break;
+			case 'q' :  quietFlag = TRUE; break;
     		case 'T' :  T_Flag = TRUE; T_Strng = optarg; break;
     		case 'v' :  verboseFlag = TRUE; break;
     		case 'w' :  w_Flag = TRUE; w_Strng = optarg; break;
@@ -636,14 +639,19 @@ int  processCommandLineOptions( int  argc, char *  argv[] )  {
 	optionLength = limitIntegerValueToEqualOrWithinRange( optionLength, 8, MAX_IP4_HDR_OPTION_LEN );
 	ip4_OptionTS_Value = -1;
 	if( T_Flag && ( T_Strng != NULL ))  {
-		if( strncmp( T_Strng, "tsonly", 6 ) == 0 ) ip4_OptionTS_Value = 0;
-		else if( strncmp( T_Strng, "tsandaddr", 9 ) == 0 ) ip4_OptionTS_Value = 1;
-		else if( strncmp( T_Strng, "tsprespec", 9 ) == 0 ) ip4_OptionTS_Value = 3;
+		if( strncmp( T_Strng, "tsonly", 6 ) == 0 ) ip4_OptionTS_Value = IPOPT_TS_TSONLY;
+		else if( strncmp( T_Strng, "tsandaddr", 9 ) == 0 ) ip4_OptionTS_Value = IPOPT_TS_TSANDADDR;
+		else if( strncmp( T_Strng, "tsprespec", 9 ) == 0 ) ip4_OptionTS_Value = IPOPT_TS_PRESPEC ;
 	}
-	ip4_OptionTS_Value = limitIntegerValueToEqualOrWithinRange( ip4_OptionTS_Value, -1, 3 );
-	if( ip4_OptionTS_Value == 2 )  ip4_OptionTS_Value = 3;	/* Force 2 (not used) to 3 (PRE_SPEC) */
-	icmpTS_Value = convertOptionStringToInteger( 0, t_Strng, "-t", &t_Flag, FALSE );
-	icmpTS_Value = limitIntegerValueToEqualOrWithinRange( icmpTS_Value, 0, 1 );
+	ip4_OptionTS_Value = limitIntegerValueToEqualOrWithinRange( ip4_OptionTS_Value, -1, IPOPT_TS_PRESPEC );
+	if( ip4_OptionTS_Value == 2 )  ip4_OptionTS_Value = IPOPT_TS_PRESPEC;	/* Force 2 (not used) to 3 (PRE_SPEC) */
+	icmpTS_Value = 0;
+	if( M_Flag && ( M_Strng != NULL ))  {
+		if( strncmp( M_Strng, "mask", 4 ) == 0 ) icmpTS_Value = ICMP_MASK;
+		else if( strncmp( M_Strng, "timew", 5 ) == 0 ) icmpTS_Value = ICMP_TIMEW;
+		else if( strncmp( M_Strng, "time", 4 ) == 0 ) icmpTS_Value = ICMP_TIME;
+	}
+	icmpTS_Value = limitIntegerValueToEqualOrWithinRange( icmpTS_Value, 0, ICMP_TIMEW );
 	waitTimeInSec = convertOptionStringToInteger( DEFAULT_TIME_OUT_PERIOD, w_Strng, "-w", &w_Flag, TRUE );
 	waitTimeInSec = limitIntegerValueToEqualOrWithinRange( waitTimeInSec, 1, 15 );
  	if( debugFlag )  printf( "Option length is %d bytes\n", optionLength );
@@ -662,11 +670,10 @@ void  setGlobalFlagDefaults( char *  argv[] )  {	/* Set up any Global variables 
 	pingCount = DEFAULT_PING_COUNT;
 	l_Flag = FALSE;
 	optionLength = MAX_IP4_HDR_OPTION_LEN;
-	M_Flag = FALSE;		/* ICMP Mask */
-	t_Flag = FALSE;		/* IP header options timestamp */
-	ip4_OptionTS_Value = -1;	/* I.E. no header option time stamp */
-	T_Flag = FALSE;		/* ICMP Timestamp */
-	icmpTS_Value = -1;	/* I.E. no need to reverse time stamp */
+	M_Flag = FALSE;		/* ICMP Mask/Time request */
+	icmpTS_Value = 0;	/* No ICMP Mask/Time request */
+	T_Flag = FALSE;		/* IP header option Timestamp */
+	ip4_OptionTS_Value = -1;	/* I.E. no IP header option time stamp */
 	w_Flag = FALSE;		/* Wait time */
 	waitTimeInSec = DEFAULT_TIME_OUT_PERIOD;
 	responsesToICMP_Request = 0;
@@ -777,7 +784,7 @@ int  main( int  argc, char *  argv[] )  {
 			sleepTime.tv_nsec = 500000000L;	/* half a second sleep time */
 			nanosleep( &sleepTime, &sleepRemainder );
 			ip4_Hdr_ID += 1;	/* bump the packet ID */
-	    	if( ip4_OptionTS_Value < 0 )  {
+	    	if( ip4_OptionTS_Value < IPOPT_TS_TSONLY )  {
 			/* Do second & greater pings as normal ICMP echo without any IP header options */
 				sendICMP_RequestAndGetResponse( sckt, ICMP_HDR_LEN + ICMP_PAYLOAD_LEN + MAX_IP4_HDR_OPTION_LEN, ip4_Hdr_ID );	/* Another ping like the first */
 				returnValue = 0;

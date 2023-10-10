@@ -2,7 +2,7 @@
 #
 # C H E C K
 #
-# check last edited Mon Oct  9 22:45:39 2023
+# check last edited Tue Oct 10 19:21:33 2023
 #
 PROGRAM=ping3
 #
@@ -106,8 +106,8 @@ echo "# 2(a) Test ICMP TIMESTAMP option #"
 echo "###################################"
 echo
 #
-echo "$PRIV ../$PROGRAM -t $TARGET"
-$PRIV ../$PROGRAM -t $TARGET
+echo "$PRIV ../$PROGRAM -M time $TARGET"
+$PRIV ../$PROGRAM -M time $TARGET
 sleep 1
 echo
 #
@@ -130,8 +130,8 @@ echo "######################################################"
 echo "# 2(b) Test ICMP TIMESTAMP option for Windows target #"
 echo "######################################################"
 echo
-echo "$PRIV ../$PROGRAM -t1 $WINDOWS_TARGET"
-$PRIV ../$PROGRAM -t1 $WINDOWS_TARGET
+echo "$PRIV ../$PROGRAM -M timew $WINDOWS_TARGET"
+$PRIV ../$PROGRAM -M timew $WINDOWS_TARGET
 sleep 1
 echo
 #
@@ -150,8 +150,8 @@ echo "# 3. Test ICMP NETMASK option #"
 echo "###############################"
 echo
 #
-echo "$PRIV ../$PROGRAM -M $NETMASK_TARGET"
-$PRIV ../$PROGRAM -M $NETMASK_TARGET
+echo "$PRIV ../$PROGRAM -M mask $NETMASK_TARGET"
+$PRIV ../$PROGRAM -M mask $NETMASK_TARGET
 #
 # On macOS the ping utility has the capability to send
 # ICMP NETMASK requests, but sudo is needed if the
