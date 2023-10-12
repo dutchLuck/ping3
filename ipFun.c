@@ -1,7 +1,7 @@
 /*
  * I P F U N . C
  *
- * ipFun.c last edited Sat Oct  7 20:25:37 2023
+ * ipFun.c last edited Thu Oct 12 23:49:39 2023
  *
  * Functions to handle aspects of IP datagrams
  *
@@ -120,7 +120,7 @@ void  displayIpHeader( struct ip *  ipPkt )  {
 	if( ipHeaderOptionsLength > 0 )  {
 		uc_ptr = ( u_char * ) ipPkt;
 		uc_ptr += 20;
-		displayIpOptionList( uc_ptr, ipHeaderOptionsLength );
+		/* displayIpOptionList( uc_ptr, ipHeaderOptionsLength ); */
 		displayIpOptions( uc_ptr, ipHeaderOptionsLength, 1 );
 	}
 }

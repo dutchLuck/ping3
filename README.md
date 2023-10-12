@@ -1,8 +1,9 @@
 # ping3
 Send multiple Internet Protocol version 4 (IPv4) ICMP Echo
-requests or multiple IPv4 ICMP Time Stamp requests to a remote
-network device and display round trip time information if
-echo replies are received back.
+requests or multiple IPv4 ICMP Time Stamp requests or multiple
+IPv4 ICMP Address Mask requests to a remote network device and
+display round trip time information if the corresponding ICMP
+replies are received back.
 
 This utility program is named "ping3" because it has the ability
 to ping a remote network device with three types of ICMP requests
@@ -12,24 +13,32 @@ defaults to sending three ICMP echo/timestamp/mask request to a
 network device and waits for the device to reply to each request.
 If the device replies then some information on how long the round-
 trip-time (RTT) was is printed out. If the device doesn't respond
-then a time-out message is printed instead.
-By default "ping3" provides a (somewhat) cut down version of the
+then a time-out message is printed instead and ping3 exits.
+
+By default "ping3" provides a (very much) cut down version of the
 capability provided by the standard computer system utility "ping".
+It does not provide any Internet Protocol version 6 (IPv6) capability.
+It currently does not provide any summary statistics or congestion
+testing or pattern testing or alternate interface specification or
+multicast functionality.
+
 The standard ping utility that comes with Apple Mac OSX, such as
 macOS Ventura, provides the same default ability as the Linux ping
 utility, but differs considerably for more rarely used modes of
 operation. Linux ping provides a timestamp and record route
-capability through header options and macOS ping doesn't. However
-macOS ping provides a timestamp capability through ICMP timestamp
-requests. This mode requires elevated priveleges via sudo, unless
-the "-s 0" option is included with the "-M time" option. The macOS
-ping also provides a netmask capability through ICMP netmask
+capability through IPv4 header options and macOS ping doesn't.
+However macOS ping provides a timestamp capability through ICMP
+timestamp requests. This mode requires elevated priveleges via sudo,
+unless the "-s 0" option is included with the "-M time" option. The
+macOS ping also provides a netmask capability through ICMP netmask
 requests, but Linux ping has no similar capability. Once again
 the "-M mask" option on macOS ping also should be teamed with
 a "-s 0" to avoid requiring sudo priveleges to send the request.
 
 The ping3 utility provides timestamp in the header options on a
 macOS system and provides ICMP timestamp/mask pings on a Linux system.
+On Linux ping3 requires the use of sudo to work, but it does not
+require increased privilege via sudo to work on macOS.
 
 The default output of ping3 on a macOS system is somewhat similar
 to the ping utility output minus the summary statistics.
@@ -141,7 +150,7 @@ where options; -
         -cX  specifies number of times to ping remote network device
         -D  switches on debug output
         -h  switches on this help output and then terminates ping3
-        -lXX  specifies header option length (default is 40)
+        -lXX  specifies header option length (max accepted is 40 and should be a multiple of 4)
         -M ABC  specifies ping with ICMP Mask/Timestamp request instead of ICMP Echo.
           where ABC is a sting of characters.
             If "mask" then send ICMP Mask request,
@@ -152,9 +161,9 @@ where options; -
         -q  forces quiet (minimum) output and overrides -v
         -T ABC  specifies header option time stamp type.
           where ABC is a sting of characters.
-            If "tsonly" then Time Stamp Only,
-            if "tsandaddr" then Time Stamp and Address,
-            if "tsprespec" then Time Stamp prespecified Addresses.
+            If "tsonly" then record Time Stamp Only list of time stamps,
+            if "tsandaddr" then record Address and Time Stamp pair list,
+            if "tsprespec H.I.J.K [ L.M.N.O [ P.Q.R.S [ T.U.V.W ]]]" then Time Stamp prespecified Addresses.
         -v  switches on verbose output
         -wX  ensures the program waits for X seconds for a response
 

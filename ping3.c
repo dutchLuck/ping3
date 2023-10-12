@@ -1,7 +1,7 @@
 /*
  * P I N G 3 . C
  *
- * ping3.c last edited Mon Oct  9 20:54:30 2023
+ * ping3.c last edited Thu Oct 12 23:49:22 2023
  * 
  */
 
@@ -15,7 +15,7 @@
  * 
  */
 
-#include <stdlib.h> 	/* exit() */
+#include <stdlib.h> 	/* exit() atexit() */
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>	/* inet_addr() inet_ntoa() */
@@ -38,6 +38,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <string.h>		/* strncpy() */
+#include <strings.h>	/* bzero() */
 #include <math.h>		/* round() */
 #include  "genFun.h"	/* clearByteArray() */
 #include  "dbgFun.h"	/* printNamedByteArray() */
@@ -114,8 +115,6 @@ char *  exePath = ( char * ) NULL;	/* path of this executable */
 
 int	 responsesToICMP_Request;	/* counts responses to the ICMP request */
 
-struct sockaddr	 remoteDeviceToPingInfo;	/* target network device to ping */
-
 int	 sckt;
 char *  hostName;
 u_char  ip4_DataToSend[ ICMP_HDR_LEN + ICMP_PAYLOAD_LEN + MAX_IP4_HDR_OPTION_LEN ];
@@ -134,6 +133,13 @@ long  tstarget;	/* both host byte ordered */
 long  tsdiff;	/* adjustment must also be signed */
 struct timespec  sleepTime;
 struct timespec  sleepRemainder;
+
+struct sockaddr	 remoteDeviceToPingInfo;	/* target network device to ping */
+struct sockaddr	 preSpecDevice[ 4 ];	/* get timestamp from network up to 4 interfaces */
+
+char  remoteDeviceNameBuffer[ MAXHOSTNAMELEN ];
+char  localDeviceNameBuffer[ MAXHOSTNAMELEN ];
+char  prespecDeviceNameBuffer[ 4 ][ MAXHOSTNAMELEN ];
 
 
 void  sig_alrm( int  signo )  {
@@ -380,6 +386,7 @@ int  processReceivedDatagram( char *  buf, int  datagramSize, struct sockaddr_in
 	if( debugFlag )  {
 		printf( "\n--==## processReceivedDatagram(): display IP4 datagram ##==--\n" );
 		display_ip( ip, datagramSize );
+		printf( "--==## processReceivedDatagram(): display IP4 datagram ##==--\n\n" );
 	}
      /* Now the ICMP body + header options (if there are any) */
 	
@@ -393,7 +400,7 @@ int  processReceivedDatagram( char *  buf, int  datagramSize, struct sockaddr_in
 			if( verboseFlag )  displayICMP( icmpHdrPtr );
 		}
 		if( verboseFlag )
-			printNamedByteArray(( u_char *) ip, datagramSize, 20, "processReceivedDatagram(): non Echo Reply ICMP IP4 received" );
+			printNamedByteArray(( u_char *) ip, datagramSize, 20, "processReceivedDatagram(): non Echo/Timestamp/Mask Reply ICMP IP4 received" );
 		return( -1 );	/* some other type of ICMP message */
 	}
 	if( ntohs( icmpHdrPtr->icmp_id ) != process_id )  {
@@ -539,18 +546,18 @@ int sendICMP_RequestAndGetResponse( int socketID, int  dataByteCnt, u_short  ip4
  * IP Header Options are in RFC 791, but also see RFC 1349, RFC 2474, RFC 6864
  */
 int  sendICMP_RequestWithTimeStampOptionInTheIP4_Hdr( struct sockaddr_in *  to, struct ip *  rxdIP4_Packet, u_short  ip4_HdrID )  {
-	int  returnValue = 1;
+	int  i, returnValue = 1;
 	u_char  inetTimeStamp[ MAX_IP4_HDR_OPTION_LEN ];	/* Storage for optional IP4 header options */
 	IP_TIMESTAMP *  tsPtr;		/* time stamp pointer */
 	struct ipt_ta *	 ipt_taPtr;
-
+	struct sockaddr_in *  sckAddrInPtr;
+	
 	tsPtr = (IP_TIMESTAMP *) inetTimeStamp;
 	bzero((char *) tsPtr, MAX_IP4_HDR_OPTION_LEN );
-	tsPtr->ipt_code = IPOPT_TS;
-	tsPtr->ipt_ptr = 5;
-	tsPtr->ipt_flg = ip4_OptionTS_Value;	/* tsonly is 0, tsandaddr 1, tsprespec 3 */
-	tsPtr->ipt_oflw = 0;
-	if( ip4_OptionTS_Value > IPOPT_TS_TSANDADDR )  {		/* Only set up prespecified addresses if 2 or 3 */
+	ipt_taPtr = &tsPtr->ipt_timestamp.ipt_ta[ 0 ];
+	sckAddrInPtr = ( struct sockaddr_in * ) &preSpecDevice[ 0 ];
+	ipt_taPtr->ipt_addr = sckAddrInPtr->sin_addr;
+	if(( ip4_OptionTS_Value == IPOPT_TS_PRESPEC ) && ( ipt_taPtr->ipt_addr.s_addr == 0 ))  {		/* No prespecified addresses ? */
 		tsPtr->ipt_timestamp.ipt_ta[0].ipt_addr = to->sin_addr;		/* insert remote network device IP address */
 		tsPtr->ipt_timestamp.ipt_ta[0].ipt_time = 0;
 		ipt_taPtr = &tsPtr->ipt_timestamp.ipt_ta[0];
@@ -559,11 +566,28 @@ int  sendICMP_RequestWithTimeStampOptionInTheIP4_Hdr( struct sockaddr_in *  to, 
 		ipt_taPtr->ipt_time = 0;
 		optionLength = 20;	/* Over-ride option size to 4 octets for option header + 16 for two address + time pairs */
 	}
+	else if( ip4_OptionTS_Value == IPOPT_TS_PRESPEC )  {		/* Only set up prespecified addresses if 3 */
+		optionLength = 0;
+		for( i = 0; ( i < 4 ); i++ )  {
+			sckAddrInPtr = ( struct sockaddr_in * ) &preSpecDevice[ i ];
+			ipt_taPtr->ipt_addr = sckAddrInPtr->sin_addr;	/* insert remote network device IP address */
+			if( ipt_taPtr->ipt_addr.s_addr == 0 )  break;	/* Drop out of loop if IP address just used was 0.0.0.0 */
+			ipt_taPtr->ipt_time = 0;
+			ipt_taPtr += 1;
+			optionLength += 8;	/* Address + time pair is a total of 8 bytes */
+		}
+		if( optionLength > 0 )  optionLength += 4;	/* Add 4 octets for option header to address + time pairs */
+	}
 	else if( ip4_OptionTS_Value == IPOPT_TS_TSANDADDR )  {
 		if( optionLength < 12 )  optionLength = 12;		/* Makes no sense to be smaller than header + 1 address + time pair */
 		else  optionLength = 4 + ( 8 * (( optionLength - 4 ) / 8 ));	/* trim to header + an exact number of pairs */
 	}
+	/* set IPv4 Header Options header values */
+	tsPtr->ipt_code = IPOPT_TS;
+	tsPtr->ipt_ptr = 5;
+	tsPtr->ipt_oflw = 0;
 	tsPtr->ipt_len = optionLength;
+	tsPtr->ipt_flg = ip4_OptionTS_Value;	/* tsonly is 0, tsandaddr 1, tsprespec 3 */
 	if( setsockopt( sckt, IPPROTO_IP, IP_OPTIONS, tsPtr, optionLength ) != 0 )  {
 		perror("?? main(): setsocketopt() unable to set up time stamp option" );
 	}
@@ -580,6 +604,48 @@ int  sendICMP_RequestWithTimeStampOptionInTheIP4_Hdr( struct sockaddr_in *  to, 
 }
 
 
+int  setUpIP_AddressAndName( struct sockaddr_in *  devInfoPtr, char *  devNameOrIP_Str, char *  nameBfr )   {
+	int  i, resultOK = FALSE;
+	struct hostent *  hostEntPtr;		/* host pointer */
+
+/* Set up the address to send the icmp echo request */
+	devInfoPtr->sin_family = AF_INET;
+	hostEntPtr = NULL;	/* Make sure host entry pointer is initialized to NULL for later test */
+     /* Try to convert command line Remote Network Device specifier as dotted quad (decimals) address, */
+     /* else if that fails assume it's a Network Device name */
+	resultOK = (( devInfoPtr->sin_addr.s_addr = inet_addr( devNameOrIP_Str )) != (u_int) -1 );	/* attempt to set address from a Dotted Quad IP address */
+	if( ! resultOK )  {	/* test for failure to set address through inet_addr() */
+		resultOK = (( hostEntPtr = gethostbyname( devNameOrIP_Str )) != NULL );	
+		if( ! resultOK )  {
+			if( verboseFlag )  fprintf( stderr, "?? gethostbyname() put h_errno = %d for target \"%s\"\n", h_errno, devNameOrIP_Str );
+			fprintf( stderr, "?? Network Device \"%s\": %s\n", devNameOrIP_Str, hstrerror( h_errno ));
+		}
+		else  {
+			devInfoPtr->sin_family = hostEntPtr->h_addrtype;
+			bcopy( hostEntPtr->h_addr, (caddr_t)&devInfoPtr->sin_addr, hostEntPtr->h_length);
+			strncpy( nameBfr, hostEntPtr->h_name, sizeof( nameBfr ) - 1);	/* copy official name of remote Network Device */
+			if( verboseFlag )  {
+				printf( "Remote Network Device official name is: \"%s\"\n", nameBfr );
+			 /* Print other names of same Network Device if there are any */
+				for( i = 0; hostEntPtr->h_aliases[ i ] != NULL; i++ )  {
+					printf( "Remote Network Device name alias %d is: \"%s\"\n", i + 1, hostEntPtr->h_aliases[ i ] );
+				}
+			}
+		}
+	}
+	if( resultOK && verboseFlag )  {
+		printf( "Remote Network Device is: %s\n", inet_ntoa( *(struct in_addr *) &devInfoPtr->sin_addr.s_addr ));
+	 /* Print other addresses if there are any */
+	    if( hostEntPtr != NULL )  {
+			for( i = 1; hostEntPtr->h_addr_list[ i ] != NULL; i++ )  {
+				printf( "Remote Network Device alias %d is: \"%s\"\n", i, inet_ntoa( *(struct in_addr *) hostEntPtr->h_addr_list[ i ] ));
+			}
+		}
+	}
+	return( resultOK );
+}
+
+
 /* Help/Usage information */
 void  useage( char *  name )  {
 	printf( "\nuseage: %s [-cX][-D][-h][-lXX][-M ABC][-q][-T ABC][-v][-wX] NetworkDeviceName\n", name );
@@ -588,7 +654,7 @@ void  useage( char *  name )  {
 	printf( "        -cX  specifies number of times to ping remote network device\n" );
 	printf( "        -D  switches on debug output\n" );
 	printf( "        -h  switches on this help output and then terminates %s\n", name );
-	printf( "        -lXX  specifies header option length (default is 40)\n" );
+	printf( "        -lXX  specifies header option length (max accepted is 40 and should be a multiple of 4)\n" );
 	printf( "        -M ABC  specifies ping with ICMP Mask/Timestamp request instead of ICMP Echo.\n" );
 	printf( "          where ABC is a sting of characters.\n" );
 	printf( "            If \"mask\" then send ICMP Mask request,\n" );
@@ -599,9 +665,9 @@ void  useage( char *  name )  {
 	printf( "        -q  forces quiet (minimum) output and overrides -v\n" );
 	printf( "        -T ABC  specifies header option time stamp type.\n" );
 	printf( "          where ABC is a sting of characters.\n" );
-	printf( "            If \"tsonly\" then Time Stamp Only,\n" );
-	printf( "            if \"tsandaddr\" then Time Stamp and Address,\n" );
-	printf( "            if \"tsprespec\" then Time Stamp prespecified Addresses.\n" );
+	printf( "            If \"tsonly\" then record Time Stamp Only list of time stamps,\n" );
+	printf( "            if \"tsandaddr\" then record Address and Time Stamp pair list,\n" );
+	printf( "            if \"tsprespec H.I.J.K [ L.M.N.O [ P.Q.R.S [ T.U.V.W ]]]\" then Time Stamp prespecified Addresses.\n" );
 	printf( "        -v  switches on verbose output\n" );
 	printf( "        -wX  ensures the program waits for X seconds for a response\n" );
 	printf( "\n" );
@@ -609,7 +675,9 @@ void  useage( char *  name )  {
 
 
 int  processCommandLineOptions( int  argc, char *  argv[] )  {
-	int  result;
+	int  i, result, returnValue;
+	char ** argPtr;
+	char *  argArray[ 5 ];
 
 	/* Set all the global flags from command line options */
 	opterr = 0;	/* Suppress error messages from getopt() to stderr */
@@ -639,12 +707,23 @@ int  processCommandLineOptions( int  argc, char *  argv[] )  {
 	optionLength = limitIntegerValueToEqualOrWithinRange( optionLength, 8, MAX_IP4_HDR_OPTION_LEN );
 	ip4_OptionTS_Value = -1;
 	if( T_Flag && ( T_Strng != NULL ))  {
-		if( strncmp( T_Strng, "tsonly", 6 ) == 0 ) ip4_OptionTS_Value = IPOPT_TS_TSONLY;
-		else if( strncmp( T_Strng, "tsandaddr", 9 ) == 0 ) ip4_OptionTS_Value = IPOPT_TS_TSANDADDR;
-		else if( strncmp( T_Strng, "tsprespec", 9 ) == 0 ) ip4_OptionTS_Value = IPOPT_TS_PRESPEC ;
+		if( strncmp( T_Strng, "tsonly", 6 ) == 0 )  ip4_OptionTS_Value = IPOPT_TS_TSONLY;
+		else if( strncmp( T_Strng, "tsandaddr", 9 ) == 0 )  ip4_OptionTS_Value = IPOPT_TS_TSANDADDR;
+		else if( strncmp( T_Strng, "tsprespec", 9 ) == 0 )  {
+			ip4_OptionTS_Value = IPOPT_TS_PRESPEC;
+			for( argPtr = argArray; ( *argPtr = strsep( &T_Strng, " \t,")) != NULL; )  {
+				if( **argPtr != '\0' )
+					if( ++argPtr >= &argArray[ 5 ])  break;
+			}
+			if( verboseFlag || debugFlag )
+				for( i = 0; ( argArray[ i ] != NULL ) && ( i < 5 ); ++i )
+					printf( "Time Stamp Prespec argArray[ %d ] is \"%s\"\n", i, argArray[ i ]);
+			returnValue = TRUE;
+			for( i = 0; ( returnValue && ( i < 4 ) && ( argArray[ i + 1 ] != NULL ) && ( *argArray[ i + 1 ] != '\0' )); i++ )
+				returnValue = setUpIP_AddressAndName(( struct sockaddr_in *) &preSpecDevice[ i ], argArray[ i + 1 ], prespecDeviceNameBuffer[ i ] );
+		}
 	}
 	ip4_OptionTS_Value = limitIntegerValueToEqualOrWithinRange( ip4_OptionTS_Value, -1, IPOPT_TS_PRESPEC );
-	if( ip4_OptionTS_Value == 2 )  ip4_OptionTS_Value = IPOPT_TS_PRESPEC;	/* Force 2 (not used) to 3 (PRE_SPEC) */
 	icmpTS_Value = 0;
 	if( M_Flag && ( M_Strng != NULL ))  {
 		if( strncmp( M_Strng, "mask", 4 ) == 0 ) icmpTS_Value = ICMP_MASK;
@@ -664,6 +743,7 @@ int  processCommandLineOptions( int  argc, char *  argv[] )  {
 
 /* Preset switch option Flags and Data */
 void  setGlobalFlagDefaults( char *  argv[] )  {	/* Set up any Global variables not already set at declaration */
+	int  i;
 
 	helpFlag = debugFlag = verboseFlag = quietFlag = FALSE;
 	c_Flag = FALSE;
@@ -678,6 +758,12 @@ void  setGlobalFlagDefaults( char *  argv[] )  {	/* Set up any Global variables 
 	waitTimeInSec = DEFAULT_TIME_OUT_PERIOD;
 	responsesToICMP_Request = 0;
 	bzero((char *) &remoteDeviceToPingInfo, sizeof( struct sockaddr ));
+	for( i = 0; i < 4; i++ )  {
+		bzero((char *) &preSpecDevice[ i ], sizeof( struct sockaddr ));
+		bzero( &prespecDeviceNameBuffer[ i ], sizeof( prespecDeviceNameBuffer[ i ] ));
+	}
+	bzero( remoteDeviceNameBuffer, sizeof( remoteDeviceNameBuffer ));
+	bzero( localDeviceNameBuffer, sizeof( localDeviceNameBuffer ));
 	process_id = (u_short)( getpid() & 0xffff );
     /* Isolate the name of the executable */
     exeName = argv[0];	/* set global variable to default */
@@ -690,13 +776,18 @@ void  setGlobalFlagDefaults( char *  argv[] )  {	/* Set up any Global variables 
 }
 
 
+void  cleanupStorage( void )  {
+	if( exePath != NULL )  free(( void *) exePath );
+}
+
+
 int  main( int  argc, char *  argv[] )  {
 	int  i, returnValue, commandLineIndex;
-	struct hostent *  hp;		/* host pointer */
 	struct sockaddr_in *  to;	/* pointer to remote network device info */
 	struct protoent	*  proto;	/* allows protocol to be set to ICMP */
-	char  remoteDeviceNameBuffer[ MAXHOSTNAMELEN ];
-	char  localDeviceNameBuffer[ MAXHOSTNAMELEN ];
+
+/* Ensure any allocated memory is free'd */
+	atexit( cleanupStorage );
 
 /* Preset Global variables, switch option Flags and Data */
 	setGlobalFlagDefaults( argv );	/* Set up any Global variables not already set at declaration */
@@ -724,38 +815,8 @@ int  main( int  argc, char *  argv[] )  {
 
 /* Set up the address to send the icmp echo request */
 	to = ( struct sockaddr_in *) &remoteDeviceToPingInfo;
-	to->sin_family = AF_INET;
-	hp = NULL;	/* Make sure host entry pointer is initialized to NULL for later test */
-     /* Try to convert command line Remote Network Device specifier as dotted quad (decimals) address, */
-     /* else if that fails assume it's a Network Device name */
-	to->sin_addr.s_addr = inet_addr( argv[ commandLineIndex ] );	/* attempt to set address from a Dotted Quad IP address */
-	if( to->sin_addr.s_addr == (u_int) -1 )  {	/* test for failure to set address through inet_addr() */
-		hp = gethostbyname( argv[ commandLineIndex ] );	
-		if( hp == NULL )  {
-			if( verboseFlag )  fprintf( stderr, "?? gethostbyname() put h_errno = %d for target %s\n", h_errno, argv[1]);
-			fprintf( stderr, "?? Network Device '%s': %s\n", argv[1], hstrerror( h_errno ));
-			exit( 1 );
-		}
-		to->sin_family = hp->h_addrtype;
-		bcopy( hp->h_addr, (caddr_t)&to->sin_addr, hp->h_length);
-		strncpy( remoteDeviceNameBuffer, hp->h_name, sizeof( remoteDeviceNameBuffer ) - 1);	/* copy official name of remote Network Device */
-		if( verboseFlag )  {
-			printf( "Remote Network Device official name is: '%s'\n", remoteDeviceNameBuffer );
-		 /* Print other names of same Network Device if there are any */
-			for( i = 0; hp->h_aliases[ i ] != NULL; i++ )  {
-				printf( "Remote Network Device name alias %d is: '%s'\n", i + 1, hp->h_aliases[ i ] );
-			}
-		}
-	}
-	if( verboseFlag )  {
-		printf( "Remote Network Device is: %s\n", inet_ntoa( *(struct in_addr *) &to->sin_addr.s_addr ));
-	 /* Print other addresses if there are any */
-	    if( hp != NULL )  {
-			for( i = 1; hp->h_addr_list[ i ] != NULL; i++ )  {
-				printf( "Remote Network Device alias %d is: '%s'\n", i, inet_ntoa( *(struct in_addr *) hp->h_addr_list[ i ] ));
-			}
-		}
-	}
+	returnValue = setUpIP_AddressAndName( to, argv[ commandLineIndex ], remoteDeviceNameBuffer);
+	if( returnValue == FALSE )  return( 1 );	/* Don't go further if no address can be determined */
 
 	packetLen = STD_IP4_HDR_LEN + MAX_IP4_HDR_OPTION_LEN + sizeof( ip4_DataToSend );
 	if(( packet = (u_char *) malloc( (u_int) packetLen )) == NULL ) {

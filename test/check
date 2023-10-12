@@ -2,7 +2,7 @@
 #
 # C H E C K
 #
-# check last edited Tue Oct 10 19:21:33 2023
+# check last edited Thu Oct 12 23:50:01 2023
 #
 PROGRAM=ping3
 #
@@ -86,8 +86,8 @@ if [[ "$OSTYPE" == "linux-gnu" ]] ; then
   echo
 fi
 #
-echo "$PRIV ../$PROGRAM -T tsprespec $TARGET"
-$PRIV ../$PROGRAM -T tsprespec $TARGET
+echo "$PRIV ../$PROGRAM -T \"tsprespec $TARGET\" $TARGET"
+$PRIV ../$PROGRAM -T "tsprespec $TARGET" $TARGET
 sleep 1
 echo
 #

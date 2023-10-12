@@ -1,7 +1,7 @@
 /*
  * I P O P T I O N S F U N . C
  *
- * ipOptionsFun.c  last edited Mon Sep 18 20:29:11 2023
+ * ipOptionsFun.c  last edited Thu Oct 12 23:49:46 2023
  *
  * Functions to handle IP Header Options in the IP packet.
  *
@@ -145,24 +145,24 @@ void  displayTimeStampOptionInHex( unsigned char *  bytePtr, int  optLen )  {
 
 
 void  displayIpOptionTypeAndClass( unsigned char *  ptr )  {
-	printf( "IP Option: ");
-	switch( *ptr & 0x1f )  {
-		case 0 : printf( " End of Option List" ); break;
-		case 1 : printf( " No Operation" ); break;
-		case 2 : printf( " Security" ); break;
-		case 3 : printf( " Loose Source Routing" ); break;
-		case 4 : printf( " Internet Time Stamp" ); break;
-		case 7 : printf( " Record Route" ); break;
-		case 8 : printf( " Stream ID" ); break;
-		case 9 : printf( " Strict Source Routing" ); break;
-		default : printf( "Unknown" ); break;
-	}
-	if(( *ptr & 0x80 ) == 0x80 )  printf( ", Copied" );
-	else  printf( ", Not Copied" );
+	printf( "IP Option: 0x%02x ( %d ) ",  *ptr, *ptr );
+	if(( *ptr & 0x80 ) == 0x80 )  printf( "Copied, " );
+	else  printf( "Not Copied, " );
 	switch(( *ptr & 0x60 ) >> 5 )  {
-		case 0 : printf( ", Control Class" ); break;
-		case 2 : printf( ", Debugging and Measurement Class" ); break;
-		default : printf( ", Reserved for future use" ); break;
+		case 0 : printf( "Control Class, " ); break;
+		case 2 : printf( "Debugging and Measurement Class, " ); break;
+		default : printf( "Reserved for future use, " ); break;
+	}
+	switch( *ptr & 0x1f )  {
+		case 0 : printf( "End of Option List" ); break;
+		case 1 : printf( "No Operation" ); break;
+		case 2 : printf( "Security" ); break;
+		case 3 : printf( "Loose Source Routing" ); break;
+		case 4 : printf( "Internet Time Stamp" ); break;
+		case 7 : printf( "Record Route" ); break;
+		case 8 : printf( "Stream ID" ); break;
+		case 9 : printf( "Strict Source Routing" ); break;
+		default : printf( "Unknown " ); break;
 	}
 	printf( "\n" );	
 }
@@ -174,13 +174,13 @@ void  displayIpOptionList( unsigned char *  ptr, int  len )  {
 	for( count = 0; count < len; count += optLen, ptr += optLen )  {
 		/* Note that optLen = -1 represents variable length option */
 		switch( *ptr & 0x1f )  {
-			case 0 : optLen = 1; break;	/* End of Option List */
-			case 1 : optLen = 1; break;	/* No Operation */
+			case 0 : optLen = 1; break;		/* End of Option List */
+			case 1 : optLen = 1; break;		/* No Operation */
 			case 2 : optLen = 11; break;	/* Security */
 			case 3 : optLen = -1; break;	/* Loose Source Routing */
 			case 4 : optLen = -1; break;	/* Internet Time Stamp */
 			case 7 : optLen = -1; break;	/* Record Route */
-			case 8 : optLen = 4; break;	/* Stream ID */
+			case 8 : optLen = 4; break;		/* Stream ID */
 			case 9 : optLen = -1; break;	/* Strict Source Routing */
 			default : optLen = 1; break;	/* Unknown */
 		}
@@ -196,6 +196,7 @@ void  displayIpOptions( unsigned char *  ptr, int  len, int  verboseFlag )  {
 
 	count = 0;
 	while( count < len )  {
+		displayIpOptionTypeAndClass( ptr );
 		optLen = -1;	/* -1 represents variable length option */
 		switch( *ptr & 0x1f )  {
 			case 0 : optLen = 1; break;	/* End of Option List */
@@ -204,8 +205,16 @@ void  displayIpOptions( unsigned char *  ptr, int  len, int  verboseFlag )  {
 			case 3 : optLen = -1; break;	/* Loose Source Routing */
 			case 4 : optLen = -1;	/* Internet Time Stamp */
 					tsPtr = ( IP_TIMESTAMP * ) ptr;
-					printf( "Code %02x, Length %d, Pointer %d, Flag %x, Overflow %x\n",
-						tsPtr->ipt_code, tsPtr->ipt_len, tsPtr->ipt_ptr, tsPtr->ipt_flg, tsPtr->ipt_oflw );
+					printf( "Length: %d ( 0x%02x )\nPointer: %d ( 0x%02x )\nOverflow: %d ( 0x%02x )\nFlag: 0x%x ",
+						tsPtr->ipt_len, tsPtr->ipt_len, tsPtr->ipt_ptr, tsPtr->ipt_ptr,
+						tsPtr->ipt_oflw, tsPtr->ipt_oflw, tsPtr->ipt_flg  );
+					switch( tsPtr->ipt_flg )  {
+						case 0 : printf( "( tsonly )"); break;
+						case 1 : printf( "( tsandaddr )"); break;
+						case 3 : printf( "( tsprespec )"); break;
+						default : printf( "( ? unknown timestamp type)" ); break;
+					}
+					printf( "\n" );
 					displayIpOptionTimeStamps( ptr, len, 0, verboseFlag );
 					if( verboseFlag )  {
 						printf( "Time Stamp Option formatted as Hex; -\n");
