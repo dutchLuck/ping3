@@ -2,7 +2,7 @@
 #
 # C H E C K
 #
-# check last edited Thu Oct 12 23:50:01 2023
+# check last edited Sun Oct 15 19:24:54 2023
 #
 PROGRAM=ping3
 #
@@ -33,7 +33,7 @@ else
 fi
 #
 #
-LOCAL_INTERFACE=`$PRIV ../$PROGRAM $TARGET -D -c1 | awk '/Destination Address/{print $4}'`
+LOCAL_INTERFACE=`$PRIV ../$PROGRAM -D -c1 $TARGET | awk '/Destination Address/{print $4}'`
 #
 # Compare standard ICMP ECHO request pings
 #
@@ -86,8 +86,8 @@ if [[ "$OSTYPE" == "linux-gnu" ]] ; then
   echo
 fi
 #
-echo "$PRIV ../$PROGRAM -T \"tsprespec $TARGET\" $TARGET"
-$PRIV ../$PROGRAM -T "tsprespec $TARGET" $TARGET
+echo "$PRIV ../$PROGRAM -T \"tsprespec $TARGET ${LOCAL_INTERFACE}\" $TARGET"
+$PRIV ../$PROGRAM -T "tsprespec $TARGET ${LOCAL_INTERFACE}" $TARGET
 sleep 1
 echo
 #

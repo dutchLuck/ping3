@@ -2,7 +2,7 @@
 #
 # C H K
 #
-# chk last edited Mon Oct  9 22:45:44 2023
+# chk last edited Sun Oct 15 19:24:58 2023
 #
 PROGRAM=ping3
 TARGET=www.apple.com
@@ -18,7 +18,7 @@ else
   PRIV=sudo
 fi
 #
-LOCAL_INTERFACE=`$PRIV ../$PROGRAM $LOCAL_GATEWAY -D -c1 | awk '/Destination Address/{print $4}'`
+LOCAL_INTERFACE=`$PRIV ../$PROGRAM -D -c1 $LOCAL_GATEWAY | awk '/Destination Address/{print $4}'`
 #
 # Test standard ICMP ECHO request ping
 # Compare output against standard ping if on
@@ -61,6 +61,11 @@ if [[ "$OSTYPE" == "linux-gnu" ]] ; then
   sleep 1
   echo
 fi
+#
+# Test short cut tsprespec operation, where failure
+# to specify the pre-specified devices results
+# in the target and the local interface being
+# put in as a default.
 #
 echo "$PRIV ../$PROGRAM -T tsprespec -v $TARGET"
 $PRIV ../$PROGRAM -T tsprespec -v $TARGET

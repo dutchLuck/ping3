@@ -1,7 +1,7 @@
 /*
  * P I N G 3 . C
  *
- * ping3.c last edited Thu Oct 12 23:49:22 2023
+ * ping3.c last edited Sun Oct 15 22:32:23 2023
  * 
  */
 
@@ -110,17 +110,17 @@ int  w_Flag;		/*  Wait count was found in the command line options */
 char *  w_Strng = ( char * ) NULL;	/* pointer to -w value */
 int	 waitTimeInSec;		/* when true it waits for > 1 response */
 
-char *  exeName;	/* name of this executable */
+char *  exeName = ( char * ) NULL;	/* name of this executable */
 char *  exePath = ( char * ) NULL;	/* path of this executable */
 
-int	 responsesToICMP_Request;	/* counts responses to the ICMP request */
+int	 sigAlarmCount = 0;				/* keep track of timeouts */
 
-int	 sckt;
-char *  hostName;
+int	 sckt;							/* Global socket to use */
+char *  hostName = ( char * ) NULL;
 u_char  ip4_DataToSend[ ICMP_HDR_LEN + ICMP_PAYLOAD_LEN + MAX_IP4_HDR_OPTION_LEN ];
 u_short  ip4_Hdr_ID;	/* The identifier to put in the IP4 header */
 int  packetLen;
-u_char *  packet;		/* pointer to buffer to contain received IP4 ICMP reply packet */
+u_char *  packet = ( u_char * ) NULL;		/* pointer to buffer to contain received IP4 ICMP reply packet */
 u_short  process_id;	/* process ID */
 
 struct timespec	 timeToBeStoredInSentICMP;	/* time stamp put in the sent Echo Request */
@@ -137,17 +137,20 @@ struct timespec  sleepRemainder;
 struct sockaddr	 remoteDeviceToPingInfo;	/* target network device to ping */
 struct sockaddr	 preSpecDevice[ 4 ];	/* get timestamp from network up to 4 interfaces */
 
-char  remoteDeviceNameBuffer[ MAXHOSTNAMELEN ];
-char  localDeviceNameBuffer[ MAXHOSTNAMELEN ];
-char  prespecDeviceNameBuffer[ 4 ][ MAXHOSTNAMELEN ];
+char *  remoteDeviceNameBuffer = ( char * ) NULL;
+char *  localDeviceNameBuffer = ( char * ) NULL;
+char *  prespecDeviceNameBuffer[ 4 ];
+char  timeOutMessage[ 256 ];
 
 
 void  sig_alrm( int  signo )  {
-	if( responsesToICMP_Request == 0 )  {
-		printf( "timeout\n" );
-		exit( 1 );
+	if( signo != SIGALRM )
+		printf( "\ninterrupt on signal number %d\n", signo );
+	else {
+		sigAlarmCount += 1;
+		printf( "timeout %s\n", timeOutMessage );
+		exit( sigAlarmCount );
 	}
-	else  exit( 0 );
 }
 
 
@@ -178,15 +181,38 @@ void  fillInICMP_HdrInfo( struct icmp *  hdrPtr, u_char  icmpType, u_short sequn
 }
 
 
+int  computeCheckSumAndSendIPv4_ICMP_Datagram( int  socketID, u_char *  ip4_Data, int  dataBytesCnt )  {
+	ssize_t	 numberOfBytesSent = 0;
+	struct icmp	*  icmpHdrPtr;
+
+	icmpHdrPtr = (struct icmp *) ip4_Data;
+	 /* compute ICMP checksum */
+	icmpHdrPtr->icmp_cksum = calcCheckSum((u_short *) icmpHdrPtr, dataBytesCnt );
+	if( debugFlag )  {
+		printNamedByteArray( ip4_Data, dataBytesCnt, 20, "ip4 Data payload (send array contents)" );
+		printf( "\n" );
+	}
+	/* Send Packet */
+	clock_gettime( CLOCK_REALTIME, &origTime );		/* remember time just before the packet is sent */
+	numberOfBytesSent = sendto( socketID, (char *)ip4_Data, dataBytesCnt, 0, &remoteDeviceToPingInfo, sizeof( struct sockaddr ));
+	tsorig = calcMillisecondsSinceMidnightFromTimeSpec( &origTime );
+	if(( numberOfBytesSent < 0 ) && ( ! quietFlag ))  perror( "?? sendto error" );
+	else if(( numberOfBytesSent != dataBytesCnt ) && ( ! quietFlag )) {
+		printf("?? sendto() wrote %ld chars to %s, but it should have been %d chars\n",
+			numberOfBytesSent, hostName, dataBytesCnt );
+	}
+	return( numberOfBytesSent );
+}
+
+
 /*
  * Send the icmp mask request (RFC 950).
  */
 int  sendICMP_MaskRequest( int  socketID, u_char *  ip4_Data, int  dataBytesCnt, u_short  seqID )  {
-	ssize_t	 numberOfBytesSent;
+	ssize_t	 numberOfBytesSent = 0;
 	struct icmp	*  icmpHdrPtr;
 	u_int32_t *  icmpMaskPtr;
 
-	numberOfBytesSent = 0;
 	if( debugFlag )  {
 		printf( "Data Byte Count %d, Sequence ID 0x%04x", dataBytesCnt, seqID );
 	}
@@ -199,21 +225,7 @@ int  sendICMP_MaskRequest( int  socketID, u_char *  ip4_Data, int  dataBytesCnt,
 		if( dataBytesCnt >= 12 )  {	/* put in mask of zero if there is space */
 			*icmpMaskPtr = htonl( 0 );
 	    }
-		 /* compute ICMP checksum */
-		icmpHdrPtr->icmp_cksum = calcCheckSum((u_short *) icmpHdrPtr, dataBytesCnt );
-		if( debugFlag )  {
-			printNamedByteArray( ip4_Data, dataBytesCnt, 20, "ip4 Data payload (send array contents)" );
-			printf( "\n" );
-		}
-		/* Send Packet */
-		clock_gettime( CLOCK_REALTIME, &origTime );		/* remember time just before the packet is sent */
-		numberOfBytesSent = sendto( socketID, (char *)ip4_Data, dataBytesCnt, 0, &remoteDeviceToPingInfo, sizeof( struct sockaddr ));
-		tsorig = calcMillisecondsSinceMidnightFromTimeSpec( &origTime );
-		if(( numberOfBytesSent < 0 ) && ( ! quietFlag ))  perror( "?? sendto error" );
-		else if(( numberOfBytesSent != dataBytesCnt ) && ( ! quietFlag )) {
-			printf("?? sendto() wrote %ld chars to %s, but it should have been %d chars\n",
-				numberOfBytesSent, hostName, dataBytesCnt );
-		}
+		numberOfBytesSent = computeCheckSumAndSendIPv4_ICMP_Datagram( socketID, ip4_Data, dataBytesCnt );
 	}
 	return( numberOfBytesSent );
 }
@@ -223,11 +235,10 @@ int  sendICMP_MaskRequest( int  socketID, u_char *  ip4_Data, int  dataBytesCnt,
  * Send the icmp timestamp request.
  */
 int  sendICMP_TimestampRequest( int  socketID, u_char *  ip4_Data, int  dataBytesCnt, u_short  seqID )  {
-	ssize_t	 numberOfBytesSent;
+	ssize_t	 numberOfBytesSent = 0;
 	struct icmp	*  icmpHdrPtr;
 	u_int32_t *  icmpOrigTimestampPtr;
 
-	numberOfBytesSent = 0;
 	if( debugFlag )  {
 		printf( "Data Byte Count %d, Sequence ID 0x%04x", dataBytesCnt, seqID );
 	}
@@ -241,21 +252,7 @@ int  sendICMP_TimestampRequest( int  socketID, u_char *  ip4_Data, int  dataByte
 			clock_gettime( CLOCK_REALTIME, &timeToBeStoredInSentICMP );		/* get time to put in the packet about to be sent */
 			*icmpOrigTimestampPtr = htonl( calcMillisecondsSinceMidnightFromTimeSpec( &timeToBeStoredInSentICMP ));
 	    }
-		 /* compute ICMP checksum */
-		icmpHdrPtr->icmp_cksum = calcCheckSum((u_short *) icmpHdrPtr, dataBytesCnt );
-		if( debugFlag )  {
-			printNamedByteArray( ip4_Data, dataBytesCnt, 20, "ip4 Data payload (send array contents)" );
-			printf( "\n" );
-		}
-		/* Send Packet */
-		clock_gettime( CLOCK_REALTIME, &origTime );		/* remember time just before the packet is sent */
-		numberOfBytesSent = sendto( socketID, (char *)ip4_Data, dataBytesCnt, 0, &remoteDeviceToPingInfo, sizeof( struct sockaddr ));
-		tsorig = calcMillisecondsSinceMidnightFromTimeSpec( &origTime );
-		if(( numberOfBytesSent < 0 ) && ( ! quietFlag ))  perror( "?? sendto error" );
-		else if(( numberOfBytesSent != dataBytesCnt ) && ( ! quietFlag )) {
-			printf("?? sendto() wrote %ld chars to %s, but it should have been %d chars\n",
-				numberOfBytesSent, hostName, dataBytesCnt );
-		}
+		numberOfBytesSent = computeCheckSumAndSendIPv4_ICMP_Datagram( socketID, ip4_Data, dataBytesCnt );
 	}
 	return( numberOfBytesSent );
 }
@@ -265,11 +262,10 @@ int  sendICMP_TimestampRequest( int  socketID, u_char *  ip4_Data, int  dataByte
  * Send the icmp echo request.
  */
 int  sendICMP_EchoRequest( int  socketID, u_char *  ip4_Data, int  dataBytesCount, u_short  seqID )  {
-	ssize_t	 numberOfBytesSent;
+	ssize_t	 numberOfBytesSent = 0;
 	struct icmp	*  icmpHdrPtr;
 	u_char *  icmpDataPtr;
 
-	numberOfBytesSent = 0;
 /* Set up the ICMP info if there is enough room in the ip_Data buffer */
 	if( dataBytesCount > ICMP_HDR_LEN )  {
 		clearByteArray( ip4_Data, dataBytesCount );	/* ensure data is zero'd each time as this storage is reused */
@@ -280,21 +276,7 @@ int  sendICMP_EchoRequest( int  socketID, u_char *  ip4_Data, int  dataBytesCoun
 			clock_gettime( CLOCK_REALTIME, &timeToBeStoredInSentICMP );		/* get time to put in the packet about to be sent */
 			memcpy( (void *) icmpDataPtr, ( void * ) &timeToBeStoredInSentICMP, sizeof( struct timespec )); /* Don't worry about endianess */	
 	    }
-		 /* Compute ICMP checksum now that the data as well as the header are in place */
-		icmpHdrPtr->icmp_cksum = calcCheckSum((u_short *) icmpHdrPtr, dataBytesCount );
-		if( debugFlag )  {
-			printNamedByteArray( ip4_Data, dataBytesCount, 20, "ip4 Data payload (send array contents)" );
-			printf( "ICMP message check sum calculates as 0x%04x\n", calcCheckSum((u_short *) icmpHdrPtr, dataBytesCount ));
-		}
-		/* Send Packet */
-		clock_gettime( CLOCK_REALTIME, &origTime );		/* remember time just before the packet is sent */
-		numberOfBytesSent = sendto( socketID, (char *)ip4_Data, dataBytesCount, 0, &remoteDeviceToPingInfo, sizeof( struct sockaddr ));
-		tsorig = calcMillisecondsSinceMidnightFromTimeSpec( &origTime );
-		if(( numberOfBytesSent < 0 ) && ( ! quietFlag ))  perror( "?? sendto error" );
-		else if(( numberOfBytesSent != dataBytesCount ) && ( ! quietFlag )) {
-			printf("?? sendto() wrote %ld chars to %s, but it should have been %d chars\n",
-				numberOfBytesSent, hostName, dataBytesCount );
-		}
+		numberOfBytesSent = computeCheckSumAndSendIPv4_ICMP_Datagram( socketID, ip4_Data, dataBytesCount );
 	}
 	return( numberOfBytesSent );
 }
@@ -488,22 +470,25 @@ int sendICMP_Request(  int  socketID, u_char *  ip4_Data, int  dataBytesCount, u
 
 	successFlag = FALSE;
 	if( M_Flag && ( icmpTS_Value > 1 ))  {
+		sprintf( timeOutMessage, "seq %d ICMP TIMESTAMP Request/Reply", seqID );
 		bytesSent = sendICMP_TimestampRequest( socketID, ip4_Data, 20, seqID );	/* ICMP Time stamp is 8 byte Header + 12 byte Data */
 		successFlag = ( bytesSent == 20 );
 		if( ! successFlag )
-			printf( "?? Unable to send 20 bytes of ICMP Timestamp Request in the network datagram" );
+			printf( "?? Unable to send 20 bytes of ICMP Timestamp Request in the network datagram?\n" );
 	}
 	else if( M_Flag && ( icmpTS_Value == 1 ))  {
+		sprintf( timeOutMessage, "seq %d ICMP MASK Request/Reply", seqID );
 		bytesSent = sendICMP_MaskRequest( socketID, ip4_Data, 12, seqID );	/* ICMP Mask is 8 byte Header + 4 byte Data */
 		successFlag = ( bytesSent == 12 );
 		if( ! successFlag )
-			printf( "?? Unable to send 12 bytes of ICMP Mask Request in the network datagram" );
+			printf( "?? Unable to send 12 bytes of ICMP Mask Request in the network datagram?\n" );
 	}
 	else  {
+		sprintf( timeOutMessage, "seq %d ICMP ECHO Request/Reply", seqID );
 		bytesSent = sendICMP_EchoRequest( socketID, ip4_Data, dataBytesCount, seqID );
 		successFlag = ( bytesSent == dataBytesCount );
 		if( ! successFlag )
-			printf( "?? Unable to send %d bytes of ICMP Echo Request in the network datagram", dataBytesCount );
+			printf( "?? Unable to send %d bytes of ICMP Echo Request in the network datagram?\n", dataBytesCount );
 	}
 	return( successFlag );	
 }
@@ -511,23 +496,27 @@ int sendICMP_Request(  int  socketID, u_char *  ip4_Data, int  dataBytesCount, u
 
 int sendICMP_RequestAndGetResponse( int socketID, int  dataByteCnt, u_short  ip4_HdrID )  {
 	int  response = 0;
+	int  atEntrySigAlarmCount;
+	int  numOfBytesRcvd;
 	socklen_t  fromLen;
 	struct sockaddr_in  from;
-	register int  numOfBytesRcvd;
 
-	if( ! sendICMP_Request( sckt, ip4_DataToSend, dataByteCnt, ip4_HdrID ))  {	/* send the stock standard icmp echo request */
+	if( ! sendICMP_Request( socketID, ip4_DataToSend, dataByteCnt, ip4_HdrID ))  {	/* send the stock standard icmp echo request */
 		printf( "?? Unable to send the expected number of bytes in the network datagram\n" );
 	}
 	else {
+		fromLen = sizeof( from );
+		atEntrySigAlarmCount = sigAlarmCount;
 		if( waitTimeInSec > 0 )  alarm( waitTimeInSec );	/* Specify 1 to 15 second time limit */
 		else  alarm( DEFAULT_TIME_OUT_PERIOD );	/* default to 2 second time limit for a response */
-		for( response = 0;; )  {
-			fromLen = sizeof( from );
+		for( response = 0; atEntrySigAlarmCount == sigAlarmCount; )  {
 			if(( numOfBytesRcvd = recvfrom( socketID, (char *)packet, packetLen, 0,
 			    ( struct sockaddr *) &from, &fromLen )) < 0 ) {
 				clock_gettime( CLOCK_REALTIME, &recvTime );	/* Remember time of error */
-				if( errno == EINTR )
+				if( errno == EINTR )  {
+					printf( "Interrupt EINTR\n");
 					continue;
+				}
 				perror( "?? recvfrom error" );
 				continue;
 			}
@@ -604,7 +593,7 @@ int  sendICMP_RequestWithTimeStampOptionInTheIP4_Hdr( struct sockaddr_in *  to, 
 }
 
 
-int  setUpIP_AddressAndName( struct sockaddr_in *  devInfoPtr, char *  devNameOrIP_Str, char *  nameBfr )   {
+int  setUpIP_AddressAndName( struct sockaddr_in *  devInfoPtr, char *  devNameOrIP_Str, char **  nameBfrPtr )   {
 	int  i, resultOK = FALSE;
 	struct hostent *  hostEntPtr;		/* host pointer */
 
@@ -623,9 +612,9 @@ int  setUpIP_AddressAndName( struct sockaddr_in *  devInfoPtr, char *  devNameOr
 		else  {
 			devInfoPtr->sin_family = hostEntPtr->h_addrtype;
 			bcopy( hostEntPtr->h_addr, (caddr_t)&devInfoPtr->sin_addr, hostEntPtr->h_length);
-			strncpy( nameBfr, hostEntPtr->h_name, sizeof( nameBfr ) - 1);	/* copy official name of remote Network Device */
+			*nameBfrPtr = strdup( hostEntPtr->h_name );	/* copy official name of remote Network Device */
 			if( verboseFlag )  {
-				printf( "Remote Network Device official name is: \"%s\"\n", nameBfr );
+				printf( "Remote Network Device official name is: \"%s\"\n", *nameBfrPtr );
 			 /* Print other names of same Network Device if there are any */
 				for( i = 0; hostEntPtr->h_aliases[ i ] != NULL; i++ )  {
 					printf( "Remote Network Device name alias %d is: \"%s\"\n", i + 1, hostEntPtr->h_aliases[ i ] );
@@ -720,7 +709,7 @@ int  processCommandLineOptions( int  argc, char *  argv[] )  {
 					printf( "Time Stamp Prespec argArray[ %d ] is \"%s\"\n", i, argArray[ i ]);
 			returnValue = TRUE;
 			for( i = 0; ( returnValue && ( i < 4 ) && ( argArray[ i + 1 ] != NULL ) && ( *argArray[ i + 1 ] != '\0' )); i++ )
-				returnValue = setUpIP_AddressAndName(( struct sockaddr_in *) &preSpecDevice[ i ], argArray[ i + 1 ], prespecDeviceNameBuffer[ i ] );
+				returnValue = setUpIP_AddressAndName(( struct sockaddr_in *) &preSpecDevice[ i ], argArray[ i + 1 ], &prespecDeviceNameBuffer[ i ] );
 		}
 	}
 	ip4_OptionTS_Value = limitIntegerValueToEqualOrWithinRange( ip4_OptionTS_Value, -1, IPOPT_TS_PRESPEC );
@@ -756,14 +745,15 @@ void  setGlobalFlagDefaults( char *  argv[] )  {	/* Set up any Global variables 
 	ip4_OptionTS_Value = -1;	/* I.E. no IP header option time stamp */
 	w_Flag = FALSE;		/* Wait time */
 	waitTimeInSec = DEFAULT_TIME_OUT_PERIOD;
-	responsesToICMP_Request = 0;
+	sigAlarmCount = 0;
 	bzero((char *) &remoteDeviceToPingInfo, sizeof( struct sockaddr ));
 	for( i = 0; i < 4; i++ )  {
 		bzero((char *) &preSpecDevice[ i ], sizeof( struct sockaddr ));
-		bzero( &prespecDeviceNameBuffer[ i ], sizeof( prespecDeviceNameBuffer[ i ] ));
+		prespecDeviceNameBuffer[ i ] = ( char * ) NULL;
 	}
-	bzero( remoteDeviceNameBuffer, sizeof( remoteDeviceNameBuffer ));
-	bzero( localDeviceNameBuffer, sizeof( localDeviceNameBuffer ));
+	remoteDeviceNameBuffer = ( char * ) NULL;
+	localDeviceNameBuffer = ( char * ) NULL;
+	bzero( timeOutMessage, sizeof( timeOutMessage ));
 	process_id = (u_short)( getpid() & 0xffff );
     /* Isolate the name of the executable */
     exeName = argv[0];	/* set global variable to default */
@@ -777,9 +767,27 @@ void  setGlobalFlagDefaults( char *  argv[] )  {	/* Set up any Global variables 
 
 
 void  cleanupStorage( void )  {
+	int i;
+
 	if( exePath != NULL )  free(( void *) exePath );
+	if( packet != NULL )  free(( void *) packet );
+	for( i = 0; i < 4; i++ )  {
+		if( prespecDeviceNameBuffer[ i ] != NULL )  free(( void *) prespecDeviceNameBuffer[ i ] );
+	}
+	if( remoteDeviceNameBuffer != NULL )  free(( void *) remoteDeviceNameBuffer );
+	if( localDeviceNameBuffer != NULL )  free(( void *) localDeviceNameBuffer );
+
 }
 
+
+int  getLocalDeviceName( char **  nameBufferPtr )  {
+	int  returnVal;
+	char  tempBuffer[ MAXHOSTNAMELEN ];
+
+	returnVal = ( gethostname( tempBuffer, MAXHOSTNAMELEN ) != -1 );
+	if( returnVal )  *nameBufferPtr = strdup( tempBuffer );
+	return( returnVal );
+}
 
 int  main( int  argc, char *  argv[] )  {
 	int  i, returnValue, commandLineIndex;
@@ -806,16 +814,16 @@ int  main( int  argc, char *  argv[] )  {
 	}
 
 /* Attempt to get the name of the Local network device */	
-	haveLocalHostNameFlag = ( gethostname( localDeviceNameBuffer, MAXHOSTNAMELEN ) != -1 );
+	haveLocalHostNameFlag = getLocalDeviceName( &localDeviceNameBuffer );
 	if( ! haveLocalHostNameFlag )  {
 		if( verboseFlag )  printf( "? unable to get actual Local host name, using 'localhost' instead.\n" );
-		strncpy( localDeviceNameBuffer, "localhost", sizeof( localDeviceNameBuffer ));
+		localDeviceNameBuffer = strdup( "localhost" );
 	}
 	else if( verboseFlag )  printf( "Local Network Device name is: '%s'\n", localDeviceNameBuffer );
 
 /* Set up the address to send the icmp echo request */
 	to = ( struct sockaddr_in *) &remoteDeviceToPingInfo;
-	returnValue = setUpIP_AddressAndName( to, argv[ commandLineIndex ], remoteDeviceNameBuffer);
+	returnValue = setUpIP_AddressAndName( to, argv[ commandLineIndex ], &remoteDeviceNameBuffer);
 	if( returnValue == FALSE )  return( 1 );	/* Don't go further if no address can be determined */
 
 	packetLen = STD_IP4_HDR_LEN + MAX_IP4_HDR_OPTION_LEN + sizeof( ip4_DataToSend );
