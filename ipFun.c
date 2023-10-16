@@ -1,7 +1,7 @@
 /*
  * I P F U N . C
  *
- * ipFun.c last edited Thu Oct 12 23:49:39 2023
+ * ipFun.c last edited Mon Oct 16 23:54:30 2023
  *
  * Functions to handle aspects of IP datagrams
  *
@@ -150,6 +150,7 @@ void  display_ip( struct ip *  datagram, int  len )  {
 		fprintf( stderr, "?? IP version 4 must have at least 20 bytes to be a valid datagram\n" );
 	else  {
 		displayIpHeader( datagram );
+		printf( "\n" );
 		ptr = ( unsigned char *) datagram + 4 * datagram->ip_hl;
 		switch( datagram->ip_p ) {
 			case 1 : displayICMP(( struct icmp *) ptr ); break;

@@ -1,7 +1,7 @@
 /*
  * I P O P T I O N S F U N . C
  *
- * ipOptionsFun.c  last edited Thu Oct 12 23:49:46 2023
+ * ipOptionsFun.c  last edited Mon Oct 16 23:54:37 2023
  *
  * Functions to handle IP Header Options in the IP packet.
  *
@@ -144,6 +144,34 @@ void  displayTimeStampOptionInHex( unsigned char *  bytePtr, int  optLen )  {
 }
 
 
+void  displayIpOptionRecordRoute( unsigned char *  ptr, int  len, int  verboseFlag )  {
+	int  byteCnt, loopCnt;
+	IP_TIMESTAMP *  tsPtr;
+	struct ipt_ta *  addr_timePtr;
+
+	tsPtr = ( IP_TIMESTAMP * ) ptr;
+	loopCnt = 0;
+	for( byteCnt = tsPtr->ipt_ptr - 4; byteCnt > 0; byteCnt -= 4 )  {
+		addr_timePtr = ( struct ipt_ta * )( ptr + 3 + 4 * loopCnt++ );
+		printf( "%s\n", inet_ntoa( addr_timePtr->ipt_addr ));
+	}
+}
+
+
+void  displayRecordRouteOptionInHex( unsigned char *  bytePtr, int  optLen )  {
+	int  byteCnt;
+
+ /* Print the Option Header ( 4 bytes ) */
+	for( byteCnt = 0; ( byteCnt < optLen ) && ( byteCnt < 3 ); byteCnt++ )  printf( " 0x%02x,", *bytePtr++ );
+ /* Print the Option Body */
+ 	for( ; byteCnt < ( optLen - 1 ); byteCnt++ )  {
+		if(( byteCnt - 3 ) % 4 != 0 )  printf( " 0x%02x,", *bytePtr++ );
+		else  printf( "\n0x%02x,", *bytePtr++ );
+	}
+	printf( " 0x%02x\n", *bytePtr );
+}
+
+
 void  displayIpOptionTypeAndClass( unsigned char *  ptr )  {
 	printf( "IP Option: 0x%02x ( %d ) ",  *ptr, *ptr );
 	if(( *ptr & 0x80 ) == 0x80 )  printf( "Copied, " );
@@ -196,6 +224,7 @@ void  displayIpOptions( unsigned char *  ptr, int  len, int  verboseFlag )  {
 
 	count = 0;
 	while( count < len )  {
+		printf( "\n" );
 		displayIpOptionTypeAndClass( ptr );
 		optLen = -1;	/* -1 represents variable length option */
 		switch( *ptr & 0x1f )  {
@@ -221,13 +250,22 @@ void  displayIpOptions( unsigned char *  ptr, int  len, int  verboseFlag )  {
 						displayTimeStampOptionInHex( ptr, tsPtr->ipt_len );
 					}
 					break;
-			case 7 : break;	/* Record Route */
+			case 7 : optLen = -1;	/* Record Route */
+					tsPtr = ( IP_TIMESTAMP * ) ptr;
+					printf( "Length: %d ( 0x%02x )\nPointer: %d ( 0x%02x )\n",
+						tsPtr->ipt_len, tsPtr->ipt_len, tsPtr->ipt_ptr, tsPtr->ipt_ptr  );
+					if( verboseFlag )  {
+						printf( "Record Route Option formatted as Hex; -\n");
+						displayRecordRouteOptionInHex( ptr, tsPtr->ipt_len );
+					}
+					break;
 			case 8 : optLen = 4; break;	/* Stream ID */
 			case 9 : break;	/* Strict Source Routing */
 			default : optLen = 1; break;	/* Unknown */
 		}
 		if( optLen == -1 )  optLen = *( ptr + 1 );
 		count += optLen;
+		ptr += optLen;
 		printf( "Option Length %d, count %d, Total Length of option(s) %d\n", optLen, count, len );
 	}
 }

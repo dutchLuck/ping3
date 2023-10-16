@@ -143,8 +143,8 @@ command line option as follows; -
 ```
 % ./ping3 -h
 
-useage: ping3 [-cX][-D][-h][-lXX][-M ABC][-q][-T ABC][-v][-wX] NetworkDeviceName
-or      ping3 [-cX][-D][-h][-lXX][-M ABC][-q][-T ABC][-v][-wX] NetworkDeviceIP_Number
+useage: ping3 [-cX][-D][-h][-lXX][-M ABC][-q][-R][-tXX][-T ABC][-v][-wX] NetworkDeviceName
+or      ping3 [-cX][-D][-h][-lXX][-M ABC][-q][-R][-tXX][-T ABC][-v][-wX] NetworkDeviceIP_Number
 
 where options; -
         -cX  specifies number of times to ping remote network device
@@ -159,6 +159,8 @@ where options; -
             (i.e. Windows default response, if the ICMP Time Stamp request
             is allowed through the Windows firewall. )
         -q  forces quiet (minimum) output and overrides -v
+        -R  specifies header option Record Route
+        -tXX  specifies IPv4 header Time to Live
         -T ABC  specifies header option time stamp type.
           where ABC is a sting of characters.
             If "tsonly" then record Time Stamp Only list of time stamps,
