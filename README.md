@@ -25,20 +25,22 @@ multicast functionality.
 The standard ping utility that comes with Apple Mac OSX, such as
 macOS Ventura, provides the same default ability as the Linux ping
 utility, but differs considerably for more rarely used modes of
-operation. Linux ping provides a timestamp and record route
-capability through IPv4 header options and macOS ping doesn't.
+operation. Linux ping provides a timestamp (-T) and record route
+(-R) capability through IPv4 header options and macOS ping doesn't.
 However macOS ping provides a timestamp capability through ICMP
-timestamp requests. This mode requires elevated priveleges via sudo,
-unless the "-s 0" option is included with the "-M time" option. The
-macOS ping also provides a netmask capability through ICMP netmask
-requests, but Linux ping has no similar capability. Once again
-the "-M mask" option on macOS ping also should be teamed with
-a "-s 0" to avoid requiring sudo priveleges to send the request.
+timestamp requests (-M time). This mode requires elevated priveleges
+via sudo, unless the "-s 0" option is included with the "-M time"
+option. The macOS ping also provides a netmask capability (-M mask)
+through ICMP netmask requests, but Linux ping has no similar
+capability. Once again the "-M mask" option on macOS ping also
+should be teamed with a "-s 0" to avoid requiring sudo priveleges
+to send the request.
 
-The ping3 utility provides timestamp in the header options on a
-macOS system and provides ICMP timestamp/mask pings on a Linux system.
-On Linux ping3 requires the use of sudo to work, but it does not
-require increased privilege via sudo to work on macOS.
+The ping3 utility provides timestamp or record route in the IPv4
+header options on a macOS system and provides ICMP timestamp or
+ICMP mask pings on a Linux system. On Linux ping3 requires the
+use of sudo to work, but it does not require increased privilege
+via sudo to work on macOS.
 
 The default output of ping3 on a macOS system is somewhat similar
 to the ping utility output minus the summary statistics.
@@ -159,8 +161,8 @@ where options; -
             (i.e. Windows default response, if the ICMP Time Stamp request
             is allowed through the Windows firewall. )
         -q  forces quiet (minimum) output and overrides -v
-        -R  specifies header option Record Route
-        -tXX  specifies IPv4 header Time to Live
+        -R  specifies header option Record Route (N.B. -T overrides -R when both are specified)
+        -tXX  specifies IPv4 header Time to Live (doesn't work on macOS)
         -T ABC  specifies header option time stamp type.
           where ABC is a sting of characters.
             If "tsonly" then record Time Stamp Only list of time stamps,
@@ -172,5 +174,5 @@ where options; -
 %
 ```
 ping3 is released under the MIT license and must be used at your own risk.
-However, unless it provides some specific capability you need then it
-is probably better to use your operating systems standard ping utility.
+However, unless it provides some specific capability you need then it is
+almost certainly better to use your operating systems standard ping utility.

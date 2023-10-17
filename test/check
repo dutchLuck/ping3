@@ -2,15 +2,15 @@
 #
 # C H E C K
 #
-# check last edited Sun Oct 15 19:24:54 2023
+# check last edited Tue Oct 17 23:05:37 2023
 #
 PROGRAM=ping3
 #
-# A network device on your local network is the target
+# A network device on your local network is the target.
 #  change this IPv4 Address to suit your circumstances.
 TARGET=192.168.1.1
 #
-# A Microsoft Windows device on your local network
+# A Microsoft Windows device on your local network.
 #  change this IPv4 Address to suit your circumstances.
 #  If you want a response the Windows firewall may have
 #  to be adjusted to allow the ICMP request through.
@@ -98,6 +98,29 @@ if [[ "$OSTYPE" == "linux-gnu" ]] ; then
   echo
 fi
 #
+# Test the IPv4 Header Option Record Route
+# added to a standard ICMP ECHO request ping
+# Compare output against standard OS system
+# ping if on Linux system
+#
+echo "#############################################"
+echo "# 1(c) Test IPv4 Header Option Record Route #"
+echo "#############################################"
+echo
+#
+echo "$PRIV ../$PROGRAM -R $TARGET"
+$PRIV ../$PROGRAM -R $TARGET
+sleep 1
+echo
+#
+if [[ "$OSTYPE" == "linux-gnu" ]] ; then
+  echo "ping -4 -c 2 -R $TARGET"
+  ping -4 -c 2 -R $TARGET
+  sleep 1
+  echo
+fi
+#
+#
 # Test the ICMP TIMESTAMP option and
 # compare to ping output if on macOS
 #
@@ -142,6 +165,7 @@ if [[ "$OSTYPE" == "darwin"* ]] ; then
   echo
 fi
 #
+#
 # Test the ICMP NETMASK option and
 # compare to ping -M mask output if on macOS
 #
@@ -152,14 +176,34 @@ echo
 #
 echo "$PRIV ../$PROGRAM -M mask $NETMASK_TARGET"
 $PRIV ../$PROGRAM -M mask $NETMASK_TARGET
+sleep 1
+echo
 #
 # On macOS the ping utility has the capability to send
 # ICMP NETMASK requests, but sudo is needed if the
 # "-s 0" is left out of the command line
 #
 if [[ "$OSTYPE" == "darwin"* ]] ; then
-sleep 1
-echo
   echo "ping -c 3 -M mask -s 0 $NETMASK_TARGET"
   ping -c 3 -M mask -s 0 $NETMASK_TARGET
+  sleep 1
+  echo
 fi
+#
+#
+# Test the ICMP NETMASK option and
+# compare to ping -M mask output if on macOS
+#
+echo "############################"
+echo "# 4. Test Combined options #"
+echo "############################"
+echo
+#
+echo "$PRIV ../$PROGRAM -T tsonly -M time $TARGET"
+$PRIV ../$PROGRAM -T tsonly -M time $TARGET
+sleep 1
+echo
+#
+echo "$PRIV ../$PROGRAM -R -M time $TARGET"
+$PRIV ../$PROGRAM -R -M time $TARGET
+#

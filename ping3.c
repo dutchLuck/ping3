@@ -1,7 +1,7 @@
 /*
  * P I N G 3 . C
  *
- * ping3.c last edited Mon Oct 16 23:54:08 2023
+ * ping3.c last edited Tue Oct 17 22:37:36 2023
  * 
  */
 
@@ -12,7 +12,17 @@
  * On machines other than Apple Macs you will very likely need to have
  * priveleges provided by sudo to run this program ( or this program must
  * be suid to root) since it sends the ping datagram using a raw socket.
- * 
+ */
+
+/*
+ * Notable bugs, faults, weaknesses or short-comings; -
+ * 1. Any time-out stops further pings being sent
+ * 2. Checksum is not correct on some replies
+ * 3. Setting the time-to-live (ttl) on macOS fails
+ * 4. No Windows version - yet.
+ * 5. So many <abc.h> header files included - are they all still necessary?
+ * 6. No version information
+ * 7. No summary information
  */
 
 #include <stdlib.h> 	/* exit() atexit() */
@@ -63,9 +73,10 @@
 #define	ICMP_PAYLOAD_LEN	12	/* default ICMP data length to 3 millisecond since midnight timestamps */
 #define CONTRIVED_NUMBER 0x1	/* start number for packet identifier */
 
-#define ICMP_TIMEW 3	/* ICMP Timestamp request with little endian replies expected */
-#define ICMP_TIME 2		/* ICMP Timestamp request with standard replies expected */
-#define ICMP_MASK 1		/* ICMP Mask request with standard replies expected */
+#define ICMP_TYPE_ECHO 0		/* ICMP Echo request with standard replies expected */
+#define ICMP_TYPE_MASK 1		/* ICMP Mask request with standard replies expected */
+#define ICMP_TYPE_TIME 2		/* ICMP Timestamp request with standard replies expected */
+#define ICMP_TYPE_TIMEW 3		/* ICMP Timestamp request with little endian replies expected */
 
 #ifdef __linux__
 #include "ipOptTS.h"
@@ -75,7 +86,7 @@ typedef  struct ip_timestamp  IP_TIMESTAMP;
 #endif
 
 /* Apple devices can use SOCK_DGRAM sockets to send ICMP without needing sudo privelege */
-/* Other systems seem to require a raw socket for this purpose and also require sudo  privelege */
+/* Other systems seem to require a raw socket for this purpose and also require sudo privelege */
 #ifdef __APPLE__
 #define SOCK_TYPE_TO_USE SOCK_DGRAM
 #else
@@ -102,7 +113,7 @@ char * l_Strng = ( char * ) NULL;	/* pointer to -l value */
 int  optionLength;	/* IP Header Option length */
 int  M_Flag;		/* ICMP Mask identifier was found in the command line options */
 char *  M_Strng = ( char * ) NULL;	/* pointer to -M type value */
-int  icmpTS_Value;	/* Specifies the time stamp replies as little endian i.e. Windows replies */
+int  icmpType;	/* Specifies the time stamp replies as little endian i.e. Windows replies */
 int  R_Flag;		/* IPv4 Header option Record Route */
 int  t_Flag;						/* IP4 Header TTL found in the command line options */
 char *  t_Strng = ( char * ) NULL;	/* pointer to -t value */
@@ -302,7 +313,7 @@ void  printLineOfPingInfo( struct ip *  ip, struct icmp *  icmpHdrPtr, int  ICMP
 	printStdPingInfo( ip, icmpHdrPtr, ICMP_MsgSize );
 	if( icmpHdrPtr->icmp_type == ICMP_TSTAMPREPLY )  {
 		printf( " " );
-		displayTimeStampReplyTimestamps( icmpHdrPtr, ( icmpTS_Value == ICMP_TIMEW ));
+		displayTimeStampReplyTimestamps( icmpHdrPtr, ( icmpType == ICMP_TYPE_TIMEW ));
 	}
 	else if( icmpHdrPtr->icmp_type == ICMP_MASKREPLY )  {
 		printf( " " );
@@ -396,7 +407,7 @@ int  processReceivedDatagram( char *  buf, int  datagramSize, struct sockaddr_in
 		if( debugFlag )  display_ip( ip, datagramSize );
 	}
 	if( ntohs( icmpHdrPtr->icmp_seq ) != ip4_Hdr_ID )  {
-		printf( "? processReceivedDatagram(): received sequence # %d but expected %d\n",
+		printf( "? processReceivedDatagram(): received sequence number %d but expected %d\n",
 			ntohs( icmpHdrPtr->icmp_seq ), ip4_Hdr_ID );
 		if( debugFlag )  display_ip( ip, datagramSize );
 	}
@@ -481,14 +492,14 @@ int sendICMP_Request(  int  socketID, u_char *  ip4_Data, int  dataBytesCount, u
 	int  bytesSent;
 
 	successFlag = FALSE;
-	if( M_Flag && ( icmpTS_Value > 1 ))  {
+	if( M_Flag && ( icmpType >= ICMP_TYPE_TIME ))  {
 		sprintf( timeOutMessage, "seq %d ICMP TIMESTAMP Request/Reply", seqID );
 		bytesSent = sendICMP_TimestampRequest( socketID, ip4_Data, 20, seqID );	/* ICMP Time stamp is 8 byte Header + 12 byte Data */
 		successFlag = ( bytesSent == 20 );
 		if( ! successFlag )
 			printf( "?? Unable to send 20 bytes of ICMP Timestamp Request in the network datagram?\n" );
 	}
-	else if( M_Flag && ( icmpTS_Value == 1 ))  {
+	else if( M_Flag && ( icmpType == ICMP_TYPE_MASK ))  {
 		sprintf( timeOutMessage, "seq %d ICMP MASK Request/Reply", seqID );
 		bytesSent = sendICMP_MaskRequest( socketID, ip4_Data, 12, seqID );	/* ICMP Mask is 8 byte Header + 4 byte Data */
 		successFlag = ( bytesSent == 12 );
@@ -697,8 +708,8 @@ void  useage( char *  name )  {
 	printf( "            (i.e. Windows default response, if the ICMP Time Stamp request\n" );
 	printf( "            is allowed through the Windows firewall. )\n" );
 	printf( "        -q  forces quiet (minimum) output and overrides -v\n" );
-	printf( "        -R  specifies header option Record Route\n" );
-	printf( "        -tXX  specifies IPv4 header Time to Live\n" );
+	printf( "        -R  specifies header option Record Route (N.B. -T overrides -R when both are specified)\n" );
+	printf( "        -tXX  specifies IPv4 header Time to Live (doesn't work on macOS)\n" );
 	printf( "        -T ABC  specifies header option time stamp type.\n" );
 	printf( "          where ABC is a sting of characters.\n" );
 	printf( "            If \"tsonly\" then record Time Stamp Only list of time stamps,\n" );
@@ -762,15 +773,30 @@ int  processCommandLineOptions( int  argc, char *  argv[] )  {
 			for( i = 0; ( returnValue && ( i < 4 ) && ( argArray[ i + 1 ] != NULL ) && ( *argArray[ i + 1 ] != '\0' )); i++ )
 				returnValue = setUpIP_AddressAndName(( struct sockaddr_in *) &preSpecDevice[ i ], argArray[ i + 1 ], &prespecDeviceNameBuffer[ i ] );
 		}
+		else  {
+			T_Flag = FALSE;		/* Forget that user specified -T */
+			ip4_OptionTS_Value = -1;	/* force default of no IPv4 header option timestamp */
+			printf( "?? \"-T %s\" not recognized (-h for help) - attempting ICMP request without header option timestamps instead.\n", T_Strng );
+		}
 	}
 	ip4_OptionTS_Value = limitIntegerValueToEqualOrWithinRange( ip4_OptionTS_Value, -1, IPOPT_TS_PRESPEC );
-	icmpTS_Value = 0;
+	icmpType = ICMP_TYPE_ECHO;		/* default to sending ICMP Echo request datagrams */
 	if( M_Flag && ( M_Strng != NULL ))  {
-		if( strncmp( M_Strng, "mask", 4 ) == 0 ) icmpTS_Value = ICMP_MASK;
-		else if( strncmp( M_Strng, "timew", 5 ) == 0 ) icmpTS_Value = ICMP_TIMEW;
-		else if( strncmp( M_Strng, "time", 4 ) == 0 ) icmpTS_Value = ICMP_TIME;
+		if( strncmp( M_Strng, "mask", 4 ) == 0 ) icmpType = ICMP_TYPE_MASK;
+		else if( strncmp( M_Strng, "timew", 5 ) == 0 ) icmpType = ICMP_TYPE_TIMEW;
+		else if( strncmp( M_Strng, "time", 4 ) == 0 ) icmpType = ICMP_TYPE_TIME;
+		else if( strncmp( M_Strng, "echo", 4 ) == 0 ) icmpType = ICMP_TYPE_ECHO;
+		else if( strncmp( M_Strng, "info", 4 ) == 0 )  {
+			icmpType = ICMP_TYPE_ECHO;
+			printf( "?? -M info deprecated - using ICMP Echo request instead.\n" );
+		}
+		else  {
+			M_Flag = FALSE;		/* Forget that user specified -M */
+			icmpType = ICMP_TYPE_ECHO;		/* force default of ICMP Echo request */
+			printf( "?? \"-M %s\" not recognized (-h for help) - attempting ICMP Echo request instead.\n", M_Strng );
+		}
 	}
-	icmpTS_Value = limitIntegerValueToEqualOrWithinRange( icmpTS_Value, 0, ICMP_TIMEW );
+	icmpType = limitIntegerValueToEqualOrWithinRange( icmpType, 0, ICMP_TYPE_TIMEW );
 	waitTimeInSec = convertOptionStringToInteger( DEFAULT_TIME_OUT_PERIOD, w_Strng, "-w", &w_Flag, TRUE );
 	waitTimeInSec = limitIntegerValueToEqualOrWithinRange( waitTimeInSec, 1, 15 );
  	if( debugFlag )  printf( "Option length is %d bytes\n", optionLength );
@@ -791,7 +817,7 @@ void  setGlobalFlagDefaults( char *  argv[] )  {	/* Set up any Global variables 
 	l_Flag = FALSE;
 	optionLength = MAX_IP4_HDR_OPTION_LEN;
 	M_Flag = FALSE;		/* ICMP Mask/Time request */
-	icmpTS_Value = 0;	/* No ICMP Mask/Time request */
+	icmpType = 0;	/* No ICMP Mask/Time request */
 	R_Flag = FALSE;		/* IP header option Record Route */
 	t_Flag = FALSE;		/* IP header Time to Live is required to be other than default of 64 */
 	ip4_HeaderTTL_Value = 1;
