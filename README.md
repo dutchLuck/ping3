@@ -152,7 +152,7 @@ where options; -
         -cX  specifies number of times to ping remote network device
         -D  switches on debug output
         -h  switches on this help output and then terminates ping3
-        -lXX  specifies header option length (max accepted is 40 and should be a multiple of 4)
+        -lXX  suggest desired IP header option length (max is 40 and should be a multiple of 4)
         -M ABC  specifies ping with ICMP Mask/Timestamp request instead of ICMP Echo.
           where ABC is a sting of characters.
             If "mask" then send ICMP Mask request,
@@ -162,7 +162,7 @@ where options; -
             is allowed through the Windows firewall. )
         -q  forces quiet (minimum) output and overrides -v
         -R  specifies header option Record Route (N.B. -T overrides -R when both are specified)
-        -tXX  specifies IPv4 header Time to Live (doesn't work on macOS)
+        -tXX  specifies IPv4 header Time to Live (N.B. doesn't work on macOS)
         -T ABC  specifies header option time stamp type.
           where ABC is a sting of characters.
             If "tsonly" then record Time Stamp Only list of time stamps,
