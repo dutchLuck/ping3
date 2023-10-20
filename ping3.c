@@ -22,22 +22,21 @@
  */
 
 /*
- * Notable bugs, faults, weaknesses or short-comings; -
- * 1. Any time-out stops further pings being sent
+ * Notable bugs, faults, weaknesses, short-comings or surprises; -
+ * 1. Missing replies are not reported
  * 2. Checksum is incorrect (see -v output on macOS) on IPv4 header option replies
  * 3. Setting the time-to-live (ttl) on macOS fails
  * 4. Reports total length of reply not data length
  * 5. So many <abc.h> header files included - are they all still necessary?
  * 6. No version information
- * 7. No summary information
- * 8. IPv4 Header option tsprespec with a single Device specified triggers overrun count
- * 9. No Windows version - yet.
+ * 7. IPv4 Header option tsprespec with a single Device specified triggers overrun count
+ * 8. No Windows version - yet.
  */
 
 /*
  * Not yet implemented; -
  * 1. Total size of ICMP Echo datagram specified
- * 2. Multiple IPv4 Header options in the same datagram
+ * 2. Multiple IPv4 Header options in the same ICMP request
  * 3. Separation of sending and receiving functions
  * 4. Reverse DNS lookup on the IP address of target
  * 5. ? Broadcast/Multicast ping option
@@ -147,8 +146,8 @@ int  ip4_OptionTS_Value;	/* Specifies the type of time stamp request and is -1 f
 int  w_Flag;		/*  Wait count was found in the command line options */
 char *  w_Strng = ( char * ) NULL;	/* pointer to -w value */
 int	 waitTimeInSec;		/* when true it waits for > 1 response */
-int  pingsSent;
-int  pingsReceived;
+int  pingsSent;		/* Keep track of ICMP requests that have been sent for stats */
+int  pingsReceived;	/* Keep track of ICMP replies that have been received for stats */
 
 char *  exeName = ( char * ) NULL;	/* name of this executable */
 char *  exePath = ( char * ) NULL;	/* path of this executable */
@@ -171,8 +170,6 @@ long  tsorig;	/* originate & receive timestamps */
 long  tsrecv; 	/* timestamp = #millisec since midnight UTC */
 long  tstarget;	/* both host byte ordered */
 long  tsdiff;	/* adjustment must also be signed */
-struct timespec  sleepTime;
-struct timespec  sleepRemainder;
 
 struct sockaddr	 remoteDeviceToPingInfo;	/* target network device to ping */
 struct sockaddr	 preSpecDevice[ 4 ];	/* get timestamp from network up to 4 interfaces */
@@ -184,8 +181,7 @@ char *  prespecDeviceNameBuffer[ 4 ];
 char  timeOutMessage[ 256 ];
 
 
-void  setSendTimer( unsigned int  intervalIn_uSec )
-{
+void  setSendTimer( unsigned int  intervalIn_uSec )  {
 	struct itimerval  val;
 	struct itimerval  old;
 	
@@ -263,7 +259,7 @@ int  sendICMP_MaskRequest( int  socketID, u_char *  ip4_Data, int  dataBytesCnt,
 	if( debugFlag )  {
 		printf( "Data Byte Count %d, Sequence ID 0x%04x", dataBytesCnt, seqID );
 	}
-/* Set up the ICMP info if there is enough room in the ip_Data buffer */
+	/* Set up the ICMP info if there is enough room in the ip_Data buffer */
 	if( dataBytesCnt > ICMP_HDR_LEN )  {
 		clearByteArray( ip4_Data, dataBytesCnt );	/* ensure data is zero'd each time as this storage is reused */
 		icmpHdrPtr = (struct icmp *) ip4_Data;
@@ -289,7 +285,7 @@ int  sendICMP_TimestampRequest( int  socketID, u_char *  ip4_Data, int  dataByte
 	if( debugFlag )  {
 		printf( "Data Byte Count %d, Sequence ID 0x%04x", dataBytesCnt, seqID );
 	}
-/* Set up the ICMP info if there is enough room in the ip_Data buffer */
+	/* Set up the ICMP info if there is enough room in the ip_Data buffer */
 	if( dataBytesCnt > ICMP_HDR_LEN )  {
 		clearByteArray( ip4_Data, dataBytesCnt );	/* ensure data is zero'd each time as this storage is reused */
 		icmpHdrPtr = (struct icmp *) ip4_Data;
@@ -313,7 +309,7 @@ int  sendICMP_EchoRequest( int  socketID, u_char *  ip4_Data, int  dataBytesCoun
 	struct icmp	*  icmpHdrPtr;
 	u_char *  icmpDataPtr;
 
-/* Set up the ICMP info if there is enough room in the ip_Data buffer */
+	/* Set up the ICMP info if there is enough room in the ip_Data buffer */
 	if( dataBytesCount > ICMP_HDR_LEN )  {
 		clearByteArray( ip4_Data, dataBytesCount );	/* ensure data is zero'd each time as this storage is reused */
 		icmpHdrPtr = (struct icmp *) ip4_Data;
@@ -664,26 +660,45 @@ int  sendICMP_RequestWithRecordRouteOptionInTheIP4_Hdr( struct sockaddr_in *  to
 	return( returnValue );
 }
 
+
 void  printStats( void )  {
-	printf( "Sent %d requests and Received %d replies\n", pingsSent, pingsReceived );
+	float percentageLoss;
+
+	printf( "%d requests sent, %d replies received", pingsSent, pingsReceived );
+	if( pingsSent <= 0 )
+		printf( ".\n" );
+	else  {
+		percentageLoss = 100.0 * (( float ) ( pingsSent - pingsReceived ) / ( float ) pingsSent );
+		printf( ", %3.1f%c loss.\n", percentageLoss, '%' );
+	}
 }
 
 
+void  displayCurrentStatsInterrupt( int  signo )  {
+	printStats();
+	if( signo == SIGUSR1 )  {	/* if activated by user interrupt then reinstate it */
+		signal( SIGUSR1, displayCurrentStatsInterrupt );
+	}
+}
+
 void  finishOnUserInterrupt( int signo )  {
-	if( signo == SIGALRM )  {
+	if( signo == SIGALRM )  {	/* if activated by timer interrupt then turn off timer */
 		signal( SIGALRM, SIG_IGN );
 		setSendTimer( 0L );	/* set timer off */
 	}
 	else  {
 		psignal( signo, "\nTerminating program due to user generated signal" );
 	}
-	printStats();
+	printStats();		/* Print the stats about requests sent, replies received etc */
 	fflush( stdout );	/* Ensure anything printed to stdout is output to the user terminal */
 	fflush( stderr );	/* Ensure anything printed is stderr output to the user terminal */
-	exit( 0 );
+	exit( 0 );			/* Terminate the program */
 }
 
 
+/*
+ * Send an ICMP request each time the timer interrupt activates this routine.
+ */
 void  sendPing( int signo )  {
  	/* Do more pings if required */
 	if( --pingCount <= 0 )  {
@@ -921,7 +936,6 @@ void  cleanupStorage( void )  {
 	}
 	if( remoteDeviceNameBuffer != NULL )  free(( void *) remoteDeviceNameBuffer );
 	if( localDeviceNameBuffer != NULL )  free(( void *) localDeviceNameBuffer );
-
 }
 
 
@@ -985,22 +999,23 @@ int  main( int  argc, char *  argv[] )  {
 		signal( SIGINT, finishOnUserInterrupt );	/* Trap Control C user interrupt */
 		signal( SIGQUIT, finishOnUserInterrupt );	/* Trap Control \ user interrupt */
 		signal( SIGTERM, finishOnUserInterrupt );	/* Trap Del user interrupt */
+		signal( SIGUSR1, displayCurrentStatsInterrupt );
 
-		/* Do first ping WITHOUT IP4 header option, just to make sure ICMP echo/echo-reply is working */
+		/* Do first ping WITHOUT any IP4 header option, just to make sure ICMP echo/echo-reply is working */
 		/*
-		 * We send one request and wait TIME_OUT_PERIOD seconds for a reply.
+		 * We send one request to kick off and then rely on a timer interrupt to send any subsequent request(s).
 		 */
 
 		ip4_Hdr_ID = ( u_short ) CONTRIVED_NUMBER;
 		/* Set the Time to Live if required */
-		if( t_Flag )  {
+		if( t_Flag )  {	/* This paragraph doesn't work on macOS - Fix this ? */
 			ip4_TTL_U_CharValue = ( u_char ) ( ip4_HeaderTTL_Value & 0xff );
 			if( setsockopt( sckt, IPPROTO_IP, IP_TTL, &ip4_TTL_U_CharValue, sizeof( ip4_TTL_U_CharValue )) < 0 )
 				printf( "?? Unable to set Time to Live to %d\n", ( int ) ip4_TTL_U_CharValue );
 		}
 		if( sendICMP_Request( sckt, ip4_DataToSend, ICMP_HDR_LEN + ICMP_PAYLOAD_LEN + MAX_IP4_HDR_OPTION_LEN, ip4_Hdr_ID ))
 			pingsSent = 1;
-		signal( SIGALRM, sendPing );
+		signal( SIGALRM, sendPing );	/* Any further ICMP request will be sent when the timer interrupt happens */
 		setSendTimer( 500000L );	/* half a second interrupts */
 		for( ; pingCount >=0; )
 			if( getResponseAndProcessIt( sckt ))  pingsReceived += 1;
