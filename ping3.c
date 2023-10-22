@@ -1,7 +1,7 @@
 /*
  * P I N G 3 . C
  *
- * ping3.c last edited Fri Oct 20 01:22:22 2023
+ * ping3.c last edited Sun Oct 22 22:28:17 2023
  * 
  */
 
@@ -50,6 +50,7 @@
 #include <sys/param.h>
 #include <sys/socket.h>	/* inet_addr() inet_ntoa() */
 #include <sys/file.h>
+#include <sys/time.h>	/* setitimer() */
 #include <time.h>		/* clock_gettime() nanosleep() */
 #include <sys/signal.h>
 #include <signal.h>		/* psignal() */
@@ -197,33 +198,6 @@ void  setSendTimer( unsigned int  intervalIn_uSec )  {
 }
 
 
-void  printClockRealTimeRxTxTimes( void )  {
-	printf( "Echo Request send time:  " );
-	printTimeSpecTime( &origTime );
-	printf( "\nEcho Reply receive time: " );
-	printTimeSpecTime( &recvTime );
-	printf( "\n" );
-}
-
-
-void  printClockRealTimeFlightTime( void )  {
-	double  flightTimeInSec;
-
-	flightTimeInSec = calcTimeSpecClockDifferenceInSeconds( &origTime, &recvTime );
-	if( flightTimeInSec <= 0.5 )  printf( "RTT %lg [mS]", flightTimeInSec * 1000 );
-	else   printf( "RTT %lg [Sec]", flightTimeInSec );
-}
-
-
-void  fillInICMP_HdrInfo( struct icmp *  hdrPtr, u_char  icmpType, u_short sequncID )  {
-	hdrPtr->icmp_type = icmpType;
-    hdrPtr->icmp_code = 0;
-	hdrPtr->icmp_cksum = 0;	/* compute checksum later, after data is in place */
-	hdrPtr->icmp_seq = htons( sequncID ); /* seq and id must be reflected in Echo/Timestamp/Netmask Reply*/
-	hdrPtr->icmp_id = htons( process_id );
-}
-
-
 int  computeCheckSumAndSendIPv4_ICMP_Datagram( int  socketID, u_char *  ip4_Data, int  dataBytesCnt )  {
 	ssize_t	 numberOfBytesSent = 0;
 	struct icmp	*  icmpHdrPtr;
@@ -263,7 +237,7 @@ int  sendICMP_MaskRequest( int  socketID, u_char *  ip4_Data, int  dataBytesCnt,
 	if( dataBytesCnt > ICMP_HDR_LEN )  {
 		clearByteArray( ip4_Data, dataBytesCnt );	/* ensure data is zero'd each time as this storage is reused */
 		icmpHdrPtr = (struct icmp *) ip4_Data;
-		fillInICMP_HdrInfo( icmpHdrPtr, ICMP_MASKREQ, seqID );
+		fill_ICMP_HdrPreChkSum( icmpHdrPtr, ICMP_MASKREQ, 0, seqID, process_id );
 		icmpMaskPtr = ( u_int32_t * ) ( ip4_Data + 8 );		/* point to icmp Data area */
 		if( dataBytesCnt >= 12 )  {	/* put in mask of zero if there is space */
 			*icmpMaskPtr = htonl( 0 );
@@ -289,7 +263,7 @@ int  sendICMP_TimestampRequest( int  socketID, u_char *  ip4_Data, int  dataByte
 	if( dataBytesCnt > ICMP_HDR_LEN )  {
 		clearByteArray( ip4_Data, dataBytesCnt );	/* ensure data is zero'd each time as this storage is reused */
 		icmpHdrPtr = (struct icmp *) ip4_Data;
-		fillInICMP_HdrInfo( icmpHdrPtr, ICMP_TSTAMP, seqID );
+		fill_ICMP_HdrPreChkSum( icmpHdrPtr, ICMP_TSTAMP, 0, seqID, process_id );
 		icmpOrigTimestampPtr = ( u_int32_t * ) ( ip4_Data + 8 );		/* point to icmp Data area */
 		if( dataBytesCnt >= 20 )  {	/* put mS time in the icmp data section if there is space */
 			clock_gettime( CLOCK_REALTIME, &timeToBeStoredInSentICMP );		/* get time to put in the packet about to be sent */
@@ -313,7 +287,7 @@ int  sendICMP_EchoRequest( int  socketID, u_char *  ip4_Data, int  dataBytesCoun
 	if( dataBytesCount > ICMP_HDR_LEN )  {
 		clearByteArray( ip4_Data, dataBytesCount );	/* ensure data is zero'd each time as this storage is reused */
 		icmpHdrPtr = (struct icmp *) ip4_Data;
-		fillInICMP_HdrInfo( icmpHdrPtr, ICMP_ECHO, seqID );
+		fill_ICMP_HdrPreChkSum( icmpHdrPtr, ICMP_ECHO, 0, seqID, process_id );
 		icmpDataPtr = ip4_Data + 8;	/* point to icmp Data area */
 		if( dataBytesCount >= 24 )  {	/* put nS time in the icmp data section if there is space */
 			clock_gettime( CLOCK_REALTIME, &timeToBeStoredInSentICMP );		/* get time to put in the packet about to be sent */
@@ -325,6 +299,36 @@ int  sendICMP_EchoRequest( int  socketID, u_char *  ip4_Data, int  dataBytesCoun
 }
 
 
+int sendICMP_Request( int  socketID, u_char *  ip4_Data, int  dataBytesCount, u_short  seqID )  {
+	int  successFlag;
+	int  bytesSent;
+
+	successFlag = FALSE;
+	if( M_Flag && ( icmpType >= ICMP_TYPE_TIME ))  {
+		sprintf( timeOutMessage, "seq %d ICMP TIMESTAMP Request/Reply", seqID );
+		bytesSent = sendICMP_TimestampRequest( socketID, ip4_Data, 20, seqID );	/* ICMP Time stamp is 8 byte Header + 12 byte Data */
+		successFlag = ( bytesSent == 20 );
+		if( ! successFlag )
+			printf( "?? Unable to send 20 bytes of ICMP Timestamp Request in the network datagram?\n" );
+	}
+	else if( M_Flag && ( icmpType == ICMP_TYPE_MASK ))  {
+		sprintf( timeOutMessage, "seq %d ICMP MASK Request/Reply", seqID );
+		bytesSent = sendICMP_MaskRequest( socketID, ip4_Data, 12, seqID );	/* ICMP Mask is 8 byte Header + 4 byte Data */
+		successFlag = ( bytesSent == 12 );
+		if( ! successFlag )
+			printf( "?? Unable to send 12 bytes of ICMP Mask Request in the network datagram?\n" );
+	}
+	else  {
+		sprintf( timeOutMessage, "seq %d ICMP ECHO Request/Reply", seqID );
+		bytesSent = sendICMP_EchoRequest( socketID, ip4_Data, dataBytesCount, seqID );
+		successFlag = ( bytesSent == dataBytesCount );
+		if( ! successFlag )
+			printf( "?? Unable to send %d bytes of ICMP Echo Request in the network datagram?\n", dataBytesCount );
+	}
+	return( successFlag );	
+}
+
+
 /* Print the normal ping info */
 /* E.g. XX bytes from AAA.BBB.CCC.DDD: seq YYYYY, ttl ZZZ, RTT 0.994 [mS] */
 void  printStdPingInfo( struct ip *  ip, struct icmp *  icmpHdrPtr, int  ICMP_MsgSize )  {
@@ -332,7 +336,7 @@ void  printStdPingInfo( struct ip *  ip, struct icmp *  icmpHdrPtr, int  ICMP_Ms
 	printf( " seq %d, ", ntohs( icmpHdrPtr->icmp_seq));
 	printIPv4_TimeToLiveInfo( ip );
 	printf( ", " );
-	printClockRealTimeFlightTime();
+	printClockRealTimeFlightTime( &origTime, &recvTime );
 }
 
 
@@ -347,7 +351,7 @@ void  printLineOfPingInfo( struct ip *  ip, struct icmp *  icmpHdrPtr, int  ICMP
 		displayMaskReplyMask( icmpHdrPtr );
 	}
 	printf( "\n" );
-	if( debugFlag )  printClockRealTimeRxTxTimes();
+	if( debugFlag )  printClockRealTimeTxRxTimes( &origTime, &recvTime );
 }
 
 
@@ -511,36 +515,6 @@ int  processReceivedDatagram( char *  buf, int  datagramSize, struct sockaddr_in
 		}
 	} 
 	return( 0 );	/* done */
-}
-
-
-int sendICMP_Request( int  socketID, u_char *  ip4_Data, int  dataBytesCount, u_short  seqID )  {
-	int  successFlag;
-	int  bytesSent;
-
-	successFlag = FALSE;
-	if( M_Flag && ( icmpType >= ICMP_TYPE_TIME ))  {
-		sprintf( timeOutMessage, "seq %d ICMP TIMESTAMP Request/Reply", seqID );
-		bytesSent = sendICMP_TimestampRequest( socketID, ip4_Data, 20, seqID );	/* ICMP Time stamp is 8 byte Header + 12 byte Data */
-		successFlag = ( bytesSent == 20 );
-		if( ! successFlag )
-			printf( "?? Unable to send 20 bytes of ICMP Timestamp Request in the network datagram?\n" );
-	}
-	else if( M_Flag && ( icmpType == ICMP_TYPE_MASK ))  {
-		sprintf( timeOutMessage, "seq %d ICMP MASK Request/Reply", seqID );
-		bytesSent = sendICMP_MaskRequest( socketID, ip4_Data, 12, seqID );	/* ICMP Mask is 8 byte Header + 4 byte Data */
-		successFlag = ( bytesSent == 12 );
-		if( ! successFlag )
-			printf( "?? Unable to send 12 bytes of ICMP Mask Request in the network datagram?\n" );
-	}
-	else  {
-		sprintf( timeOutMessage, "seq %d ICMP ECHO Request/Reply", seqID );
-		bytesSent = sendICMP_EchoRequest( socketID, ip4_Data, dataBytesCount, seqID );
-		successFlag = ( bytesSent == dataBytesCount );
-		if( ! successFlag )
-			printf( "?? Unable to send %d bytes of ICMP Echo Request in the network datagram?\n", dataBytesCount );
-	}
-	return( successFlag );	
 }
 
 

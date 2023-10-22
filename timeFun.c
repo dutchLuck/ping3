@@ -1,7 +1,7 @@
 /*
  * T I M E F U N . C
  *
- * timeFun.c last edited on Thu Oct  5 22:48:57 2023
+ * timeFun.c last edited on Sun Oct 22 22:30:53 2023
  *
  * Functions to handle time
  * 
@@ -66,4 +66,22 @@ void  printMilliSecondsSinceMidnightInHMS_Format( long  millisecs )  {
 
 int  calcMillisecondsSinceMidnightFromTimeSpec( struct timespec *  tStampInNanoSecs )  {
 	return(( int )(( tStampInNanoSecs->tv_sec % (24*60*60)) * 1000 + tStampInNanoSecs->tv_nsec / 1000000 ));
+}
+
+
+void  printClockRealTimeTxRxTimes( struct timespec *  originateTime,  struct timespec *  receiveTime )  {
+	printf( "ICMP Request send time:  " );
+	printTimeSpecTime( originateTime );
+	printf( "\nICMP Reply receive time: " );
+	printTimeSpecTime( receiveTime );
+	printf( "\n" );
+}
+
+
+void  printClockRealTimeFlightTime( struct timespec *  originateTime,  struct timespec *  receiveTime )  {
+	double  flightTimeInSec;
+
+	flightTimeInSec = calcTimeSpecClockDifferenceInSeconds( originateTime, receiveTime );
+	if( flightTimeInSec <= 0.5 )  printf( "RTT %lg [mS]", flightTimeInSec * 1000 );
+	else   printf( "RTT %lg [Sec]", flightTimeInSec );
 }

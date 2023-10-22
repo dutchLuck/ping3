@@ -1,19 +1,18 @@
 /*
  * I C M P F U N . C
  *
- * icmpFun.c last edited Sat Oct  7 20:25:23 2023
+ * icmpFun.c last edited Sun Oct 22 22:28:27 2023
  *
  * Functions to handle ICMP Protocol message in the IP datagram payload.
  *
  */
 
-#include <stdio.h>
+#include <stdio.h>		/* printf() */
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/file.h>
 #include <sys/time.h>
-#include <sys/signal.h>
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -215,4 +214,13 @@ void  displayICMP( struct icmp  *ptr )  {
 			displayMaskReply( ptr ); break;
 		default : break;
 	}
+}
+
+
+void  fill_ICMP_HdrPreChkSum( struct icmp *  hdrPtr, u_char  icmpType, u_char  icmpCode, u_short  sequncID, u_short  processID )  {
+	hdrPtr->icmp_type = icmpType;
+    hdrPtr->icmp_code = icmpCode;
+	hdrPtr->icmp_cksum = 0;		/* compute checksum later, after data is in place */
+	hdrPtr->icmp_seq = htons( sequncID ); /* seq and id must be reflected in Echo/Timestamp/Netmask Reply*/
+	hdrPtr->icmp_id = htons( processID );
 }
