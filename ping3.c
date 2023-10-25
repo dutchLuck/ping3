@@ -1,7 +1,7 @@
 /*
  * P I N G 3 . C
  *
- * ping3.c last edited Wed Oct 25 22:23:47 2023
+ * ping3.c last edited Thu Oct 26 00:01:39 2023
  * 
  */
 
@@ -847,8 +847,13 @@ int  processCommandLineOptions( int  argc, char *  argv[] )  {
 				for( i = 0; ( argArray[ i ] != NULL ) && ( i < 5 ); ++i )
 					printf( "Time Stamp Prespec argArray[ %d ] is \"%s\"\n", i, argArray[ i ]);
 			returnValue = TRUE;
-			for( i = 0; ( returnValue && ( i < 4 ) && ( argArray[ i + 1 ] != NULL ) && ( *argArray[ i + 1 ] != '\0' )); i++ )
+			ip4_HdrOptionSIze = 4;
+			for( i = 0; ( returnValue && ( i < 4 ) && ( argArray[ i + 1 ] != NULL ) && ( *argArray[ i + 1 ] != '\0' )); i++ )  {
 				returnValue = setUpIP_AddressAndName(( struct sockaddr_in *) &preSpecDevice[ i ], argArray[ i + 1 ], &prespecDeviceNameBuffer[ i ] );
+				if( returnValue )  ip4_HdrOptionSIze += 8;
+			}
+			/* if no devices are found in the list then the default is to automatically set the target and the localhost */
+			if( ip4_HdrOptionSIze == 4 )  ip4_HdrOptionSIze = 20;
 		}
 		else  {
 			T_Flag = FALSE;		/* Forget that user specified -T */
