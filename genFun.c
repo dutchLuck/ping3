@@ -1,7 +1,7 @@
 /*
  * G E N F U N . C
  *
- * genFun.c last edited Thu Oct  5 22:48:07 2023
+ * genFun.c last edited Wed Oct 25 21:28:38 2023
  * 
  */
 
@@ -23,10 +23,14 @@ void  clearByteArray( unsigned char *  ptr, int  sizeOfArray )  {
 
 
 void  printByteArray( unsigned char *  ptr, int  sizeOfArray, int  charsPerLine )  {
-	int  cnt;
+	int  cnt, printIndex;
 
-	for( cnt = 0; sizeOfArray > 0; --sizeOfArray )  {
-		if(( cnt++ % charsPerLine ) == 0 )  printf( "\n" );
+	printIndex = ( sizeOfArray > ( charsPerLine * 2 ));		/* Start each line with an Index value if there will be more than two lines of output */
+	for( cnt = 0; cnt < sizeOfArray; cnt++ )  {
+		if(( cnt % charsPerLine ) == 0 )  {
+			printf( "\n" );
+			if( printIndex )  printf( "%4d - ", cnt );
+		}
 		printf( " %02x", *ptr++ & 0xff );
 	}
 	if(( cnt % charsPerLine ) != 1 )  printf( "\n" );
@@ -76,7 +80,7 @@ char  limitCharValueToEqualOrWithinRange( char  value, char  loBoundary, char  h
 long  convertOptionStringToLong( long  defltValue, char *  strng, char *  flgName, int *  flgActive, int  strictFlag )  {
 	long  result;
 
-	result = defltValue;
+	result = defltValue;	/* Set default value if flag is not active */
 	if( *flgActive )  {
 		if( strng == ( char * ) NULL )  {
 			if( strictFlag )  {
