@@ -1,13 +1,14 @@
 /*
  * G E N F U N . C
  *
- * genFun.c last edited Wed Oct 25 21:28:38 2023
+ * genFun.c last edited Thu Oct 26 16:26:46 2023
  * 
  */
 
 #include <stdio.h>		/* printf() */
-#include <stdlib.h>		/* atoi() malloc() free() atol() */
+#include <stdlib.h>		/* atoi() malloc() free() atol() strtod() */
 #include <limits.h>		/* LONG_MIN LONG_MAX INT_MIN */
+#include "genFun.h"
 
 #ifndef  FALSE
 #define  FALSE  ((int)0)
@@ -34,6 +35,21 @@ void  printByteArray( unsigned char *  ptr, int  sizeOfArray, int  charsPerLine 
 		printf( " %02x", *ptr++ & 0xff );
 	}
 	if(( cnt % charsPerLine ) != 1 )  printf( "\n" );
+}
+
+
+double  limitDoubleValueToEqualOrMoreNegetiveThanBoundary( double  value, double  boundary )  {
+	return(( value > boundary ) ? boundary : value );
+}
+
+
+double  limitDoubleValueToEqualOrMorePositiveThanBoundary( double  value, double  boundary )  {
+	return(( value < boundary ) ? boundary : value );
+}
+
+
+double  limitDoubleValueToEqualOrWithinRange( double  value, double  loBoundary, double  hiBoundary )  {
+	return(( value < loBoundary ) ? loBoundary : (( value > hiBoundary ) ? hiBoundary : value ));
 }
 
 
@@ -126,3 +142,41 @@ int  convertOptionStringToInteger( int  defltValue, char *  strng, char *  flgNa
 }
 
 
+double  convertOptionStringToDouble( double  defltValue, char *  strng, char *  flgName, int *  flgActive, int  strictFlag )  {
+	double  result;
+	char *  endPtrStore;
+
+	result = defltValue;	/* Set default value if flag is not active */
+	if( *flgActive )  {
+		if( strng == ( char * ) NULL )  {
+			if( strictFlag )  {
+    			*flgActive = FALSE;
+    			printf( "Warning: Parameter value for option %s is uninitialised, ignoring option %s\n", flgName, flgName );
+			}
+		}
+		else if( *strng == '\0' )  {	/* Assume "" used as option value so return default */
+			if( strictFlag )  {
+    			*flgActive = FALSE;
+				printf( "Warning: Parameter value for option %s contains no information, ignoring option %s\n", flgName, flgName );
+			}
+		}
+		else  {
+#ifdef DEBUG  
+			printf( "Debug: String for option %s is \"%s\"\n", flgName, strng );
+#endif
+		 /* Convert option string specified to double, if possible */
+    		result = strtod( strng, &endPtrStore );
+		 /* Check on strtod output - No conversion acheived if endptr == nptr for strtod() */
+    		if( endPtrStore == strng )  {
+    			*flgActive = FALSE;
+    			result = defltValue;
+    			printf( "Warning: Unable to convert \"%s\" into an double precision floating point number for option %s, ignoring option %s\n",
+    				strng, flgName, flgName );
+			}
+#ifdef DEBUG  
+			printf( "Debug: The conversion of string \"%s\" for option %s resulted in %ld\n", strng, flgName, result );
+#endif
+		}
+	}
+	return( result );
+}

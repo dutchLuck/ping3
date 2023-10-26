@@ -1,7 +1,7 @@
 /*
  * G E N F U N . H
  *
- * genFun.h last edited Thu Oct  5 22:48:15 2023
+ * genFun.h last edited Thu Oct 26 14:34:25 2023
  * 
  */
 
@@ -10,6 +10,9 @@
 
 void  clearByteArray( unsigned char *, int );
 void  printByteArray( unsigned char *, int, int );
+double  limitDoubleValueToEqualOrMoreNegetiveThanBoundary( double, double );
+double  limitDoubleValueToEqualOrMorePositiveThanBoundary( double, double );
+double  limitDoubleValueToEqualOrWithinRange( double, double, double );
 long  limitLongValueToEqualOrMoreNegetiveThanBoundary( long, long );
 long  limitLongValueToEqualOrMorePositiveThanBoundary( long, long );
 unsigned long  limitUnsignedLongValueToEqualOrWithinRange( unsigned long, unsigned long, unsigned long );
@@ -20,5 +23,6 @@ unsigned char  limitUnsignedCharValueToEqualOrWithinRange( unsigned char, unsign
 char  limitCharValueToEqualOrWithinRange( char, char, char );
 long  convertOptionStringToLong( long, char *, char *, int *, int );
 int  convertOptionStringToInteger( int, char *, char *, int *, int );
+double  convertOptionStringToDouble( double, char *, char *, int *, int );
 
 #endif

@@ -31,7 +31,8 @@ However macOS ping provides a timestamp capability through ICMP
 timestamp requests (-M time) and a netmask capability through
 ICMP mask requests (-M mask). Both modes require elevated priveleges
 via sudo, unless the "-s 0" option is included with the "-M time"
-or "-M mask" option. Linux ping has no similar capability.
+or "-M mask" option. Linux ping has no ICMP timestamp or ICMP netmask
+capability.
 
 The ping3 utility provides timestamp or record route in the IPv4
 header options on a macOS system and provides ICMP timestamp or
@@ -44,36 +45,35 @@ to the ping utility output, but with very simple summary statistics.
 Both outputs follow; -
 ```
 % ./ping3 www.apple.com
-80 bytes from 23.219.60.201: seq 1, ttl 59, RTT 21.114 [mS]
-80 bytes from 23.219.60.201: seq 2, ttl 59, RTT 23.939 [mS]
-80 bytes from 23.219.60.201: seq 3, ttl 59, RTT 21.598 [mS]
-3 requests sent, 3 replies received, 0.0% loss in 2.01 [S]
+80 bytes from 23.219.60.201: seq 1, ttl 59, RTT 22.676 [mS]
+80 bytes from 23.219.60.201: seq 2, ttl 59, RTT 25.695 [mS]
+80 bytes from 23.219.60.201: seq 3, ttl 59, RTT 25.609 [mS]
+3 requests sent, 3 replies received, 0.0% loss in 4.01 [S]
 %
-% % ping -c3 www.apple.com
+% ping -c3 www.apple.com
 PING e6858.dscx.akamaiedge.net (23.219.60.201): 56 data bytes
-64 bytes from 23.219.60.201: icmp_seq=0 ttl=59 time=21.132 ms
-64 bytes from 23.219.60.201: icmp_seq=1 ttl=59 time=21.424 ms
-64 bytes from 23.219.60.201: icmp_seq=2 ttl=59 time=20.837 ms
+64 bytes from 23.219.60.201: icmp_seq=0 ttl=59 time=22.690 ms
+64 bytes from 23.219.60.201: icmp_seq=1 ttl=59 time=25.686 ms
+64 bytes from 23.219.60.201: icmp_seq=2 ttl=59 time=22.870 ms
 
 --- e6858.dscx.akamaiedge.net ping statistics ---
 3 packets transmitted, 3 packets received, 0.0% packet loss
-round-trip min/avg/max/stddev = 20.837/21.131/21.424/0.240 ms
+round-trip min/avg/max/stddev = 22.690/23.749/25.686/1.372 ms
 %
 ```
 There doesn't appear to be equivalent options on the macOS ping
 that give "tsonly" (time stamp only) timestamps in the following fashion; -
 ```
-% ./ping3 -T tsonly -c2 www.apple.com
-80 bytes from 23.219.60.201: seq 1, ttl 59, RTT 21.201 [mS]
-120 bytes from 23.219.60.201: seq 2, ttl 59, RTT 26.458 [mS]
- 11:46:08.572 ( -646 [mS])
- 11:46:09.263 ( 691 [mS])
- 11:46:09.264 ( 1 [mS])
- 11:46:09.264 ( 0 [mS])
- 11:46:09.264 ( 0 [mS])
- 11:46:08.597 ( -667 [mS])
- 11:46:09.244 ( 647 [mS])
-2 requests sent, 2 replies received, 0.0% loss in 1.51 [S]
+% ./ping3 -c1 -T tsonly www.apple.com
+120 bytes from 23.219.60.201: seq 1, ttl 59, RTT 26.906 [mS]
+ 10:54:17.716 ( -745 [mS])
+ 10:54:18.482 ( 766 [mS])
+ 10:54:18.483 ( 1 [mS])
+ 10:54:18.483 ( 0 [mS])
+ 10:54:18.482 ( -1 [mS])
+ 10:54:17.738 ( -744 [mS])
+ 10:54:18.488 ( 750 [mS])
+1 requests sent, 1 replies received, 0.0% loss in 2.01 [S]
 %
 ```
 Linux ping can output IPv4 header option timestamps in the
@@ -91,7 +91,6 @@ TS: 	42496797 absolute
 	-669
 	672
 
-
 ---  ping statistics ---
 1 packets transmitted, 1 received, 0% packet loss, time 0ms
 rtt min/avg/max/mdev = 24.044/24.044/24.044/0.000 ms
@@ -99,38 +98,41 @@ $
 ```
 Successful ICMP Timestamp request pings produce the following output; -
 ```
-% ./ping3 -M time ntp-m.obspm.fr
-40 bytes from 145.238.187.55: seq 1, ttl 37, RTT 480.594 [mS] tso 11:57:44.009 tsr 11:57:44.296 tst 11:57:44.296
-40 bytes from 145.238.187.55: seq 2, ttl 37, RTT 383.802 [mS] tso 11:57:44.514 tsr 11:57:44.716 tst 11:57:44.716
-40 bytes from 145.238.187.55: seq 3, ttl 37, RTT 494.956 [mS] tso 11:57:45.019 tsr 11:57:45.283 tst 11:57:45.283
-3 requests sent, 3 replies received, 0.0% loss in 2.01 [S]
+% ./ping3 -M time 192.168.1.1 
+40 bytes from 192.168.1.1: seq 1, ttl 64, RTT 5.467 [mS] tso 10:56:33.537 tsr 10:56:32.793 tst 10:56:32.793
+40 bytes from 192.168.1.1: seq 2, ttl 64, RTT 5.447 [mS] tso 10:56:34.542 tsr 10:56:33.799 tst 10:56:33.799
+40 bytes from 192.168.1.1: seq 3, ttl 64, RTT 3.908 [mS] tso 10:56:35.547 tsr 10:56:34.802 tst 10:56:34.802
+3 requests sent, 3 replies received, 0.0% loss in 4.02 [S]
 %
 ```
-The comparison with macOS ping is; -
+The output from macOS ICMP Timestamp request ping for
+comparison purposes is (N.B. macOS prints integer Hrs:Min:Sec
+since midnight GMT, but seconds should be shown to millisecond
+resolution ); -
 ```
-% ping -M time -s 0 -c 3 ntp-m.obspm.fr
+% ping -c3 -Mt -s0 192.168.1.1
 ICMP_TSTAMP
-PING korriban.obspm.fr (145.238.187.55): 0 data bytes
-20 bytes from 145.238.187.55: icmp_seq=0 ttl=37 tso=11:58:55 tsr=11:58:55 tst=11:58:55
-20 bytes from 145.238.187.55: icmp_seq=1 ttl=37 tso=11:58:56 tsr=11:58:56 tst=11:58:56
-20 bytes from 145.238.187.55: icmp_seq=2 ttl=37 tso=11:58:57 tsr=11:58:57 tst=11:58:57
+PING 192.168.1.1 (192.168.1.1): 0 data bytes
+20 bytes from 192.168.1.1: icmp_seq=0 ttl=64 tso=10:58:21 tsr=10:58:20 tst=10:58:20
+20 bytes from 192.168.1.1: icmp_seq=1 ttl=64 tso=10:58:22 tsr=10:58:21 tst=10:58:21
+20 bytes from 192.168.1.1: icmp_seq=2 ttl=64 tso=10:58:23 tsr=10:58:22 tst=10:58:22
 
---- korriban.obspm.fr ping statistics ---
+--- 192.168.1.1 ping statistics ---
 3 packets transmitted, 3 packets received, 0.0% packet loss
 %
 ```
 Successful ICMP Netmask request pings produce the following output; -
 ```
 % ./ping3 -M mask 192.168.1.103
-32 bytes from 192.168.1.103: seq 1, ttl 64, RTT 68.23 [mS] mask 255.255.255.0
-32 bytes from 192.168.1.103: seq 2, ttl 64, RTT 78.252 [mS] mask 255.255.255.0
-32 bytes from 192.168.1.103: seq 3, ttl 64, RTT 87.433 [mS] mask 255.255.255.0
-3 requests sent, 3 replies received, 0.0% loss in 2.01 [S]
+32 bytes from 192.168.1.103: seq 1, ttl 64, RTT 69.548 [mS] mask 255.255.255.0
+32 bytes from 192.168.1.103: seq 2, ttl 64, RTT 86.521 [mS] mask 255.255.255.0
+32 bytes from 192.168.1.103: seq 3, ttl 64, RTT 105.079 [mS] mask 255.255.255.0
+3 requests sent, 3 replies received, 0.0% loss in 4.02 [S]
 %
 ```
 The comparison with macOS ping is; -
 ```
-% ping -Mm -s0 -c3 192.168.1.103 
+% ping -c3 -Mm -s0 192.168.1.103
 ICMP_MASKREQ
 PING 192.168.1.103 (192.168.1.103): 0 data bytes
 12 bytes from 192.168.1.103: icmp_seq=0 ttl=64 mask=255.255.255.0
@@ -146,13 +148,14 @@ command line option as follows; -
 ```
 % ./ping3 -h
 
-useage: ping3 [-cX][-D][-h][-lXX][-M ABC][-q][-R][-sXX][-tXX][-T ABC][-v][-wX] NetworkDeviceName
-or      ping3 [-cX][-D][-h][-lXX][-M ABC][-q][-R][-sXX][-tXX][-T ABC][-v][-wX] NetworkDeviceIP_Number
+useage: ping3 [-cX][-D][-h][-iX.X][-lXX][-M ABC][-q][-R][-sXX][-tXX][-T ABC][-v][-wX] NetworkDeviceName
+or      ping3 [-cX][-D][-h][-iX.X[-lXX][-M ABC][-q][-R][-sXX][-tXX][-T ABC][-v][-wX] NetworkDeviceIP_Number
 
 where options; -
-        -cX  specifies number of times to ping remote network device
+        -cX  specifies number of times to ping remote network device ( 1 <= X <= 100 )
         -D  switches on debug output
         -h  switches on this help output and then terminates ping3
+        -iX.X  ensure X.X second interval between each ping ( 0.1 <= X.X <= 60.0 )
         -lXX  suggest desired IP header option length (max is 40 and should be a multiple of 4)
         -M ABC  specifies ping with ICMP Mask/Timestamp request instead of ICMP Echo.
           where ABC is a sting of characters.
@@ -171,7 +174,7 @@ where options; -
             if "tsandaddr" then record Address and Time Stamp pair list,
             if "tsprespec H.I.J.K [ L.M.N.O [ P.Q.R.S [ T.U.V.W ]]]" then Time Stamp prespecified Addresses.
         -v  switches on verbose output
-        -wX  ensures the program waits for X seconds for a response
+        -wX  wait for X seconds after last request for any replies ( 1 <= X <= 20 )
 
 %
 ```
