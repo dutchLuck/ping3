@@ -709,7 +709,7 @@ void  finishOnUserInterrupt( int signo )  {
 		setSendTimer( 0L, 0L );	/* set timer off */
 	}
 	else  {
-		psignal( signo, "\nTerminating program due to user generated signal" );
+		if( verboseFlag )  psignal( signo, "\nTerminating program due to user generated signal" );
 	}
 	printStats();		/* Print the stats about requests sent, replies received etc */
 	fflush( stdout );	/* Ensure anything printed to stdout is output to the user terminal */
@@ -1086,5 +1086,5 @@ int  main( int  argc, char *  argv[] )  {
 		for( ; pingSendAttemptsLeft >= 0; )
 			if( getResponseAndProcessIt( sckt ))  pingsReceived += 1;
 	}
-	return( returnValue );
+	return( 0 );
 }

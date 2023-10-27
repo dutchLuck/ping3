@@ -1,0 +1,142 @@
+.TH PING3 "1" "October 2023" "ping3 0.0.0" "User Commands"
+.SH NAME
+.I ping3
+\- ping a network device with internet protocol version 4 icmp echo/timestamp/netmask requests
+.SH SYNOPSIS
+.B ping3
+\f\ -h\fR
+.br
+.B ping3
+[\fI\,options\/\fR] \fI\,network_device_name\/\fR
+.SH DESCRIPTION
+.PP
+.I ping3
+without any command line options sends 3 internet protocol version 4 (IPv4)
+internet control and management protocol (ICMP) Echo requests to the target
+network device and if it receives replies from the device it prints
+round-trip-time information for the ping. It can send ICMP Timestamp or Netmask
+requests as an alternative to Echo requests. It can also request Timestamp
+or Route information through IPv4 datagram header options combined with the
+encapsulated ICMP Echo or Timestamp or Netmask request message.
+.PP
+ping3 is not meant to take the place of the ping utility provided by the
+operating system. Instead it is meant to provide the macOS user with features
+found on linux ping, but not on macOS ping and vice versa.
+.SH OPTIONS
+.TP
+\fB\-c \fI\,ping_count\/\fR
+Send \fI\,ping_count\/\fR pings. If this option is not used then 3 pings will be sent.
+.TP
+\fB\-D\fR
+Debug information output enable.
+.TP
+\fB\-h\fR
+Output help and usage information and then exit.
+.TP
+\fB\-i \fI\,interval_between_pings\/\fR
+Send pings separated by \fI\,interval_between_pings\/\fR seconds. This interval is
+specified as a floating point number between 0.1 and 60 seconds. If this option is
+not used then pings will be sent at 1 second intervals.
+.TP
+\fB\-l \fI\,ip4_header_option_length\/\fR
+When the -T or -R options are being used the size of the IPv4 header option space can be
+suggested as \fI\,ip4_header_option_length\/\fR bytes. The length is specified as a
+integer number between 8 and 40 and should be a multiple of 4. ping3 may ignore or
+modify the suggested length depending on the other options specified.
+.TP
+\fB\-M \fI\,icmp_request_type\/\fR
+Send pings consisting of \fI\,icmp_request_type\/\fR requests, where the type may be "echo",
+"time", "timew" or "mask". If this option is not used then icmp echo pings will be sent. The
+"timew" type is a variant of "time" to suit replies from Microsoft Windows devices. Note that
+Windows devices do not reply to ICMP time requests unless their standard firewall rules have been
+changed to allow time requests through. Also note that ICMP mask requests are usually ignored
+by network devices. Apple macOS can be made to reply, until the next reboot, by a system
+setting change enacted by the command "sudo sysctl net.inet.icmp.maskrepl=1"
+.TP
+\fB\-q\fR
+specifies quiet mode to output a minimum of information. The -q option over-rides the -v
+( verbose ) option if both are specified on the command line.
+.TP
+\fB\-R\fR
+Sends pings with IPv4 header option requesting Record Route information. The -T option
+over-rides the -R option if both are specified on the command line.
+.TP
+\fB\-s \fI\,icmp_payload_size\/\fR
+The size of the ICMP request message can be addjusted with \fI\,icmp_payload_size\/\fR
+The size is specified as an positive integer number. Numbers less than 1500 seem to work
+best on macOS. ping3 may ignore or modify the suggested size.
+.TP
+\fB\-T \fI\,ipv4_header_option_type\/\fR
+Sends pings with IPv4 header option requesting Timestamp information of the type
+\fI\,ipv4_header_option_type\/\fR. The type maybe one of the following three types:
+"tsonly" ( a list of timestamps ), "tsandaddr" ( a list of address and timestamp pairs )
+or "tsprespec" ( a list of the prespecified addresses and timestamp pairs ). If "tsprespec"
+is used then the list should be quoted. For example -T "tsprespec 192.168.1.1 192.168.1.2"
+.TP
+\fB\-v\fR
+Verbose output enable.
+.TP
+\fB\-w \fI\,wait_period_after_last_ping_sent\/\fR
+Wait \fI\,wait_period_after_last_ping_sent\/\fR seconds after the last ping is transmitted.
+The wait period is specified as a positive integer number.
+.PP
+.SH "EXIT STATUS"
+The ping3 utility returns 0 on success, and greater than zero if an error occurs.
+.PP
+.SH EXAMPLES
+\fB\ ping3 -s100 a_network_device\fR
+.br
+send 3 ICMP Echo requests with 100 bytes of icmp payload to another device on the network.
+.PP
+\fB\ ping3 -c1 -M time a_network_device\fR
+.br
+send 1 ICMP Timestamp requests to another device on the network.
+.PP
+\fB\ ping3 -i2.0 -M mask a_network_device\fR
+.br
+send 3 ICMP Netmask requests two seconds apart to another device on the network.
+.PP
+\fB\ ping3 -c 2 -T tsonly -l12 a_network_device\fR
+.br
+send 2 ICMP Echo requests to another device on the network and expect to receive
+replies containing timestamps from the first two network devices in the path taken
+by the ping. Without the -l12 the first nine, if there are that many, network
+devices timestamps will be listed.
+.PP
+\fB\ ping3 -v -c 10 -T tsandaddr a_network_device\fR
+.br
+send 10 ICMP Echo requests to another device on the network and expect to receive
+replies containing address and timestamps pairs from some, prehaps even most, of
+the network devices in the path taken by the ping. The verbose option will mean
+a few extra lines of information will be output.
+.PP
+\fB\ ping3 -T "tsprespec 192.168.1.1 www.apple.com 192.168.1.1" www.apple.com\fR
+.br
+send 3 ICMP Echo requests to www.apple.com and expect to receive replies containing
+timestamps from both 192.168.1.1 and www.apple.com server (it is assumed that your
+gateway device IP address is 192.168.1.1 - adjust as necessary).
+.PP
+\fB\ ping3 -R www.apple.com\fR
+.br
+send 3 ICMP Echo requests to www.apple.com and expect to receive replies listing
+the IP addresses of the route taken to, and maybe from, www.apple.com server. Note
+that some or perhaps even all network devices in the route may ignore the request. 
+.PP
+.SH AUTHOR
+Written by Owen Holland.
+.PP
+.SH "REPORTING BUGS"
+Report ping3 bugs as issues on https://github.com/dutchLuck/ping3/issues
+.SH LICENSE
+Released under the MIT License (https://github.com/dutchLuck/ping3/blob/master/LICENSE). 
+.PP
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law. Unless this
+software provides a function not found in your operating systems
+ping utility, please use the ping provided by your operating system.
+.PP
+.SH "SEE ALSO"
+ping(1)
+.br
+More documentation at: <https://github.com/dutchLuck/ping3>
+.PP

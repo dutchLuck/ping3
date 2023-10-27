@@ -18,7 +18,7 @@ trip-time (RTT) was is printed out.
 By default "ping3" provides a (very much) cut down version of the
 capability provided by the standard computer system utility "ping".
 It does not provide any Internet Protocol version 6 (IPv6) capability.
-It currently provide only very limited summary statistics and doesn't
+It currently provides only very limited summary statistics and doesn't
 provide congestion testing or pattern testing or alternate interface
 specification or multicast functionality.
 
@@ -107,7 +107,7 @@ Successful ICMP Timestamp request pings produce the following output; -
 ```
 The output from macOS ICMP Timestamp request ping for
 comparison purposes is (N.B. macOS prints integer Hrs:Min:Sec
-since midnight GMT, but seconds should be shown to millisecond
+since midnight GMT, but the reply has milliseconds since midnight
 resolution ); -
 ```
 % ping -c3 -Mt -s0 192.168.1.1
@@ -121,7 +121,35 @@ PING 192.168.1.1 (192.168.1.1): 0 data bytes
 3 packets transmitted, 3 packets received, 0.0% packet loss
 %
 ```
-Successful ICMP Netmask request pings produce the following output; -
+The "timew" variant of -M enables special handling of ICMP timestamp replies from
+Microsoft Windows devices. For example, see below for the comparison of ping3 and
+normal macOS ping. The "tsr" receive timestamp and the "tst" transmit timestamp
+make no sense as output by normal ping when the target is a Windows device
+(192.168.1.121 is a Win10 machine with its firewall modified to allow ICMP timestamp
+requests. Normally Windows devices do not respond to ICMP timestamp requests.)
+```
+% ./ping3 -M timew 192.168.1.121
+40 bytes from 192.168.1.121: seq 1, ttl 128, RTT 35.471 [mS] tso 01:55:48.637 tsr 01:55:48.867 tst 01:55:48.867
+40 bytes from 192.168.1.121: seq 2, ttl 128, RTT 2.479 [mS] tso 01:55:49.638 tsr 01:55:49.836 tst 01:55:49.836
+40 bytes from 192.168.1.121: seq 3, ttl 128, RTT 1.447 [mS] tso 01:55:50.644 tsr 01:55:50.836 tst 01:55:50.836
+3 requests sent, 3 replies received, 0.0% loss in 4.01 [S]
+%
+% ping -c3 -Mt -s0 192.168.1.121
+ICMP_TSTAMP
+PING 192.168.1.121 (192.168.1.121): 0 data bytes
+20 bytes from 192.168.1.121: icmp_seq=0 ttl=128 tso=01:56:16 tsr=747:47:29 tst=747:47:29
+20 bytes from 192.168.1.121: icmp_seq=1 ttl=128 tso=01:56:17 tsr=710:34:53 tst=710:34:53
+20 bytes from 192.168.1.121: icmp_seq=2 ttl=128 tso=01:56:18 tsr=598:48:22 tst=598:48:22
+
+--- 192.168.1.121 ping statistics ---
+3 packets transmitted, 3 packets received, 0.0% packet loss
+% 
+```
+Successful ICMP Netmask request pings produce the following output (N.B. Normally
+Network Devices do not respond to ICMP Netmask requests. However, as noted in the
+Apple macOS man page for ping, macOS can reply to Netmask requests after a change
+to a system setting. The command to make a temporary setting change to macOS is; -
+"sudo sysctl net.inet.icmp.maskrepl=1"); -
 ```
 % ./ping3 -M mask 192.168.1.103
 32 bytes from 192.168.1.103: seq 1, ttl 64, RTT 69.548 [mS] mask 255.255.255.0
@@ -129,9 +157,6 @@ Successful ICMP Netmask request pings produce the following output; -
 32 bytes from 192.168.1.103: seq 3, ttl 64, RTT 105.079 [mS] mask 255.255.255.0
 3 requests sent, 3 replies received, 0.0% loss in 4.02 [S]
 %
-```
-The comparison with macOS ping is; -
-```
 % ping -c3 -Mm -s0 192.168.1.103
 ICMP_MASKREQ
 PING 192.168.1.103 (192.168.1.103): 0 data bytes
