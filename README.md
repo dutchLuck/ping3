@@ -42,6 +42,9 @@ sudo to work on macOS.
 
 The default output of ping3 on a macOS system is somewhat similar
 to the ping utility output, but with very simple summary statistics.
+The ping3 length value at the start of each reply line is the total
+size of the IPv4 (ICMP) datagram, not the size of the ICMP message
+as is shown in the output lines from ping.
 Both outputs follow; -
 ```
 % ./ping3 www.apple.com
@@ -178,7 +181,7 @@ or      ping3 [-cX][-D][-h][-iX.X[-lXX][-M ABC][-q][-R][-sXX][-tXX][-T ABC][-v][
 
 where options; -
         -cX  specifies number of times to ping remote network device ( 1 <= X <= 100 )
-        -D  switches on debug output
+        -D  switches on debug output and over-rides -q
         -h  switches on this help output and then terminates ping3
         -iX.X  ensure X.X second interval between each ping ( 0.1 <= X.X <= 60.0 )
         -lXX  suggest desired IP header option length (max is 40 and should be a multiple of 4)
@@ -199,7 +202,6 @@ where options; -
             if "tsandaddr" then record Address and Time Stamp pair list,
             if "tsprespec H.I.J.K [ L.M.N.O [ P.Q.R.S [ T.U.V.W ]]]" then Time Stamp prespecified Addresses.
         -v  switches on verbose output
-        -wX  wait for X seconds after last request for any replies ( 1 <= X <= 20 )
 
 %
 ```

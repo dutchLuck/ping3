@@ -2,7 +2,7 @@
 #
 # C H E C K
 #
-# check last edited Tue Oct 17 23:05:37 2023
+# check last edited Sat Oct 28 18:58:10 2023
 #
 PROGRAM=ping3
 #
@@ -33,7 +33,10 @@ else
 fi
 #
 #
+echo "Obtaining Local Interface IP Address"
 LOCAL_INTERFACE=`$PRIV ../$PROGRAM -D -c1 $TARGET | awk '/Destination Address/{print $4}'`
+echo "Local interface IP Address is $LOCAL_INTERFACE"
+echo
 #
 # Compare standard ICMP ECHO request pings
 #
@@ -44,11 +47,21 @@ echo
 #
 echo "$PRIV ../$PROGRAM $TARGET"
 $PRIV ../$PROGRAM  $TARGET
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Return value passed back to this shell was $RESULT"
+fi
 sleep 1
 echo
 #
 echo "ping -c 3 $TARGET"
 ping -c 3 $TARGET
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Return value passed back to this shell was $RESULT"
+fi
 sleep 1
 echo
 #
@@ -64,36 +77,66 @@ echo
 #
 echo "$PRIV ../$PROGRAM -T tsonly $TARGET"
 $PRIV ../$PROGRAM -T tsonly $TARGET
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Return value passed back to this shell was $RESULT"
+fi
 sleep 1
 echo
 #
 if [[ "$OSTYPE" == "linux-gnu" ]] ; then
   echo "ping -4 -c 2 -T tsonly $TARGET"
   ping -4 -c 2 -T tsonly $TARGET
+  RESULT=$?
+  if [[ "$RESULT" != "0" ]] ; then
+    echo
+    echo "Return value passed back to this shell was $RESULT"
+  fi
   sleep 1
   echo
 fi
 #
 echo "$PRIV ../$PROGRAM -T tsandaddr $TARGET"
 $PRIV ../$PROGRAM -T tsandaddr $TARGET
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Return value passed back to this shell was $RESULT"
+fi
 sleep 1
 echo
 #
 if [[ "$OSTYPE" == "linux-gnu" ]] ; then
   echo "ping -4 -c 2 -T tsandaddr $TARGET"
   ping -4 -c 2 -T tsandaddr $TARGET
+  RESULT=$?
+  if [[ "$RESULT" != "0" ]] ; then
+    echo
+    echo "Return value passed back to this shell was $RESULT"
+  fi
   sleep 1
   echo
 fi
 #
 echo "$PRIV ../$PROGRAM -T \"tsprespec $TARGET ${LOCAL_INTERFACE}\" $TARGET"
 $PRIV ../$PROGRAM -T "tsprespec $TARGET ${LOCAL_INTERFACE}" $TARGET
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Return value passed back to this shell was $RESULT"
+fi
 sleep 1
 echo
 #
 if [[ "$OSTYPE" == "linux-gnu" ]] ; then
   echo "ping -4 -c 2 -T tsprespec $TARGET $LOCAL_INTERFACE $TARGET" 
   ping -4 -c 2 -T tsprespec $TARGET $LOCAL_INTERFACE $TARGET
+  RESULT=$?
+  if [[ "$RESULT" != "0" ]] ; then
+    echo
+    echo "Return value passed back to this shell was $RESULT"
+  fi
   sleep 1
   echo
 fi
@@ -110,12 +153,22 @@ echo
 #
 echo "$PRIV ../$PROGRAM -R $TARGET"
 $PRIV ../$PROGRAM -R $TARGET
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Return value passed back to this shell was $RESULT"
+fi
 sleep 1
 echo
 #
 if [[ "$OSTYPE" == "linux-gnu" ]] ; then
   echo "ping -4 -c 2 -R $TARGET"
   ping -4 -c 2 -R $TARGET
+  RESULT=$?
+  if [[ "$RESULT" != "0" ]] ; then
+    echo
+    echo "Return value passed back to this shell was $RESULT"
+  fi
   sleep 1
   echo
 fi
@@ -131,6 +184,11 @@ echo
 #
 echo "$PRIV ../$PROGRAM -M time $TARGET"
 $PRIV ../$PROGRAM -M time $TARGET
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Return value passed back to this shell was $RESULT"
+fi
 sleep 1
 echo
 #
@@ -141,6 +199,11 @@ echo
 if [[ "$OSTYPE" == "darwin"* ]] ; then
   echo "ping -c 3 -M time -s 0 $TARGET"
   ping -c 3 -M time -s 0 $TARGET
+  RESULT=$?
+  if [[ "$RESULT" != "0" ]] ; then
+    echo
+    echo "Return value passed back to this shell was $RESULT"
+  fi
   sleep 1
   echo
 fi
@@ -155,12 +218,22 @@ echo "######################################################"
 echo
 echo "$PRIV ../$PROGRAM -M timew $WINDOWS_TARGET"
 $PRIV ../$PROGRAM -M timew $WINDOWS_TARGET
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Return value passed back to this shell was $RESULT"
+fi
 sleep 1
 echo
 #
 if [[ "$OSTYPE" == "darwin"* ]] ; then
   echo "ping -c 3 -M time -s 0 $WINDOWS_TARGET"
   ping -c 3 -M time -s 0 $WINDOWS_TARGET
+  RESULT=$?
+  if [[ "$RESULT" != "0" ]] ; then
+    echo
+    echo "Return value passed back to this shell was $RESULT"
+  fi
   sleep 1
   echo
 fi
@@ -176,6 +249,11 @@ echo
 #
 echo "$PRIV ../$PROGRAM -M mask $NETMASK_TARGET"
 $PRIV ../$PROGRAM -M mask $NETMASK_TARGET
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Return value passed back to this shell was $RESULT"
+fi
 sleep 1
 echo
 #
@@ -186,6 +264,11 @@ echo
 if [[ "$OSTYPE" == "darwin"* ]] ; then
   echo "ping -c 3 -M mask -s 0 $NETMASK_TARGET"
   ping -c 3 -M mask -s 0 $NETMASK_TARGET
+  RESULT=$?
+  if [[ "$RESULT" != "0" ]] ; then
+    echo
+    echo "Return value passed back to this shell was $RESULT"
+  fi
   sleep 1
   echo
 fi
@@ -201,9 +284,112 @@ echo
 #
 echo "$PRIV ../$PROGRAM -T tsonly -M time $TARGET"
 $PRIV ../$PROGRAM -T tsonly -M time $TARGET
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Return value passed back to this shell was $RESULT"
+fi
 sleep 1
 echo
 #
 echo "$PRIV ../$PROGRAM -R -M time $TARGET"
 $PRIV ../$PROGRAM -R -M time $TARGET
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Return value passed back to this shell was $RESULT"
+fi
+sleep 1
+echo
+#
+#
+# Test for conditions that should be caught
+#
+echo "##############################"
+echo "# 9. Test Unusual conditions #"
+echo "##############################"
+echo
+#
+# Test no network device specified
+#
+echo "$PRIV ../$PROGRAM"
+$PRIV ../$PROGRAM
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Return value passed back to this shell was $RESULT"
+fi
+sleep 1
+echo
+#
+# Test -h help flag used
+#
+echo "$PRIV ../$PROGRAM -h"
+$PRIV ../$PROGRAM -h
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Return value passed back to this shell was $RESULT"
+fi
+sleep 1
+echo
+#
+# Test set TTL 
+#
+echo "$PRIV ../$PROGRAM -c1 -t128 192.168.1.1"
+$PRIV ../$PROGRAM -c1 -t128 192.168.1.1
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Return value passed back to this shell was $RESULT"
+fi
+sleep 1
+echo
+#
+# Test debug mode
+#
+echo "$PRIV ../$PROGRAM -c1 -D 192.168.1.1"
+$PRIV ../$PROGRAM -c1 -D 192.168.1.1
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Return value passed back to this shell was $RESULT"
+fi
+sleep 1
+echo
+#
+# Test quiet mode ( over-rides verbose mode )
+#
+echo "$PRIV ../$PROGRAM -v -q 192.168.1.1"
+$PRIV ../$PROGRAM -v -q 192.168.1.1
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Return value passed back to this shell was $RESULT"
+fi
+sleep 1
+echo
+#
+# Test broadcast
+#
+echo "$PRIV ../$PROGRAM -c1 -w5 192.168.1.255"
+$PRIV ../$PROGRAM -c1 -w5 192.168.1.255
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Return value passed back to this shell was $RESULT"
+fi
+sleep 1
+echo
+#
+# Test DNS unable to determine network device address
+#
+echo "$PRIV ../$PROGRAM nonExistant.com.au"
+$PRIV ../$PROGRAM nonExistant.com.au
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Return value passed back to this shell was $RESULT"
+fi
+echo
 #

@@ -1,7 +1,7 @@
 /*
  * P I N G 3 . C
  *
- * ping3.c last edited Thu Oct 26 21:15:26 2023
+ * ping3.c last edited Sat Oct 28 19:10:02 2023
  * 
  */
 
@@ -23,7 +23,7 @@
 
 /*
  * Notable bugs, faults, weaknesses, short-comings or surprises; -
- * 1. Missing replies are not reported
+ * 1. Missing replies are not reported except in the summary at the end
  * 2. Checksum is incorrect (see -v output on macOS) on IPv4 header option replies
  * 3. Setting the time-to-live (ttl) on macOS fails
  * 4. Reports total length of reply not data length
@@ -51,9 +51,8 @@
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>	/* inet_addr() inet_ntoa() */
-#include <sys/file.h>
 #include <sys/time.h>	/* setitimer() */
-#include <time.h>		/* clock_gettime() nanosleep() */
+#include <time.h>		/* clock_gettime() */
 #include <sys/signal.h>
 #include <signal.h>		/* psignal() */
 #include <libgen.h>		/* basename() */
@@ -74,10 +73,10 @@
 #include <string.h>		/* strncpy() */
 #include <strings.h>	/* bzero() bcmp() */
 #include <math.h>		/* round() */
-#include  "genFun.h"	/* clearByteArray() */
+#include  "genFun.h"	/* clearByteArray() convertOptionStringToInteger() */
 #include  "dbgFun.h"	/* printNamedByteArray() */
 #include  "ipFun.h"		/* calcCheckSum() display_ip() */
-#include  "ipOptionsFun.h"
+#include  "ipOptionsFun.h"	/* displayIpOptions() */
 #include  "icmpFun.h"	/* displayICMP() */
 #include  "timeFun.h"	/* convertMilliSecondsSinceMidnightToHMS_String() calcTimeSpecClockDifferenceInSeconds() */
 
@@ -485,11 +484,11 @@ int  processReceivedDatagram( char *  buf, int  datagramSize, struct sockaddr_in
 			if( debugFlag )  printf( " Buffer Size being compared is %d\n", txICMP_BfrSize - 6 );
 	}
 	if( hdrLen == STD_IP4_HDR_LEN )  {
-		printLineOfPingInfo( ip, icmpHdrPtr, datagramSize );
+		if( ! quietFlag )  printLineOfPingInfo( ip, icmpHdrPtr, datagramSize );
 	}
 	else  {
 		/* Print the normal ping info E.g. XX bytes from AAA.BBB.CCC.DDD: seq YYYYY, ttl ZZZ, RTT 0.994 [mS] */
-		printLineOfPingInfo( ip, icmpHdrPtr, datagramSize );
+		if( ! quietFlag )  printLineOfPingInfo( ip, icmpHdrPtr, datagramSize );
 		if(( hdrLen - STD_IP4_HDR_LEN ) > 0 )  {	/* when true there is a option section in the IP4 header */
 			if( debugFlag )  displayIpOptionList(( u_char *) tsPntr, hdrLen - STD_IP4_HDR_LEN );
 		}
@@ -527,7 +526,7 @@ int  processReceivedDatagram( char *  buf, int  datagramSize, struct sockaddr_in
 #ifdef DEBUG
 			if( debugFlag )  {
 				printNamedByteArray(( u_char *) tsPntr, hdrLen - STD_IP4_HDR_LEN, 20, "processReceivedDatagram(): IP4 option received" );
-				displayIpOptions(( u_char *) tsPntr, hdrLen - STD_IP4_HDR_LEN );
+				displayIpOptions(( u_char *) tsPntr, hdrLen - STD_IP4_HDR_LEN, verboseFlag );
 			}
 #endif
 			 /* Now get time according to target when reply message left */
@@ -683,9 +682,8 @@ void  printStats( void )  {
 	double  timeSinceFirstPingSent;
 
 	printf( "%d requests sent, %d replies received", pingsSent, pingsReceived );
-	if( pingsSent <= 0 )
-		printf( ".\n" );
-	else  {
+	/* Calculate % loss as long as some pings were sent and we will get a % between 0 & 100 */
+	if(( pingsSent > 0 ) && ( pingsReceived <= pingsSent ))  {
 		percentageLoss = 100.0 * (( float ) ( pingsSent - pingsReceived ) / ( float ) pingsSent );
 		printf( ", %3.1f%c loss", percentageLoss, '%' );
 	}
@@ -797,7 +795,7 @@ void  useage( char *  name )  {
 	printf( "or      %s [-cX][-D][-h][-iX.X[-lXX][-M ABC][-q][-R][-sXX][-tXX][-T ABC][-v][-wX] NetworkDeviceIP_Number\n", name );
 	printf( "\nwhere options; -\n" );
 	printf( "        -cX  specifies number of times to ping remote network device ( %d <= X <= %d )\n", MIN_PING_ATTEMPTS, MAX_PING_ATTEMPTS );
-	printf( "        -D  switches on debug output\n" );
+	printf( "        -D  switches on debug output and over-rides -q\n" );
 	printf( "        -h  switches on this help output and then terminates %s\n", name );
 	printf( "        -iX.X  ensure X.X second interval between each ping ( %.1f <= X.X <= %.1f )\n", MIN_INTERVAL_BW_PINGS, MAX_INTERVAL_BW_PINGS );
 	printf( "        -lXX  suggest desired IP header option length (max is 40 and should be a multiple of 4)\n" );
@@ -936,12 +934,13 @@ int  processCommandLineOptions( int  argc, char *  argv[] )  {
 		MAX_IP4_PACKET_LEN - ( STD_IP4_HDR_LEN + ip4_HdrOptionSize + icmpMessageSize ));
 	txICMP_BfrSize = icmpMessageSize + icmpExtraDataSizeValue;	/* recompute size in case it was reduced by limiting */
  	if( debugFlag )  {
-		printf( "IPv4 Header Option length is %d bytes\n", ip4_HdrOptionSize );
-		printf( "Transmit Buffer Size is %d, Receive Buffer Size is %d\n", txICMP_BfrSize, rxIPv4_BfrSize );
+		verboseFlag = TRUE;
+		quietFlag = FALSE;		/* Debug flag over-rides quiet flag if they are both TRUE */
+		printf( "Debug: IPv4 Header Option length is %d bytes\n", ip4_HdrOptionSize );
+		printf( "Debug: Transmit Buffer Size is %d, Receive Buffer Size is %d\n", txICMP_BfrSize, rxIPv4_BfrSize );
 	}
-    /* quiet flag over-rides verbose flag if they are both TRUE */
-	if( quietFlag )  verboseFlag = FALSE;
-	/* return the index of the first positional argument (i.e. input file name?) */
+	if( quietFlag )  verboseFlag = FALSE;	/* quiet flag over-rides verbose flag if they are both TRUE */
+	/* return the option index of the first positional argument (i.e. network device name or IPv4 address?) */
 	return( optind );
 }
 
@@ -1035,7 +1034,7 @@ int  main( int  argc, char *  argv[] )  {
 /*  or if no icmp echo target is specified ) */
 	if( helpFlag || ( argc == commandLineIndex )) {
 		useage( exeName );
-		return(0);
+		return( 1 );
 	}
 
 /* Attempt to get the name of the Local network device */	
@@ -1049,7 +1048,7 @@ int  main( int  argc, char *  argv[] )  {
 /* Set up the address to send the icmp echo request */
 	to = ( struct sockaddr_in *) &remoteDeviceToPingInfo;
 	returnValue = setUpIP_AddressAndName( to, argv[ commandLineIndex ], &remoteDeviceNameBuffer);
-	if( returnValue == FALSE )  return( 1 );	/* Don't go further if no address can be determined */
+	if( returnValue == FALSE )  return( 2 );	/* Don't go further if no address can be determined */
 
 	if(( ip4_DatagramRxd = (u_char *) malloc( (u_int) rxIPv4_BfrSize )) == NULL ) {
 		fprintf( stderr, "?? Unable to create storage of %d bytes for received datagram\n", rxIPv4_BfrSize );
@@ -1067,13 +1066,11 @@ int  main( int  argc, char *  argv[] )  {
 		signal( SIGINT, finishOnUserInterrupt );	/* Trap Control C user interrupt */
 		signal( SIGQUIT, finishOnUserInterrupt );	/* Trap Control \ user interrupt */
 		signal( SIGTERM, finishOnUserInterrupt );	/* Trap Del user interrupt */
-		signal( SIGUSR1, displayCurrentStatsInterrupt );
+		signal( SIGUSR1, displayCurrentStatsInterrupt );	/* kill -SIGUSR1 <pid> to print stats mid-pings */
 
-		/* Do first ping WITHOUT any IP4 header option, just to make sure ICMP echo/echo-reply is working */
 		/*
 		 * We send one request to kick off and then rely on a timer interrupt to send any subsequent request(s).
 		 */
-
 		icmpHdrID = ( u_short ) CONTRIVED_NUMBER;
 		/* Set the Time to Live if required */
 		if( t_Flag )  {	/* This paragraph doesn't work on macOS - Fix this ? */

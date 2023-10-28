@@ -6,8 +6,8 @@
  */
 
 #include <stdio.h>		/* printf() */
-#include <stdlib.h>		/* atoi() malloc() free() atol() strtod() */
-#include <limits.h>		/* LONG_MIN LONG_MAX INT_MIN */
+#include <stdlib.h>		/* atoi() malloc() free() atol() strtod() strtol() */
+#include <limits.h>		/* LONG_MIN LONG_MAX INT_MIN strtol() */
 #include "genFun.h"
 
 #ifndef  FALSE
@@ -93,38 +93,45 @@ char  limitCharValueToEqualOrWithinRange( char  value, char  loBoundary, char  h
 }
 
 
+void  resetFlagAndPrintParameterWarning( int *  flag, char *  flagName, char *  warningDetail )  {
+	/* reset the flag to inactive and output a Warning */
+	*flag = FALSE;
+    printf( "Warning: Ignoring option %s : Parameter value for option %s.\n", flagName, warningDetail );
+}
+
+
+void  resetFlagAndPrintConversionWarning( int *  flag, char *  flagName, char *  strng, char *  warningDetail )  {
+	/* reset the flag to inactive and output a Warning */
+	*flag = FALSE;
+    printf( "Warning: Ignoring option %s : Unable to convert \"%s\" %s.\n", flagName, strng, warningDetail );
+}
+
+
 long  convertOptionStringToLong( long  defltValue, char *  strng, char *  flgName, int *  flgActive, int  strictFlag )  {
 	long  result;
+	char *  endPtrStore;
 
 	result = defltValue;	/* Set default value if flag is not active */
 	if( *flgActive )  {
 		if( strng == ( char * ) NULL )  {
-			if( strictFlag )  {
-    			*flgActive = FALSE;
-    			printf( "Warning: Parameter value for option %s is uninitialised, ignoring option %s\n", flgName, flgName );
-			}
+			if( strictFlag )  resetFlagAndPrintParameterWarning( flgActive, flgName, "is uninitialised" );
 		}
 		else if( *strng == '\0' )  {	/* Assume "" used as option value so return default */
-			if( strictFlag )  {
-    			*flgActive = FALSE;
-				printf( "Warning: Parameter value for option %s contains no information, ignoring option %s\n", flgName, flgName );
-			}
+			if( strictFlag )  resetFlagAndPrintParameterWarning( flgActive, flgName, "contains no information" );
 		}
 		else  {
 #ifdef DEBUG  
 			printf( "Debug: String for option %s is \"%s\"\n", flgName, strng );
 #endif
 		 /* Convert option string specified to signed long, if possible */
-    		result = atol( strng );
-		 /* Rough check on atol() output - is result zero when option string likely wasn't zero */
-    		if(( result == 0L ) && ( *strng != '0' ))  {
-    			*flgActive = FALSE;
+    		result = strtol( strng, &endPtrStore, 10 );		/* base 10 conversion of strng to long integer */
+		 /* Check on strtol output - did any characters get converted? */
+    		if( endPtrStore == strng )  {
+				if( strictFlag )  resetFlagAndPrintConversionWarning( flgActive, flgName, strng, "into an integer number" );
     			result = defltValue;
-    			printf( "Warning: Unable to convert \"%s\" into an integer for option %s, ignoring option %s\n",
-    				strng, flgName, flgName );
 			}
 #ifdef DEBUG  
-			printf( "Debug: The conversion of string \"%s\" for option %s resulted in %ld\n", strng, flgName, result );
+			printf( "Debug: The conversion of \"%s\" for option %s resulted in a value of %ld\n", strng, flgName, result );
 #endif
 		}
 	}
@@ -146,19 +153,13 @@ double  convertOptionStringToDouble( double  defltValue, char *  strng, char *  
 	double  result;
 	char *  endPtrStore;
 
-	result = defltValue;	/* Set default value if flag is not active */
-	if( *flgActive )  {
-		if( strng == ( char * ) NULL )  {
-			if( strictFlag )  {
-    			*flgActive = FALSE;
-    			printf( "Warning: Parameter value for option %s is uninitialised, ignoring option %s\n", flgName, flgName );
-			}
+	result = defltValue;	/* Ensure the return the default value if flag is not active */
+	if( *flgActive )  {		/* Attempt to convert user input if flag is active */
+		if( strng == ( char * ) NULL )  {	/* No string to convert so return default value */
+			if( strictFlag )  resetFlagAndPrintParameterWarning( flgActive, flgName, "is uninitialised" );
 		}
-		else if( *strng == '\0' )  {	/* Assume "" used as option value so return default */
-			if( strictFlag )  {
-    			*flgActive = FALSE;
-				printf( "Warning: Parameter value for option %s contains no information, ignoring option %s\n", flgName, flgName );
-			}
+		else if( *strng == '\0' )  {	/* Assume "" used as option value so return default value */
+			if( strictFlag )  resetFlagAndPrintParameterWarning( flgActive, flgName, "contains no information" );
 		}
 		else  {
 #ifdef DEBUG  
@@ -168,13 +169,13 @@ double  convertOptionStringToDouble( double  defltValue, char *  strng, char *  
     		result = strtod( strng, &endPtrStore );
 		 /* Check on strtod output - No conversion acheived if endptr == nptr for strtod() */
     		if( endPtrStore == strng )  {
-    			*flgActive = FALSE;
+				/* If strictFlag set then reset the flag to inactive and output a Warning */
+				if( strictFlag )
+					resetFlagAndPrintConversionWarning( flgActive, flgName, strng, "into a double precision floating point number" );
     			result = defltValue;
-    			printf( "Warning: Unable to convert \"%s\" into an double precision floating point number for option %s, ignoring option %s\n",
-    				strng, flgName, flgName );
 			}
 #ifdef DEBUG  
-			printf( "Debug: The conversion of string \"%s\" for option %s resulted in %ld\n", strng, flgName, result );
+			printf( "Debug: The conversion of \"%s\" for option %s resulted in a value of %lg\n", strng, flgName, result );
 #endif
 		}
 	}
