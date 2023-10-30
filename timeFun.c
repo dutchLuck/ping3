@@ -1,7 +1,7 @@
 /*
  * T I M E F U N . C
  *
- * timeFun.c last edited on Sun Oct 22 22:30:53 2023
+ * timeFun.c last edited on Mon Oct 30 22:57:56 2023
  *
  * Functions to handle time
  * 
@@ -9,6 +9,7 @@
 
 #include  <stdio.h>
 #include  <time.h>	/* struct timespec */
+#include  <limits.h>	/* LONG_MAX */
 
 
 double  calcTimeSpecClockDifferenceInSeconds( struct timespec *  earlier, struct timespec *  later )  {
@@ -48,9 +49,9 @@ void  convertMilliSecondsToHMS_String( long  millisecs, char *  str )  {
 }
 
 
-void  convertMilliSecondsSinceMidnightToHMS_String( long  millisecs, char *  str )  {
+void  convertMilliSecondsSinceMidnightToHMS_String( unsigned long  millisecs, char *  str )  {
 	if( millisecs == 0L )  sprintf( str, "00:00:00.000" );
-	else if( millisecs < 0L )  sprintf( str, "? Non Std time?" );
+	else if( millisecs > ( unsigned long ) LONG_MAX )  sprintf( str, "? Non Std time?" );	/* Non-std if MSB is a 1 */
 	else if( millisecs > 86399999L )  sprintf( str, "? Time too big?" );
 	else  convertMilliSecondsToHMS_String( millisecs, str );
 }

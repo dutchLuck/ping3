@@ -180,7 +180,8 @@ useage: ping3 [-cX][-D][-h][-iX.X][-lXX][-M ABC][-q][-R][-sXX][-tXX][-T ABC][-v]
 or      ping3 [-cX][-D][-h][-iX.X[-lXX][-M ABC][-q][-R][-sXX][-tXX][-T ABC][-v][-wX] NetworkDeviceIP_Number
 
 where options; -
-        -cX  specifies number of times to ping remote network device ( 1 <= X <= 100 )
+        -cX  specifies number of times to ping remote network device ( 0 <= X <= 100 )
+          where a value of 0 invokes continuous ping mode. Stop this mode with control-C or control-\.
         -D  switches on debug output and over-rides -q
         -h  switches on this help output and then terminates ping3
         -iX.X  ensure X.X second interval between each ping ( 0.1 <= X.X <= 60.0 )
@@ -202,6 +203,7 @@ where options; -
             if "tsandaddr" then record Address and Time Stamp pair list,
             if "tsprespec H.I.J.K [ L.M.N.O [ P.Q.R.S [ T.U.V.W ]]]" then Time Stamp prespecified Addresses.
         -v  switches on verbose output
+        -wX  wait for X seconds after last request for any replies ( 1 <= X <= 20 )
 
 %
 ```

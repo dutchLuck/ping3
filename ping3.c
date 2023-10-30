@@ -1,7 +1,7 @@
 /*
  * P I N G 3 . C
  *
- * ping3.c last edited Sat Oct 28 19:10:02 2023
+ * ping3.c last edited Mon Oct 30 22:18:05 2023
  * 
  */
 
@@ -87,7 +87,7 @@
 #define  TRUE  (! FALSE)
 #endif
 
-#define MIN_PING_ATTEMPTS  1	/* smallest number of ICMP requests sent (limits X for -cX option) */
+#define MIN_PING_ATTEMPTS  0	/* smallest number of ICMP requests sent (limits X for -cX option) */
 #define DEFAULT_PING_COUNT  3	/* default number of pings to send */
 #define MAX_PING_ATTEMPTS  100	/* largest number of ICMP requests sent (limits X for -cX option) */
 #define MIN_INTERVAL_BW_PINGS  0.1		/* smallest interval between pings in seconds (limits X.X for -iX.X option) */
@@ -141,6 +141,7 @@ int	 haveLocalHostNameFlag;	/* Local host name is known if true */
 int  c_Flag;						/* Ping count was found in the command line options */
 char *  c_Strng = ( char * ) NULL;	/*  pointer to -c value as there should be a value */
 int	 pingSendAttemptsLeft;			/* attempt pingSendAttemptsLeft pings */
+int  continousPingMode;				/* keep pinging until interrupted by user mode */
 int  i_Flag;						/* interval time option was found in the command line options */
 char * i_Strng = ( char * ) NULL;	/* pointer to -i value */
 double  intervalBwPingsInSeconds;	/* interval Option length */
@@ -424,7 +425,7 @@ int  processReceivedDatagram( char *  buf, int  datagramSize, struct sockaddr_in
 	ip->ip_len = htons( datagramSize );		/* restore total length in header in case it has been altered */
 	if(( chkSumResult = calcCheckSum( (u_short * ) ip, hdrLen )) != 0 )  {
 		if( hdrLen == STD_IP4_HDR_LEN || verboseFlag )  {	/* Don't report if header options are in use - FIX checksum for options use */
-			fprintf( stderr, "\n?? Datagram from %s has invalid IP header checksum result 0x%04x\n", 
+			fprintf( stderr, "\n?? Calculated checksum of IPv4 datagram from %s is 0x%04x, but should be 0x0000\n", 
 				inet_ntoa( *(struct in_addr *)&from->sin_addr.s_addr), chkSumResult );
 		 /* Try zero the time option if there is one */
 #ifdef DEBUG	
@@ -435,14 +436,14 @@ int  processReceivedDatagram( char *  buf, int  datagramSize, struct sockaddr_in
 	}
  /* Received datagram is assumed to be an ICMP datagram, but check to make sure */
     if( ip->ip_p != 0x01 )  {
-		fprintf( stderr, "\n?? Datagram from %s header protocol ( %x ) isn't ICMP message\n", 
+		fprintf( stderr, "\n?? IPv4 datagram from %s doesn't carry an ICMP message (protocol is 0x%x )\n", 
 			inet_ntoa( *(struct in_addr *)&from->sin_addr.s_addr), ip->ip_p );
 		if( verboseFlag )
 			printNamedByteArray(( u_char *) ip, datagramSize, 20, "processReceivedDatagram(): non ICMP IP4 received" );
 		return( -1 );
 	}
 	if ( datagramSize < ( hdrLen + ICMP_MINLEN )) {
-		fprintf( stderr, "\n?? Datagram from %s too short (%d bytes) to contain ICMP message\n", 
+		fprintf( stderr, "\n?? IPv4 datagram from %s is too short (%d bytes) to contain ICMP message\n", 
 			inet_ntoa( *(struct in_addr *)&from->sin_addr.s_addr), datagramSize );
 		if( verboseFlag )
 			printNamedByteArray(( u_char *) ip, datagramSize, 20, "processReceivedDatagram(): too short ICMP IP4 received" );
@@ -453,8 +454,11 @@ int  processReceivedDatagram( char *  buf, int  datagramSize, struct sockaddr_in
 		display_ip( ip, datagramSize );
 		printf( "--==## processReceivedDatagram(): display IP4 datagram ##==--\n\n" );
 	}
-     /* Now the ICMP body + header options (if there are any) */
-	
+ /* Now the ICMP message + header options (if there are any) */
+	if(( chkSumResult = calcCheckSum( (u_short * ) icmpHdrPtr, datagramSize - hdrLen )) != 0 )  {
+		fprintf( stderr, "\n?? Calculated checksum of ICMP message from %s is 0x%04x, but should be 0x0000\n", 
+			inet_ntoa( *(struct in_addr *)&from->sin_addr.s_addr), chkSumResult );
+	}
      /* With a raw ICMP socket we get all ICMP datagrams that come into the kernel. Only accept Echo, Timestamp or Mask replies */
 	if( ! (( icmpHdrPtr->icmp_type == ICMP_ECHOREPLY ) ||
 	       ( icmpHdrPtr->icmp_type == ICMP_TSTAMPREPLY ) ||
@@ -469,12 +473,12 @@ int  processReceivedDatagram( char *  buf, int  datagramSize, struct sockaddr_in
 		return( -1 );	/* some other type of ICMP message */
 	}
 	if( ntohs( icmpHdrPtr->icmp_id ) != process_id )  {
-		printf("? processReceivedDatagram(): received id 0x%04x but expected 0x%04x\n",
+		printf("? processReceivedDatagram(): received icmp id 0x%04x but expected 0x%04x\n",
 			ntohs( icmpHdrPtr->icmp_id ), process_id );
 		if( debugFlag )  display_ip( ip, datagramSize );
 	}
 	if( ntohs( icmpHdrPtr->icmp_seq ) != icmpHdrID )  {
-		printf( "? processReceivedDatagram(): received sequence number %d but expected %d\n",
+		printf( "? processReceivedDatagram(): received icmp sequence number %d but expected %d\n",
 			ntohs( icmpHdrPtr->icmp_seq ), icmpHdrID );
 		if( debugFlag )  display_ip( ip, datagramSize );
 	}
@@ -708,6 +712,7 @@ void  finishOnUserInterrupt( int signo )  {
 	}
 	else  {
 		if( verboseFlag )  psignal( signo, "\nTerminating program due to user generated signal" );
+		else  printf( "\n" );
 	}
 	printStats();		/* Print the stats about requests sent, replies received etc */
 	fflush( stdout );	/* Ensure anything printed to stdout is output to the user terminal */
@@ -734,7 +739,7 @@ void  sendPing( int signo )  {
 			pingsSent += 1;
 	}
  	/* Do more pings if required */
-	if( --pingSendAttemptsLeft <= 0 )  {
+	if( ! continousPingMode && ( --pingSendAttemptsLeft <= 0 ))  {
 		signal( SIGALRM, finishOnUserInterrupt );
 		setSendTimer(( u_long ) waitTimeInSec, 0L );	/* set timer to wait a period of time after the last transmit (default 2 sec) */
 	}
@@ -795,6 +800,7 @@ void  useage( char *  name )  {
 	printf( "or      %s [-cX][-D][-h][-iX.X[-lXX][-M ABC][-q][-R][-sXX][-tXX][-T ABC][-v][-wX] NetworkDeviceIP_Number\n", name );
 	printf( "\nwhere options; -\n" );
 	printf( "        -cX  specifies number of times to ping remote network device ( %d <= X <= %d )\n", MIN_PING_ATTEMPTS, MAX_PING_ATTEMPTS );
+	printf( "          where a value of 0 invokes continuous ping mode. Stop this mode with control-C or control-\\.\n" );
 	printf( "        -D  switches on debug output and over-rides -q\n" );
 	printf( "        -h  switches on this help output and then terminates %s\n", name );
 	printf( "        -iX.X  ensure X.X second interval between each ping ( %.1f <= X.X <= %.1f )\n", MIN_INTERVAL_BW_PINGS, MAX_INTERVAL_BW_PINGS );
@@ -852,6 +858,7 @@ int  processCommandLineOptions( int  argc, char *  argv[] )  {
 	}
 	pingSendAttemptsLeft = convertOptionStringToInteger( DEFAULT_PING_COUNT, c_Strng, "-c", &c_Flag, TRUE );
 	pingSendAttemptsLeft = limitIntegerValueToEqualOrWithinRange( pingSendAttemptsLeft, MIN_PING_ATTEMPTS, MAX_PING_ATTEMPTS );
+	continousPingMode = ( pingSendAttemptsLeft == 0);	/* Treat user setting zero pings as the special case of continuos pings */
 	intervalBwPingsInSeconds = convertOptionStringToDouble(( double ) DEFAULT_INTERVAL_BW_PINGS, i_Strng, "-i", &i_Flag, TRUE );
 	intervalBwPingsInSeconds = limitDoubleValueToEqualOrWithinRange( intervalBwPingsInSeconds, ( double ) MIN_INTERVAL_BW_PINGS, ( double ) MAX_INTERVAL_BW_PINGS );
 	intervalBwPingsInMicroSeconds = limitUnsignedLongValueToEqualOrWithinRange(( u_long )( intervalBwPingsInSeconds * 1000000.0 ),
@@ -952,6 +959,7 @@ void  setGlobalFlagDefaults( char *  argv[] )  {	/* Set up any Global variables 
 	helpFlag = debugFlag = verboseFlag = quietFlag = FALSE;
 	c_Flag = FALSE;
 	pingSendAttemptsLeft = DEFAULT_PING_COUNT;
+	continousPingMode = FALSE;		/* normal mode is a specific number of pings */
 	i_Flag = FALSE;		/* TRUE when user has specified interval between pings */
 	intervalBwPingsInSeconds = ( double ) 1.0;
 	intervalBwPingsInMicroSeconds = USEC_CONV_ULONG_CONST;

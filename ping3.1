@@ -25,7 +25,10 @@ found on linux ping, but not on macOS ping and vice versa.
 .SH OPTIONS
 .TP
 \fB\-c \fI\,ping_count\/\fR
-Send \fI\,ping_count\/\fR pings. If this option is not used then 3 pings will be sent.
+Send \fI\,ping_count\/\fR pings. The ping count is specified as a positive
+value integer or zero. Zero specifies continuous ping mode, which will send
+pings until terminated by the user with control-C. If this -c option is not
+used then 3 pings will be sent.
 .TP
 \fB\-D\fR
 Debug information output enable.
