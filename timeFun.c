@@ -1,7 +1,7 @@
 /*
  * T I M E F U N . C
  *
- * timeFun.c last edited on Mon Oct 30 22:57:56 2023
+ * timeFun.c last edited on Tue Oct 31 23:05:02 2023
  *
  * Functions to handle time
  * 
@@ -85,4 +85,55 @@ void  printClockRealTimeFlightTime( struct timespec *  originateTime,  struct ti
 	flightTimeInSec = calcTimeSpecClockDifferenceInSeconds( originateTime, receiveTime );
 	if( flightTimeInSec <= 0.5 )  printf( "RTT %lg [mS]", flightTimeInSec * 1000 );
 	else   printf( "RTT %lg [Sec]", flightTimeInSec );
+}
+
+
+void  displayAbsTimeInMultipleFormats( unsigned int  timeStamp, int  verboseFlag )  {
+	char  tmpStr[ 40 ];
+
+	convertMilliSecondsSinceMidnightToHMS_String( timeStamp, tmpStr );
+	printf( " %s ", tmpStr );
+	if( verboseFlag )  printf( "( %u [mS] ( 0x%08x )) ", timeStamp, timeStamp );
+}
+
+
+void  displayDeltaTimeInMultipleFormats( int  deltaTimeStamp, int  verboseFlag )  {
+	char  tmpStrDelta[ 40 ];
+
+	if( deltaTimeStamp < 1000 && deltaTimeStamp > -1000 )
+		printf( "%d [mS]", deltaTimeStamp );
+	else {
+		convertMilliSecondsToHMS_String( deltaTimeStamp, tmpStrDelta );
+		printf( "%s [h:m:s]", tmpStrDelta );
+	}
+}
+
+
+void  displayTimeAndDeltaTime( unsigned int  timeStamp, int  deltaTimeStamp, int  verboseFlag )  {
+	displayAbsTimeInMultipleFormats( timeStamp, verboseFlag );
+	printf( "( " );
+	displayDeltaTimeInMultipleFormats( deltaTimeStamp, verboseFlag );
+	printf( ")\n" );
+}
+
+
+/* Now get time according to target when reply message left */
+/* Assume reply travel time was same speed as request travel time */
+/* Thus time here when request was actually processed by receiver */
+/* is  tsorig + 0.5 * tsRTT, now subtract that from target time */
+void  printSentVsReceiveDeviceClockDifferenceEstimate( long  sentTime, long  recvTime, long  halfRoundTripTime, int  verboseFlag )  {
+	long  timeDifference;
+
+	sentTime += halfRoundTripTime;			/* adjust sent time to account for RTT */		
+	timeDifference = recvTime - sentTime;	/* difference in millisec */
+	printf( "Local device clock is " );
+	if( timeDifference < 0 )  {
+		displayDeltaTimeInMultipleFormats( -1 * timeDifference, verboseFlag );
+		printf(" behind " );
+	}
+	else  {
+		displayDeltaTimeInMultipleFormats( timeDifference, verboseFlag );
+		printf(" ahead of " );
+	}
+	printf( "Remote device clock\n" );
 }

@@ -1,7 +1,7 @@
 /*
  * T I M E F U N . H
  *
- * timeFun.h last edited on Sun Oct 22 22:30:51 2023
+ * timeFun.h last edited on Tue Oct 31 23:05:05 2023
  * 
  * Functions to handle time
  *
@@ -20,5 +20,9 @@ void  printMilliSecondsSinceMidnightInHMS_Format( long  millisecs );
 int  calcMillisecondsSinceMidnightFromTimeSpec( struct timespec *  );
 void  printClockRealTimeTxRxTimes( struct timespec *,  struct timespec * );
 void  printClockRealTimeFlightTime( struct timespec *,  struct timespec * );
+void  displayAbsTimeInMultipleFormats( unsigned int, int );
+void  displayDeltaTimeInMultipleFormats( int, int );
+void  displayTimeAndDeltaTime( unsigned int, int, int );
+void  printSentVsReceiveDeviceClockDifferenceEstimate( long, long, long, int );
 
 #endif

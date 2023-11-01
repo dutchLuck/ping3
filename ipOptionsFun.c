@@ -1,7 +1,7 @@
 /*
  * I P O P T I O N S F U N . C
  *
- * ipOptionsFun.c  last edited Mon Oct 16 23:54:37 2023
+ * ipOptionsFun.c  last edited Tue Oct 31 23:05:31 2023
  *
  * Functions to handle IP Header Options in the IP packet.
  *
@@ -18,7 +18,7 @@ typedef  struct ipOptTimestamp  IP_TIMESTAMP;
 #include <netinet/ip_var.h>
 typedef  struct ip_timestamp  IP_TIMESTAMP;
 #endif
-#include "timeFun.h"	/* convert...() */
+#include "timeFun.h"	/* convert...() displayTimeAndDeltaTime() */
 
 
 int  getTimeStampOverflowCount( unsigned char *  ptr )  {
@@ -45,35 +45,6 @@ void  displayOnlyGreaterThanZeroTimeStampOverflowCount( unsigned char *  ptr )  
 
 	timeStampListOverflowCount = getTimeStampOverflowCount( ptr );
 	if( timeStampListOverflowCount > 0 )  displayTimeStampOverflowCount( ptr );
-}
-
-
-void  displayAbsTimeInMultipleFormats( unsigned int  timeStamp, int  verboseFlag )  {
-	char  tmpStr[ 40 ];
-
-	convertMilliSecondsSinceMidnightToHMS_String( timeStamp, tmpStr );
-	printf( " %s ", tmpStr );
-	if( verboseFlag )  printf( "( %u [mS] ( 0x%08x )) ", timeStamp, timeStamp );
-}
-
-
-void  displayDeltaTimeInMultipleFormats( int  deltaTimeStamp, int  verboseFlag )  {
-	char  tmpStrDelta[ 40 ];
-
-	if( deltaTimeStamp < 1000 && deltaTimeStamp > -1000 )
-		printf( "%d [mS]", deltaTimeStamp );
-	else {
-		convertMilliSecondsToHMS_String( deltaTimeStamp, tmpStrDelta );
-		printf( "%s [h:m:s]", tmpStrDelta );
-	}
-}
-
-
-void  displayTimeAndDeltaTime( unsigned int  timeStamp, int  deltaTimeStamp, int  verboseFlag )  {
-	displayAbsTimeInMultipleFormats( timeStamp, verboseFlag );
-	printf( "( " );
-	displayDeltaTimeInMultipleFormats( deltaTimeStamp, verboseFlag );
-	printf( ")\n" );
 }
 
 

@@ -1,7 +1,7 @@
 /*
  * I P O P T I O N S F U N . H
  *
- * ipOptionsFun.h last edited Mon Oct 16 23:54:41 2023
+ * ipOptionsFun.h last edited Tue Oct 31 23:05:33 2023
  *
  * Function headers for IP header options in the IP packet.
  *
@@ -15,9 +15,6 @@ void  displayIpOptionTimeStamps( unsigned char *, int, int, int );
 void  displayTimeStampOptionInHex( unsigned char *, int );
 void  displayIpOptionList( unsigned char *, int );
 void  displayIpOptions( unsigned char *, int, int );
-void  displayAbsTimeInMultipleFormats( unsigned int, int );
-void  displayDeltaTimeInMultipleFormats( int, int );
-void  displayTimeAndDeltaTime( unsigned int, int, int );
 void  displayTimeStampOverflowCount( unsigned char *  ptr );
 void  displayOnlyGreaterThanZeroTimeStampOverflowCount( unsigned char *  ptr );
 void  displayIpOptionRecordRoute( unsigned char *, int, int );
