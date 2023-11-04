@@ -77,7 +77,10 @@ or "tsprespec" ( a list of the prespecified addresses and timestamp pairs ). If 
 is used then the list should be quoted. For example -T "tsprespec 192.168.1.1 192.168.1.2"
 .TP
 \fB\-v\fR
-Verbose output enable.
+Verbose output enable. Information provided in verbose mode includes the local device
+name and the names associated with the remote device. It also provides an estimate of
+time difference between the local and remote device clocks for ICMP Timestamp requests
+( -M time ) or IP header option Prespecified Timestamp requests ( -T "tsprespec" ).
 .TP
 \fB\-w \fI\,wait_period_after_last_ping_sent\/\fR
 Wait \fI\,wait_period_after_last_ping_sent\/\fR seconds after the last ping is transmitted.

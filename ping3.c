@@ -1,7 +1,7 @@
 /*
  * P I N G 3 . C
  *
- * ping3.c last edited Tue Oct 31 23:05:14 2023
+ * ping3.c last edited Sat Nov  4 21:36:38 2023
  * 
  */
 
@@ -386,6 +386,91 @@ void  printLineOfPingInfo( struct ip *  ip, struct icmp *  icmpHdrPtr, int  ICMP
 }
 
 
+void  printTimeDifferenceFromHeaderOption( IP_TIMESTAMP *  tsPntr, int  hdrLen, double  halfRndTripTime, int vFlag )  {
+	long  tstarget;	/* remote device send timestamp in # millisec since midnight UTC  */
+	long  tsrecv; 	/* receive timestamp in # millisec since midnight UTC */
+	struct ipt_ta *	 ipt_taPtr;
+	struct ipt_ta *	 ipt_taPtr2;
+
+	tsrecv = calcMillisecondsSinceMidnightFromTimeSpec( &recvTime );
+	if( tsPntr->ipt_ptr < 13 )  {	/* Is there at least 1 timestamp in the option storage */
+		if( debugFlag )  printf( "? No timestamps found in IPv4 header options\n");
+	}
+	else  {
+		/* tsorig and tsrecv are both signed longs. The icmp time members in the structure are unsigned,
+		 * but the max value for the # millisec since midnight is (24*60*60*1000 - 1) or 86,399,999,
+		 * which easily fits into a signed long. We want them signed to compute a signed difference. */
+		tstarget = ntohl( tsPntr->ipt_timestamp.ipt_ta[ 0 ].ipt_time );
+		if( tstarget < 0 )  printf( "? Remote Device send time in Non standard time format %ld ms (0x%lx)", tstarget, tstarget );
+		ipt_taPtr = &tsPntr->ipt_timestamp.ipt_ta[ 0 ];
+		ipt_taPtr2 = ipt_taPtr + 1;
+#ifdef DEBUG
+		if( debugFlag )  {
+			printNamedByteArray(( u_char *) tsPntr, hdrLen - STD_IP4_HDR_LEN, 20, "processReceivedDatagram(): IP4 option received" );
+			displayIpOptions(( u_char *) tsPntr, hdrLen - STD_IP4_HDR_LEN, vFlag );
+		}
+#endif
+		 /* Now get time according to target when reply message left */
+		 /* Assume reply travel time was same speed as request travel time */
+ 		 /* Thus time here when request was actually processed by target */
+		 /* is  tsorig + 0.5 * tsRTT, now subtract that from target time */
+		if(( ip4_OptionTS_Value == IPOPT_TS_PRESPEC ) && vFlag )  { /* time difference output only if known and verbose required */
+			if(( tsPntr->ipt_ptr > 20 ) && ( ipt_taPtr->ipt_addr.s_addr != ipt_taPtr2->ipt_addr.s_addr ))  {	/* not same address twice ? */
+				tsrecv = ntohl( ipt_taPtr2->ipt_time );		/* Local interface's timestamp or otherwise it remains recvTime based */
+				if( tsrecv < 0 )  {
+					printf( "? Receive time in Non standard time format %ld ms (0x%lx)", tsrecv, tsrecv );
+					tsrecv = calcMillisecondsSinceMidnightFromTimeSpec( &recvTime );	/* go back to using recvTime */
+				}
+			}
+			printf( "IP_HDR_OPT_TS: ");
+			printSentVsReceiveDeviceClockDifferenceEstimate( tstarget, tsrecv, ( long ) halfRndTripTime, vFlag );
+		}
+		if( debugFlag )  printf( "Orig = %ld, Target %ld, Recv = %ld\n", tsorig, tstarget, tsrecv );
+	}
+}
+
+
+void  printTimeDifferenceFromICMP_TimestampReply( struct icmp *  icmpHdrPtr, double  halfRndTripTime, int vFlag )  {
+	long  tsorig;		/* local device originate timestamp in # millisec since midnight UTC  */
+	long  tsrecv; 		/* remote device receive timestamp in # millisec since midnight UTC */
+	long  tstrnsmt; 	/* remote device transmit timestamp in # millisec since midnight UTC */
+
+	tsorig = ntohl( icmpHdrPtr->icmp_dun.id_ts.its_otime );
+	if( tsorig < 0 )  printf( "? Local device originate time is in Non standard time format %ld ms (0x%lx)", tsorig, tsorig );
+	if( icmpType == ICMP_TYPE_TIME )  {
+		tsrecv = ntohl( icmpHdrPtr->icmp_dun.id_ts.its_rtime );
+		tstrnsmt = ntohl( icmpHdrPtr->icmp_dun.id_ts.its_ttime );
+	}
+	else if( icmpType == ICMP_TYPE_TIMEW )  {
+		tsrecv = ( long ) ( icmpHdrPtr->icmp_dun.id_ts.its_rtime );
+		tstrnsmt = ( long ) ( icmpHdrPtr->icmp_dun.id_ts.its_ttime );
+	}
+	else {	/* shouldn't get here, but just in case */
+		tsrecv = ntohl( icmpHdrPtr->icmp_dun.id_ts.its_rtime );
+		tstrnsmt = ntohl( icmpHdrPtr->icmp_dun.id_ts.its_ttime );
+	}
+	/* tsorig, tsrecv & tstrnsmt are both signed longs. The icmp time members in the structure are unsigned,
+	 * but the max value for the # millisec since midnight is (24*60*60*1000 - 1) or 86,399,999,
+	 * which easily fits into a signed long. We want them signed to compute a signed difference. */
+	if( tsrecv < 0  )  printf( "? Remote Device receive time is in Non standard time format %ld ms (0x%lx)", tsrecv, tsrecv );
+	if( tstrnsmt < 0 )  printf( "? Remote Device transmit time is in Non standard time format %ld ms (0x%lx)", tstrnsmt, tstrnsmt );
+#ifdef DEBUG
+	if( debugFlag )  {
+		printNamedByteArray(( u_char *) icmpHdrPtr, 20 , 20, "printTimeDifferenceFromICMP..(): ICMP Message received" );
+	}
+#endif
+	 /* Now get time according to target when reply message left */
+	 /* Assume reply travel time was same speed as request travel time */
+ 	 /* Thus time here when request was actually processed by target */
+	 /* is  tsorig + 0.5 * tsRTT, now subtract that from target time */
+	if( vFlag && ( tsorig >= 0 ) && ( tsrecv >= 0 ))  {	/* time difference output only if verbose required */
+		printf( "ICMP_TSTAMP: " );
+		printSentVsReceiveDeviceClockDifferenceEstimate( tsrecv, tsorig, ( long ) ( -1.0 * halfRndTripTime ), vFlag );
+	}
+	if( debugFlag )  printf( "ICMP Timestamps: Orig = %ld, Recv %ld, Trnsmt = %ld\n", tsorig, tsrecv, tstrnsmt );
+}
+
+
 /*
  * Process a received datagram that should be an ICMP message.
  * Since we receive all ICMP messages that the kernel receives,
@@ -398,13 +483,8 @@ int  processReceivedDatagram( char *  buf, int  datagramSize, struct sockaddr_in
 	struct icmp *  icmpHdrPtr;
 	struct ip *  ip;
 	IP_TIMESTAMP *  tsPntr;
-	struct ipt_ta *	 ipt_taPtr;
-	struct ipt_ta *	 ipt_taPtr2;
 	double  halfRoundTripTime;
-	long  tstarget;	/* remote device send timestamp in # millisec since midnight UTC  */
-	long  tsrecv; 	/* receive timestamp in # millisec since midnight UTC */
 
-	tsrecv = calcMillisecondsSinceMidnightFromTimeSpec( &recvTime );
  /* Check the IP datagram */
 	ip = (struct ip *) buf;
 	tsPntr = (IP_TIMESTAMP * ) ( buf + sizeof( struct ip ));
@@ -519,31 +599,11 @@ int  processReceivedDatagram( char *  buf, int  datagramSize, struct sockaddr_in
 			}
 			if( T_Flag )  {
 				displayOnlyGreaterThanZeroTimeStampOverflowCount(( u_char *) tsPntr );
-				/* tsorig and tsrecv are both signed longs. The icmp time members in the structure are unsigned,
-				 * but the max value for the # millisec since midnight is (24*60*60*1000 - 1) or 86,399,999,
-				 * which easily fits into a signed long. We want them signed to compute a signed difference. */
-				tstarget = ntohl( tsPntr->ipt_timestamp.ipt_ta[ 0 ].ipt_time );
-				if( tstarget < 0 )  printf( "? Remote Device send time in Non standard time format %ld ms (0x%lx)", tstarget, tstarget );
-				ipt_taPtr = &tsPntr->ipt_timestamp.ipt_ta[ 0 ];
-				ipt_taPtr2 = ipt_taPtr + 1;
-#ifdef DEBUG
-			if( debugFlag )  {
-				printNamedByteArray(( u_char *) tsPntr, hdrLen - STD_IP4_HDR_LEN, 20, "processReceivedDatagram(): IP4 option received" );
-				displayIpOptions(( u_char *) tsPntr, hdrLen - STD_IP4_HDR_LEN, verboseFlag );
+				if(( ip4_OptionTS_Value == IPOPT_TS_TSANDADDR ) || ( ip4_OptionTS_Value == IPOPT_TS_PRESPEC ))	/* time difference output id device IP Addresses are captured */
+					printTimeDifferenceFromHeaderOption( tsPntr, hdrLen , halfRoundTripTime, verboseFlag );
 			}
-#endif
-				 /* Now get time according to target when reply message left */
-    			 /* Assume reply travel time was same speed as request travel time */
-		 		 /* Thus time here when request was actually processed by target */
-	    		 /* is  tsorig + 0.5 * tsRTT, now subtract that from target time */
-				if(( ip4_OptionTS_Value == IPOPT_TS_PRESPEC ) && verboseFlag )  { /* time difference output only if known and verbose required */
-					if( ipt_taPtr->ipt_addr.s_addr == ipt_taPtr2->ipt_addr.s_addr )			/* same address twice ? */
-						tsrecv = calcMillisecondsSinceMidnightFromTimeSpec( &recvTime );	/* substitute time from receive timestamp */
-					else  tsrecv = ntohl( ipt_taPtr2->ipt_time );		/* Local interface's timstamp */
-					if( tsrecv < 0 )  printf( "? Receive time in Non standard time format %ld ms (0x%lx)", tsrecv, tsrecv );
-					printSentVsReceiveDeviceClockDifferenceEstimate( tstarget, tsrecv, ( long ) halfRoundTripTime, verboseFlag );
-				}
-				if( debugFlag )  printf( "Orig = %ld, Target %ld, Recv = %ld\n", tsorig, tstarget, tsrecv );
+			if( M_Flag && (( icmpType == ICMP_TYPE_TIME ) || ( icmpType == ICMP_TYPE_TIMEW )))  {
+				printTimeDifferenceFromICMP_TimestampReply( icmpHdrPtr, halfRoundTripTime, verboseFlag );
 			}
 		}
 	} 
