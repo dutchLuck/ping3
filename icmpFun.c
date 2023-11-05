@@ -21,6 +21,8 @@
 #include <arpa/inet.h>		/* */
 #include "ipFun.h"
 #include "timeFun.h"	/* printMilliSecondsSinceMidnightInHMS_Format() */
+#include "icmpFun.h"	/* ICMP_TYPE_* */
+#include "dbgFun.h"		/* printNamedByteArray() */
 
 
 void  displayEchoReply( struct icmp *  ptr )  {
@@ -223,4 +225,43 @@ void  fill_ICMP_HdrPreChkSum( struct icmp *  hdrPtr, u_char  icmpType, u_char  i
 	hdrPtr->icmp_cksum = 0;		/* compute checksum later, after data is in place */
 	hdrPtr->icmp_seq = htons( sequncID ); /* seq and id must be reflected in Echo/Timestamp/Netmask Reply*/
 	hdrPtr->icmp_id = htons( processID );
+}
+
+
+void  printTimeDifferenceFromICMP_TimestampReply( int  icmpType, struct icmp *  icmpHdrPtr, double  halfRndTripTime, int vFlag )  {
+	long  tsorig;		/* local device originate timestamp in # millisec since midnight UTC  */
+	long  tsrecv; 		/* remote device receive timestamp in # millisec since midnight UTC */
+	long  tstrnsmt; 	/* remote device transmit timestamp in # millisec since midnight UTC */
+
+	tsorig = ntohl( icmpHdrPtr->icmp_dun.id_ts.its_otime );
+	if( tsorig < 0 )  printf( "? Local device originate time is in Non standard time format %ld ms (0x%lx)", tsorig, tsorig );
+	if( icmpType == ICMP_TYPE_TIME )  {
+		tsrecv = ntohl( icmpHdrPtr->icmp_dun.id_ts.its_rtime );
+		tstrnsmt = ntohl( icmpHdrPtr->icmp_dun.id_ts.its_ttime );
+	}
+	else if( icmpType == ICMP_TYPE_TIMEW )  {
+		tsrecv = ( long ) ( icmpHdrPtr->icmp_dun.id_ts.its_rtime );
+		tstrnsmt = ( long ) ( icmpHdrPtr->icmp_dun.id_ts.its_ttime );
+	}
+	else {	/* shouldn't get here, but just in case */
+		tsrecv = ntohl( icmpHdrPtr->icmp_dun.id_ts.its_rtime );
+		tstrnsmt = ntohl( icmpHdrPtr->icmp_dun.id_ts.its_ttime );
+	}
+	/* tsorig, tsrecv & tstrnsmt are both signed longs. The icmp time members in the structure are unsigned,
+	 * but the max value for the # millisec since midnight is (24*60*60*1000 - 1) or 86,399,999,
+	 * which easily fits into a signed long. We want them signed to compute a signed difference. */
+	if( tsrecv < 0  )  printf( "? Remote Device receive time is in Non standard time format %ld ms (0x%lx)", tsrecv, tsrecv );
+	if( tstrnsmt < 0 )  printf( "? Remote Device transmit time is in Non standard time format %ld ms (0x%lx)", tstrnsmt, tstrnsmt );
+#ifdef DEBUG
+		printNamedByteArray(( u_char *) icmpHdrPtr, 20 , 20, "printTimeDifferenceFromICMP..(): ICMP Message received" );
+#endif
+	 /* Now get time according to target when reply message left */
+	 /* Assume reply travel time was same speed as request travel time */
+ 	 /* Thus time here when request was actually processed by target */
+	 /* is  tsorig + 0.5 * tsRTT, now subtract that from target time */
+	if( vFlag && ( tsorig >= 0 ) && ( tsrecv >= 0 ))  {	/* time difference output only if verbose required */
+		printf( "ICMP_TSTAMP: " );
+		printSentVsReceiveDeviceClockDifferenceEstimate( tsrecv, tsorig, ( long ) ( -1.0 * halfRndTripTime ), vFlag );
+	}
+	if( vFlag )  printf( "ICMP_TSTAMP: Orig = %ld, Recv %ld, Trnsmt = %ld\n", tsorig, tsrecv, tstrnsmt );
 }

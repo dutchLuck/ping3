@@ -1,12 +1,26 @@
 #! /bin/bash
 #
-# C H K
+# C H E C K
 #
-# chk last edited Fri Oct 20 20:19:30 2023
+# check last edited Sat Oct 28 18:58:10 2023
 #
 PROGRAM=ping3
-TARGET=www.apple.com
-LOCAL_GATEWAY=192.168.1.1
+#
+# A network device on your local network is the target.
+#  change this IPv4 Address to suit your circumstances.
+TARGET=192.168.1.1
+#
+# A Microsoft Windows device on your local network.
+#  change this IPv4 Address to suit your circumstances.
+#  If you want a response the Windows firewall may have
+#  to be adjusted to allow the ICMP request through.
+WINDOWS_TARGET=192.168.1.121
+#
+# A network device on your local network that responds
+# to ICMP NETMASK requests. This may be a macOS system
+# which has been set to respond with the command; -
+# sudo sysctl net.inet.icmp.maskrepl=1
+NETMASK_TARGET=192.168.1.103
 #
 echo
 echo "Operating System designation is $OSTYPE"
@@ -15,92 +29,367 @@ echo
 if [[ "$OSTYPE" == "darwin"* ]] ; then
   PRIV=""
 else
-  PRIV=sudo
+  PRIV="sudo"
 fi
 #
-LOCAL_INTERFACE=`$PRIV ../$PROGRAM -D -c1 $LOCAL_GATEWAY | awk '/Destination Address/{print $4}'`
 #
-# Test standard ICMP ECHO request ping
-# Compare output against standard ping if on
-# Linux system
+echo "Obtaining Local Interface IP Address"
+LOCAL_INTERFACE=`$PRIV ../$PROGRAM -D -c1 $TARGET | awk '/Destination Address/{print $4}'`
+echo "Local interface IP Address is $LOCAL_INTERFACE"
+echo
 #
-echo "#########################################"
-echo "# Test standard ICMP ECHO request pings #"
-echo "#########################################"
+# Compare standard ICMP ECHO request pings
+#
+echo "##############################################"
+echo "# 1(a) Test standard ICMP ECHO request pings #"
+echo "##############################################"
 echo
 #
 echo "$PRIV ../$PROGRAM $TARGET"
-$PRIV ../$PROGRAM $TARGET
+$PRIV ../$PROGRAM  $TARGET
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Return value passed back to this shell was $RESULT"
+fi
 sleep 1
 echo
 #
-if [[ "$OSTYPE" == "linux-gnu" ]] ; then
-  echo "ping -4 -c 3 $TARGET"
-  ping -4 -c 3 $TARGET
-else
-  echo "ping -c 3 $TARGET"
-  ping -c 3 $TARGET
+echo "ping -c 3 $TARGET"
+ping -c 3 $TARGET
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Return value passed back to this shell was $RESULT"
 fi
 sleep 1
 echo
 #
 # Test the IPv4 Header Option Timestamp
 # added to a standard ICMP ECHO request ping
-# Compare output against standard ping if on
-# Linux system
+# Compare output against standard OS system
+# ping if on Linux system
 #
-echo "###################################################"
-echo "# Test verbose IPv4 Header Option Timestamp pings #"
-echo "###################################################"
+echo "###########################################"
+echo "# 1(b) Test IPv4 Header Option Timestamps #"
+echo "###########################################"
 echo
 #
-echo "$PRIV ../$PROGRAM -T tsonly -v $TARGET"
-$PRIV ../$PROGRAM -T tsonly -v $TARGET
+echo "$PRIV ../$PROGRAM -T tsonly $TARGET"
+$PRIV ../$PROGRAM -T tsonly $TARGET
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Return value passed back to this shell was $RESULT"
+fi
 sleep 1
 echo
 #
 if [[ "$OSTYPE" == "linux-gnu" ]] ; then
   echo "ping -4 -c 2 -T tsonly $TARGET"
   ping -4 -c 2 -T tsonly $TARGET
+  RESULT=$?
+  if [[ "$RESULT" != "0" ]] ; then
+    echo
+    echo "Return value passed back to this shell was $RESULT"
+  fi
   sleep 1
   echo
 fi
 #
-# Test short cut tsprespec operation, where failure
-# to specify the pre-specified devices results
-# in the target and the local interface being
-# put in as a default.
-#
-echo "$PRIV ../$PROGRAM -T tsprespec -v $TARGET"
-$PRIV ../$PROGRAM -T tsprespec -v $TARGET
+echo "$PRIV ../$PROGRAM -T tsandaddr $TARGET"
+$PRIV ../$PROGRAM -T tsandaddr $TARGET
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Return value passed back to this shell was $RESULT"
+fi
 sleep 1
 echo
 #
-if [[ "$LOCAL_INTERFACE" != "" ]] ; then  # Test that we have local interface info
-  if [[ "$OSTYPE" == "linux-gnu" ]] ; then
-    echo "ping -4 -c 2 -T tsprespec $TARGET $LOCAL_INTERFACE $TARGET"
-    ping -4 -c 2 -T tsprespec $TARGET $LOCAL_INTERFACE $TARGET
-    sleep 1
+if [[ "$OSTYPE" == "linux-gnu" ]] ; then
+  echo "ping -4 -c 2 -T tsandaddr $TARGET"
+  ping -4 -c 2 -T tsandaddr $TARGET
+  RESULT=$?
+  if [[ "$RESULT" != "0" ]] ; then
     echo
+    echo "Return value passed back to this shell was $RESULT"
   fi
+  sleep 1
+  echo
+fi
+#
+echo "$PRIV ../$PROGRAM -T \"tsprespec $TARGET ${LOCAL_INTERFACE}\" $TARGET"
+$PRIV ../$PROGRAM -T "tsprespec $TARGET ${LOCAL_INTERFACE}" $TARGET
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Return value passed back to this shell was $RESULT"
+fi
+sleep 1
+echo
+#
+if [[ "$OSTYPE" == "linux-gnu" ]] ; then
+  echo "ping -4 -c 2 -T tsprespec $TARGET $LOCAL_INTERFACE $TARGET" 
+  ping -4 -c 2 -T tsprespec $TARGET $LOCAL_INTERFACE $TARGET
+  RESULT=$?
+  if [[ "$RESULT" != "0" ]] ; then
+    echo
+    echo "Return value passed back to this shell was $RESULT"
+  fi
+  sleep 1
+  echo
 fi
 #
 # Test the IPv4 Header Option Record Route
 # added to a standard ICMP ECHO request ping
-# Compare output against standard ping if on
-# Linux system
+# Compare output against standard OS system
+# ping if on Linux system
 #
-echo "######################################################"
-echo "# Test verbose IPv4 Header Option Record Route pings #"
-echo "######################################################"
+echo "#############################################"
+echo "# 1(c) Test IPv4 Header Option Record Route #"
+echo "#############################################"
 echo
 #
-echo "$PRIV ../$PROGRAM -R -v $TARGET"
-$PRIV ../$PROGRAM -R -v $TARGET
-#
-if [[ "$OSTYPE" == "linux-gnu" ]] ; then
+echo "$PRIV ../$PROGRAM -R $TARGET"
+$PRIV ../$PROGRAM -R $TARGET
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Return value passed back to this shell was $RESULT"
+fi
 sleep 1
 echo
+#
+if [[ "$OSTYPE" == "linux-gnu" ]] ; then
   echo "ping -4 -c 2 -R $TARGET"
   ping -4 -c 2 -R $TARGET
+  RESULT=$?
+  if [[ "$RESULT" != "0" ]] ; then
+    echo
+    echo "Return value passed back to this shell was $RESULT"
+  fi
+  sleep 1
+  echo
 fi
+#
+#
+# Test the ICMP TIMESTAMP option and
+# compare to ping output if on macOS
+#
+echo "###################################"
+echo "# 2(a) Test ICMP TIMESTAMP option #"
+echo "###################################"
+echo
+#
+echo "$PRIV ../$PROGRAM -M time $TARGET"
+$PRIV ../$PROGRAM -M time $TARGET
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Return value passed back to this shell was $RESULT"
+fi
+sleep 1
+echo
+#
+# On macOS the ping utility has the capability to send
+# ICMP TIMESTAMP requests, but sudo is needed if the
+# "-s 0" is left out of the command line
+#
+if [[ "$OSTYPE" == "darwin"* ]] ; then
+  echo "ping -c 3 -M time -s 0 $TARGET"
+  ping -c 3 -M time -s 0 $TARGET
+  RESULT=$?
+  if [[ "$RESULT" != "0" ]] ; then
+    echo
+    echo "Return value passed back to this shell was $RESULT"
+  fi
+  sleep 1
+  echo
+fi
+#
+# Compare output on a Microsoft Windows target
+# which by default appears to have little endian
+# timestamp replies
+#
+echo "######################################################"
+echo "# 2(b) Test ICMP TIMESTAMP option for Windows target #"
+echo "######################################################"
+echo
+echo "$PRIV ../$PROGRAM -M timew $WINDOWS_TARGET"
+$PRIV ../$PROGRAM -M timew $WINDOWS_TARGET
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Return value passed back to this shell was $RESULT"
+fi
+sleep 1
+echo
+#
+if [[ "$OSTYPE" == "darwin"* ]] ; then
+  echo "ping -c 3 -M time -s 0 $WINDOWS_TARGET"
+  ping -c 3 -M time -s 0 $WINDOWS_TARGET
+  RESULT=$?
+  if [[ "$RESULT" != "0" ]] ; then
+    echo
+    echo "Return value passed back to this shell was $RESULT"
+  fi
+  sleep 1
+  echo
+fi
+#
+#
+# Test the ICMP NETMASK option and
+# compare to ping -M mask output if on macOS
+#
+echo "###############################"
+echo "# 3. Test ICMP NETMASK option #"
+echo "###############################"
+echo
+#
+echo "$PRIV ../$PROGRAM -M mask $NETMASK_TARGET"
+$PRIV ../$PROGRAM -M mask $NETMASK_TARGET
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Return value passed back to this shell was $RESULT"
+fi
+sleep 1
+echo
+#
+# On macOS the ping utility has the capability to send
+# ICMP NETMASK requests, but sudo is needed if the
+# "-s 0" is left out of the command line
+#
+if [[ "$OSTYPE" == "darwin"* ]] ; then
+  echo "ping -c 3 -M mask -s 0 $NETMASK_TARGET"
+  ping -c 3 -M mask -s 0 $NETMASK_TARGET
+  RESULT=$?
+  if [[ "$RESULT" != "0" ]] ; then
+    echo
+    echo "Return value passed back to this shell was $RESULT"
+  fi
+  sleep 1
+  echo
+fi
+#
+#
+# Test the ICMP NETMASK option and
+# compare to ping -M mask output if on macOS
+#
+echo "############################"
+echo "# 4. Test Combined options #"
+echo "############################"
+echo
+#
+echo "$PRIV ../$PROGRAM -T tsonly -M time $TARGET"
+$PRIV ../$PROGRAM -T tsonly -M time $TARGET
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Return value passed back to this shell was $RESULT"
+fi
+sleep 1
+echo
+#
+echo "$PRIV ../$PROGRAM -R -M time $TARGET"
+$PRIV ../$PROGRAM -R -M time $TARGET
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Return value passed back to this shell was $RESULT"
+fi
+sleep 1
+echo
+#
+#
+# Test for conditions that should be caught
+#
+echo "##############################"
+echo "# 9. Test Unusual conditions #"
+echo "##############################"
+echo
+#
+# Test no network device specified
+#
+echo "$PRIV ../$PROGRAM"
+$PRIV ../$PROGRAM
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Return value passed back to this shell was $RESULT"
+fi
+sleep 1
+echo
+#
+# Test -h help flag used
+#
+echo "$PRIV ../$PROGRAM -h"
+$PRIV ../$PROGRAM -h
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Return value passed back to this shell was $RESULT"
+fi
+sleep 1
+echo
+#
+# Test set TTL 
+#
+echo "$PRIV ../$PROGRAM -c1 -t128 192.168.1.1"
+$PRIV ../$PROGRAM -c1 -t128 192.168.1.1
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Return value passed back to this shell was $RESULT"
+fi
+sleep 1
+echo
+#
+# Test debug mode
+#
+echo "$PRIV ../$PROGRAM -c1 -D 192.168.1.1"
+$PRIV ../$PROGRAM -c1 -D 192.168.1.1
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Return value passed back to this shell was $RESULT"
+fi
+sleep 1
+echo
+#
+# Test quiet mode ( over-rides verbose mode )
+#
+echo "$PRIV ../$PROGRAM -v -q 192.168.1.1"
+$PRIV ../$PROGRAM -v -q 192.168.1.1
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Return value passed back to this shell was $RESULT"
+fi
+sleep 1
+echo
+#
+# Test broadcast
+#
+echo "$PRIV ../$PROGRAM -c1 -w5 192.168.1.255"
+$PRIV ../$PROGRAM -c1 -w5 192.168.1.255
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Return value passed back to this shell was $RESULT"
+fi
+sleep 1
+echo
+#
+# Test DNS unable to determine network device address
+#
+echo "$PRIV ../$PROGRAM nonExistant.com.au"
+$PRIV ../$PROGRAM nonExistant.com.au
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Return value passed back to this shell was $RESULT"
+fi
+echo
+#
