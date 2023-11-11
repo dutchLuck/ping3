@@ -116,8 +116,10 @@ void  displayParameterProblem( struct icmp *  ptr )  {
 	printf( "ICMP Parameter Problem at octet %d in the following packet ;-\n",
 		ptr->icmp_hun.ih_pptr );
 	switch( ptr->icmp_code )  {
+#ifndef __linux__
 		case ICMP_PARAMPROB_ERRATPTR : printf( "Problem Errata Ptr"); break;
 		case ICMP_PARAMPROB_LENGTH : printf( "Problem Length"); break;
+#endif
 		case ICMP_PARAMPROB_OPTABSENT : printf( "Problem Option Absent"); break;
 		default : printf( "Unknown Problem"); break;
 	}
