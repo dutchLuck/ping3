@@ -1,13 +1,14 @@
 /*
  * G E N F U N . C
  *
- * genFun.c last edited Thu Oct 26 16:26:46 2023
+ * genFun.c last edited Sat Nov 11 21:31:46 2023
  * 
  */
 
 #include <stdio.h>		/* printf() */
 #include <stdlib.h>		/* atoi() malloc() free() atol() strtod() strtol() */
 #include <limits.h>		/* LONG_MIN LONG_MAX INT_MIN strtol() */
+#include <ctype.h>		/* touppper() */
 #include "genFun.h"
 
 #ifndef  FALSE
@@ -20,6 +21,30 @@
 
 void  clearByteArray( unsigned char *  ptr, int  sizeOfArray )  {
 	for( ; sizeOfArray > 0; --sizeOfArray )  *ptr++ = ( unsigned char ) 0;
+}
+
+
+void  fillByteArray( unsigned char  dataByte,  unsigned char *  ptr, int  sizeOfArray )  {
+	for( ; sizeOfArray > 0; --sizeOfArray )  *ptr++ = dataByte;
+}
+
+
+/* fillFirstByteArrayByReplicatingSecondByteArray( icmpDataPtr, icmpMsgSize - 8, icmpPayloadPattern, icmpPayloadPatternSize ) */
+void  fillFirstByteArrayByReplicatingSecondByteArray( unsigned char *  firstArray, int  firstArraySize,
+	unsigned char *  secondArray, int  secondArraySize )  {
+	int  cnt;
+	unsigned char *  ptr1;
+	unsigned char *  ptr2;
+
+	if( secondArraySize == 1 )  fillByteArray( *secondArray, firstArray, firstArraySize );	/* Special case of all set the same */
+	else  {
+		ptr1 = firstArray;
+		ptr2 = secondArray;
+		for( cnt = 0; cnt < firstArraySize; cnt++ )  {
+			if(( cnt % secondArraySize ) == 0 )  ptr2 = secondArray;	/* set the pointer back to the start of the 2nd Array */
+			*ptr1++ = *ptr2++;
+		}
+	}
 }
 
 
@@ -107,6 +132,38 @@ void  resetFlagAndPrintConversionWarning( int *  flag, char *  flagName, char * 
 }
 
 
+long long  convertOptionStringToLongLong( long long  defltValue, char *  strng, char *  flgName, int *  flgActive, int  strictFlag )  {
+	long long  result;
+	char *  endPtrStore;
+
+	result = defltValue;	/* Set default value if flag is not active */
+	if( *flgActive )  {
+		if( strng == ( char * ) NULL )  {
+			if( strictFlag )  resetFlagAndPrintParameterWarning( flgActive, flgName, "is uninitialised" );
+		}
+		else if( *strng == '\0' )  {	/* Assume "" used as option value so return default */
+			if( strictFlag )  resetFlagAndPrintParameterWarning( flgActive, flgName, "contains no information" );
+		}
+		else  {
+#ifdef DEBUG  
+			printf( "Debug: String for option %s is \"%s\"\n", flgName, strng );
+#endif
+		 /* Convert option string specified to signed long, if possible */
+    		result = strtoll( strng, &endPtrStore, 10 );		/* base 10 conversion of strng to long integer */
+		 /* Check on strtol output - did any characters get converted? */
+    		if( endPtrStore == strng )  {
+				if( strictFlag )  resetFlagAndPrintConversionWarning( flgActive, flgName, strng, "into an integer number" );
+    			result = defltValue;
+			}
+#ifdef DEBUG  
+			printf( "Debug: The conversion of \"%s\" for option %s resulted in a value of %lld\n", strng, flgName, result );
+#endif
+		}
+	}
+	return( result );
+}
+
+
 long  convertOptionStringToLong( long  defltValue, char *  strng, char *  flgName, int *  flgActive, int  strictFlag )  {
 	long  result;
 	char *  endPtrStore;
@@ -180,4 +237,35 @@ double  convertOptionStringToDouble( double  defltValue, char *  strng, char *  
 		}
 	}
 	return( result );
+}
+
+
+int  convertHexChrNibbleToInt( char *  hexChr )  {
+	int  intChr;
+
+	intChr = toupper( *hexChr );
+	if(( intChr >= '0' ) && ( intChr <= '9' ))  return( intChr - ( int ) '0' );
+	else if(( intChr >= 'A') && ( intChr <= 'F' ))  return( 10 + ( intChr - ( int ) 'A' ));
+	else  return( -1 );
+}
+
+
+/*		icmpPayloadPatternSize = convertHexByteStringToByteArray( p_Strng, icmpPayloadPattern ); */
+int  convertHexByteStringToByteArray( char *  hexStrng, unsigned char *  storageBuffer, int  storageBufferSize )  {
+	int  byteCount = 0;
+	int  upperNibble, lowerNibble;
+
+	if(( hexStrng != ( char * ) NULL ) && ( *hexStrng != '\0' ))  {
+		while(( byteCount < storageBufferSize ) && ( *hexStrng != '\0' ))  {
+			upperNibble = convertHexChrNibbleToInt( hexStrng++ );
+			if(( upperNibble != -1 ) && ( *hexStrng != '\0' ))  {
+				lowerNibble = convertHexChrNibbleToInt( hexStrng++ );
+				if( lowerNibble != -1 )  {
+					*storageBuffer++ = ( unsigned char ) ((( upperNibble << 4 ) + lowerNibble ) & 0xff );
+					byteCount += 1;
+				}
+			}
+		}
+	}
+	return( byteCount );
 }

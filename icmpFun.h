@@ -19,6 +19,13 @@
 #define ICMP_TYPE_TIME  2		/* ICMP Timestamp request with standard replies expected */
 #define ICMP_TYPE_TIMEW  3		/* ICMP Timestamp request with little endian replies expected */
 
+#ifndef  FALSE
+#define  FALSE  ((int)0)
+#endif
+#ifndef  TRUE
+#define  TRUE  (! FALSE)
+#endif
+
 
 void  displayMaskReplyMask( struct icmp * );
 void  displayTimeStampReplyTimestamps( struct icmp *, int );

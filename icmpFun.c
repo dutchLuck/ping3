@@ -21,7 +21,7 @@
 #include <arpa/inet.h>		/* */
 #include "ipFun.h"
 #include "timeFun.h"	/* printMilliSecondsSinceMidnightInHMS_Format() */
-#include "icmpFun.h"	/* ICMP_TYPE_* */
+#include "icmpFun.h"	/* ICMP_TYPE_* FALSE */
 #include "dbgFun.h"		/* printNamedByteArray() */
 
 
@@ -34,20 +34,26 @@ void  displayEchoReply( struct icmp *  ptr )  {
 
 
 void  displayUnreachable( struct icmp *  ptr )  {
-	printf( "ICMP Destination Unreachable\n" );
-/*#define		ICMP_UNREACH_NET	0*/		/* bad net */
-/*#define		ICMP_UNREACH_HOST	1*/		/* bad host */
-/*#define		ICMP_UNREACH_PROTOCOL	2*/		/* bad protocol */
-/*#define		ICMP_UNREACH_PORT	3*/		/* bad port */
-/*#define		ICMP_UNREACH_NEEDFRAG	4*/		/* IP_DF caused drop */
-/*#define		ICMP_UNREACH_SRCFAIL	5*/		/* src route failed */
-/*#define		ICMP_UNREACH_NET_UNKNOWN 6*/		/* unknown net */
-/*#define		ICMP_UNREACH_HOST_UNKNOWN 7*/		/* unknown host */
-/*#define		ICMP_UNREACH_ISOLATED	8*/		/* src host isolated */
-/*#define		ICMP_UNREACH_NET_PROHIB	9*/		/* prohibited access */
-/*#define		ICMP_UNREACH_HOST_PROHIB 10*/		/* ditto */
-/*#define		ICMP_UNREACH_TOSNET	11*/		/* bad tos for net */
-/*#define		ICMP_UNREACH_TOSHOST	12*/		/* bad tos for host */
+	printf( "ICMP Destination Unreachable: " );
+	switch( ptr->icmp_code )  {
+		case ICMP_UNREACH_NET : printf( "Bad Net" ); break;
+		case ICMP_UNREACH_HOST : printf( "Bad Host" ); break;
+		case ICMP_UNREACH_PROTOCOL : printf( "Bad Protocol" ); break;
+		case ICMP_UNREACH_PORT : printf( "Bad Port" ); break;
+		case ICMP_UNREACH_NEEDFRAG : printf( "Need Fragmentation" ); break;
+		case ICMP_UNREACH_SRCFAIL : printf( "Source Route Failed" ); break;
+		case ICMP_UNREACH_NET_UNKNOWN : printf( "Unknown Net" ); break;
+		case ICMP_UNREACH_HOST_UNKNOWN : printf( "Unknown Host" ); break;
+		case ICMP_UNREACH_ISOLATED : printf( "Source Host Isolated" ); break;
+		case ICMP_UNREACH_NET_PROHIB : printf( "Prohibited Net" ); break;
+		case ICMP_UNREACH_HOST_PROHIB : printf( "Prohibited Host" ); break;
+		case ICMP_UNREACH_TOSNET : printf( "Bad TOS for Net" ); break;
+		case ICMP_UNREACH_TOSHOST : printf( "Bad TOS for Host" ); break;
+		case ICMP_UNREACH_FILTER_PROHIB : printf( "Filter Prohibited" ); break;
+		case ICMP_UNREACH_HOST_PRECEDENCE : printf( "Filter Prohibited" ); break;
+		case ICMP_UNREACH_PRECEDENCE_CUTOFF : printf( "Precedence Cutoff" ); break;
+		default : printf( "? Unknown Code"); break;
+	}
 	printf( "\nICMP: Type %d, Code %d, Checksum 0x%04x\n", ptr->icmp_type,
 		ptr->icmp_code, ntohs( ptr->icmp_cksum ));
 }
@@ -61,11 +67,14 @@ void  displaySourceQuench( struct icmp *  ptr )  {
 
 
 void  displayRedirect( struct icmp *  ptr )  {
-	printf( "ICMP Redirect\n" );
-/*#define		ICMP_REDIRECT_NET	0*/		/* for network */
-/*#define		ICMP_REDIRECT_HOST	1*/		/* for host */
-/*#define		ICMP_REDIRECT_TOSNET	2*/		/* for tos and net */
-/*#define		ICMP_REDIRECT_TOSHOST	3*/		/* for tos and host */
+	printf( "ICMP Redirect: " );
+	switch( ptr->icmp_code )  {
+		case ICMP_REDIRECT_NET : printf( "Redirect Net"); break;
+		case ICMP_REDIRECT_HOST : printf( "Redirect Host"); break;
+		case ICMP_REDIRECT_TOSNET : printf( "Redirect TOS Net"); break;
+		case ICMP_REDIRECT_TOSHOST : printf( "Redirect TOS Host"); break;
+		default : printf( "Unknown Code" ); break;
+	}
 	printf( "\nICMP: Type %d, Code %d, Checksum 0x%04x\n", ptr->icmp_type,
 		ptr->icmp_code, ntohs( ptr->icmp_cksum ));
 }
@@ -106,18 +115,16 @@ void  displayParameterProblem( struct icmp *  ptr )  {
 
 	printf( "ICMP Parameter Problem at octet %d in the following packet ;-\n",
 		ptr->icmp_hun.ih_pptr );
-/*#define		ICMP_PARAMPROB_OPTABSENT 1*/		/* req. opt. absent */
+	switch( ptr->icmp_code )  {
+		case ICMP_PARAMPROB_ERRATPTR : printf( "Problem Errata Ptr"); break;
+		case ICMP_PARAMPROB_LENGTH : printf( "Problem Length"); break;
+		case ICMP_PARAMPROB_OPTABSENT : printf( "Problem Option Absent"); break;
+		default : printf( "Unknown Problem"); break;
+	}
 	problemPacketPtr = ( struct ip * ) &ptr->icmp_dun.id_ip;
 	printf( "\n--==##$$  Start of Parameter Problem Packet  $$##==--\n" );
 	display_ip( problemPacketPtr, 64 );
 	printf( "--==##$$  Finish of Parameter Problem Packet  $$##==--\n\n" );
-}
-
-
-void  displayTimeStampRequest( struct icmp *  ptr )  {
-	printf( "ICMP Time Stamp Request\n" );
-	printf( "\nICMP: Type %d, Code %d, Checksum 0x%04x\n", ptr->icmp_type,
-		ptr->icmp_code, ntohs( ptr->icmp_cksum ));
 }
 
 
@@ -136,10 +143,21 @@ void  displayTimeStampReplyTimestamps( struct icmp *  ptr, int  nonStdFlag )  {
 }
 
 
-void  displayTimeStampReply( struct icmp *  ptr )  {
-	printf( "ICMP Time Stamp Reply\n" );
-	printf( "\nICMP: Type %d, Code %d, Checksum 0x%04x\n", ptr->icmp_type,
+void  displayTimeStampRequest( struct icmp *  ptr )  {
+	printf( "ICMP Time Stamp Request: " );
+	printf( "Type %d, Code %d, Checksum 0x%04x\n", ptr->icmp_type,
 		ptr->icmp_code, ntohs( ptr->icmp_cksum ));
+	displayTimeStampReplyTimestamps( ptr, FALSE );
+	printf( "\n" );
+}
+
+
+void  displayTimeStampReply( struct icmp *  ptr )  {
+	printf( "ICMP Time Stamp Reply: " );
+	printf( "Type %d, Code %d, Checksum 0x%04x\n", ptr->icmp_type,
+		ptr->icmp_code, ntohs( ptr->icmp_cksum ));
+	displayTimeStampReplyTimestamps( ptr, FALSE );
+	printf( "\n" );
 }
 
 
@@ -228,7 +246,7 @@ void  fill_ICMP_HdrPreChkSum( struct icmp *  hdrPtr, u_char  icmpType, u_char  i
 }
 
 
-void  printTimeDifferenceFromICMP_TimestampReply( int  icmpType, struct icmp *  icmpHdrPtr, double  halfRndTripTime, int vFlag )  {
+void  printTimeDifferenceFromICMP_TimestampReply( int  icmpType, struct icmp *  icmpHdrPtr, double  halfRndTripTime, int verbosityLevel )  {
 	long  tsorig;		/* local device originate timestamp in # millisec since midnight UTC  */
 	long  tsrecv; 		/* remote device receive timestamp in # millisec since midnight UTC */
 	long  tstrnsmt; 	/* remote device transmit timestamp in # millisec since midnight UTC */
@@ -253,15 +271,15 @@ void  printTimeDifferenceFromICMP_TimestampReply( int  icmpType, struct icmp *  
 	if( tsrecv < 0  )  printf( "? Remote Device receive time is in Non standard time format %ld ms (0x%lx)", tsrecv, tsrecv );
 	if( tstrnsmt < 0 )  printf( "? Remote Device transmit time is in Non standard time format %ld ms (0x%lx)", tstrnsmt, tstrnsmt );
 #ifdef DEBUG
-		printNamedByteArray(( u_char *) icmpHdrPtr, 20 , 20, "printTimeDifferenceFromICMP..(): ICMP Message received" );
+	printNamedByteArray(( u_char *) icmpHdrPtr, 20 , 20, "printTimeDifferenceFromICMP..(): ICMP Message received" );
 #endif
 	 /* Now get time according to target when reply message left */
 	 /* Assume reply travel time was same speed as request travel time */
  	 /* Thus time here when request was actually processed by target */
 	 /* is  tsorig + 0.5 * tsRTT, now subtract that from target time */
-	if( vFlag && ( tsorig >= 0 ) && ( tsrecv >= 0 ))  {	/* time difference output only if verbose required */
+	if( verbosityLevel && ( tsorig >= 0 ) && ( tsrecv >= 0 ))  {	/* time difference output only if verbose required */
 		printf( "ICMP_TSTAMP: " );
-		printSentVsReceiveDeviceClockDifferenceEstimate( tsrecv, tsorig, ( long ) ( -1.0 * halfRndTripTime ), vFlag );
+		printSentVsReceiveDeviceClockDifferenceEstimate( tsrecv, tsorig, ( long ) ( -1.0 * halfRndTripTime ), verbosityLevel );
 	}
-	if( vFlag )  printf( "ICMP_TSTAMP: Orig = %ld, Recv %ld, Trnsmt = %ld\n", tsorig, tsrecv, tstrnsmt );
+	if( verbosityLevel > 1 )  printf( "ICMP_TSTAMP: Orig = %ld, Recv %ld, Trnsmt = %ld\n", tsorig, tsrecv, tstrnsmt );
 }

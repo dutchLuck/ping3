@@ -176,10 +176,10 @@ command line option as follows; -
 ```
 % ./ping3 -h
 
-useage: ping3 [-cX][-D][-h][-iX.X][-lXX][-M ABC][-q][-R][-sXX][-tXX][-T ABC][-v][-wX] NetworkDeviceName
-or      ping3 [-cX][-D][-h][-iX.X[-lXX][-M ABC][-q][-R][-sXX][-tXX][-T ABC][-v][-wX] NetworkDeviceIP_Number
+useage: ping3 [options] NetworkDeviceName
+or      ping3 [options] NetworkDeviceIP_Number
 
-where options; -
+where options are; -
         -cX  specifies number of times to ping remote network device ( 0 <= X <= 100 )
           where a value of 0 invokes continuous ping mode. Stop this mode with control-C or control-\.
         -D  switches on debug output and over-rides -q
@@ -193,6 +193,8 @@ where options; -
             if "timew" as above, but treat tsr and tst timestamps as little endian.
             (i.e. Windows default response, if the ICMP Time Stamp request
             is allowed through the Windows firewall. )
+        -p ABC  specifies a pattern for the data payload included with the ping.
+          where ABC is a sting of characters, specifying up to 16 bytes in hexadecimal.
         -q  forces quiet (minimum) output and overrides -v
         -R  specifies header option Record Route (N.B. -T overrides -R when both are specified)
         -sXX  specifies ICMP Echo data section size (N.B. 16 <= XX <= 1472 works best on macOS)

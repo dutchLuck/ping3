@@ -5,7 +5,7 @@
 # chk last edited Fri Oct 20 20:19:30 2023
 #
 PROGRAM=ping3
-TARGET=www.apple.com
+TARGET=localhost
 #
 echo
 echo "Operating System designation is $OSTYPE"
@@ -18,8 +18,6 @@ else
 fi
 #
 # Test standard ICMP ECHO request ping
-# Compare output against standard ping if on
-# Linux system
 #
 echo "#########################################"
 echo "# Test standard ICMP ECHO request pings #"
@@ -31,18 +29,28 @@ $PRIV ../$PROGRAM $TARGET
 sleep 1
 echo
 #
-# Test the IPv4 Header Option Timestamp
-# added to a standard ICMP ECHO request ping
-# Compare output against standard ping if on
-# Linux system
+# Test standard ICMP TIMESTAMP request ping
 #
-echo "###################################################"
-echo "# Test verbose IPv4 Header Option Timestamp pings #"
-echo "###################################################"
+echo "##############################################"
+echo "# Test standard ICMP TIMESTAMP request pings #"
+echo "##############################################"
 echo
 #
-echo "$PRIV ../$PROGRAM -T tsonly -v $TARGET"
-$PRIV ../$PROGRAM -T tsonly -v $TARGET
+echo "$PRIV ../$PROGRAM -M time $TARGET"
+$PRIV ../$PROGRAM -M time $TARGET
+sleep 1
+echo
+#
+# Test the IPv4 Header Option Timestamp
+# added to a standard ICMP ECHO request ping
+#
+echo "###########################################"
+echo "# Test IPv4 Header Option Timestamp pings #"
+echo "###########################################"
+echo
+#
+echo "$PRIV ../$PROGRAM -T tsonly $TARGET"
+$PRIV ../$PROGRAM -T tsonly $TARGET
 sleep 1
 echo
 #
@@ -58,15 +66,13 @@ echo
 #
 # Test the IPv4 Header Option Record Route
 # added to a standard ICMP ECHO request ping
-# Compare output against standard ping if on
-# Linux system
 #
-echo "######################################################"
-echo "# Test verbose IPv4 Header Option Record Route pings #"
-echo "######################################################"
+echo "##############################################"
+echo "# Test IPv4 Header Option Record Route pings #"
+echo "##############################################"
 echo
 #
-echo "$PRIV ../$PROGRAM -R -v $TARGET"
-$PRIV ../$PROGRAM -R -v $TARGET
+echo "$PRIV ../$PROGRAM -R $TARGET"
+$PRIV ../$PROGRAM -R $TARGET
 #
 

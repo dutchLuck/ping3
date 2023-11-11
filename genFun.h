@@ -1,7 +1,7 @@
 /*
  * G E N F U N . H
  *
- * genFun.h last edited Thu Oct 26 14:34:25 2023
+ * genFun.h last edited Sat Nov 11 21:31:53 2023
  * 
  */
 
@@ -9,6 +9,8 @@
 #define  GEN_FUN_H
 
 void  clearByteArray( unsigned char *, int );
+void  fillByteArray( unsigned char,  unsigned char *, int );
+void  fillFirstByteArrayByReplicatingSecondByteArray( unsigned char *, int, unsigned char *, int );
 void  printByteArray( unsigned char *, int, int );
 double  limitDoubleValueToEqualOrMoreNegetiveThanBoundary( double, double );
 double  limitDoubleValueToEqualOrMorePositiveThanBoundary( double, double );
@@ -24,5 +26,6 @@ char  limitCharValueToEqualOrWithinRange( char, char, char );
 long  convertOptionStringToLong( long, char *, char *, int *, int );
 int  convertOptionStringToInteger( int, char *, char *, int *, int );
 double  convertOptionStringToDouble( double, char *, char *, int *, int );
+int  convertHexByteStringToByteArray( char *, unsigned char *, int );
 
 #endif
