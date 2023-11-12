@@ -1,7 +1,7 @@
 /*
  * P I N G 3 . C
  *
- * ping3.c last edited Sat Nov 11 21:31:34 2023
+ * ping3.c last edited Sun Nov 12 21:16:59 2023
  * 
  */
 
@@ -47,7 +47,7 @@
  * 9. -p pattern to set ICMP payload to a pattern other than all zeros
  */
 
-#include <stdlib.h> 	/* exit() atexit() */
+#include <stdlib.h> 	/* exit() atexit() arc4random() */
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>	/* inet_addr() inet_ntoa() */
@@ -314,6 +314,7 @@ int  sendICMP_EchoRequest( int  socketID, u_char *  icmpMsgBfr, int  icmpMsgSize
 	ssize_t	 numberOfBytesSent = 0;
 	struct icmp	*  icmpHdrPtr;
 	u_char *  icmpDataPtr;
+	int *  timeInNetworkFormat;
 
 #ifdef DEBUG	
 	if( debugFlag )  printf( "ICMP Echo Message Size %d, Sequence ID 0x%04x\n", icmpMsgSize, seqID );
@@ -327,7 +328,16 @@ int  sendICMP_EchoRequest( int  socketID, u_char *  icmpMsgBfr, int  icmpMsgSize
 		fill_ICMP_HdrPreChkSum( icmpHdrPtr, ICMP_ECHO, 0, seqID, process_id );
 		icmpDataPtr = icmpMsgBfr + 8;	/* point to icmp Data area */
 		if( p_Flag )  {
-			fillFirstByteArrayByReplicatingSecondByteArray( icmpDataPtr, icmpMsgSize - 8, icmpPayloadPattern, icmpPayloadPatternSize );
+			if( icmpPayloadPatternType == ICMP_PAYLOAD_RANDOM_BYTE_PATTERN )  arc4random_buf( icmpDataPtr, icmpMsgSize - 8 );
+			else if( icmpPayloadPatternType == ICMP_PAYLOAD_TIME_PATTERN )  {
+				timeInNetworkFormat = ( int * )  icmpPayloadPattern;
+				clock_gettime( CLOCK_REALTIME, &timeToBeStoredInSentICMP );		/* get time to put in the message about to be sent */
+				*timeInNetworkFormat = htonl( calcMillisecondsSinceMidnightFromTimeSpec( &timeToBeStoredInSentICMP ));
+				fillFirstByteArrayByReplicatingSecondByteArray( icmpDataPtr, icmpMsgSize - 8, icmpPayloadPattern, 4 );
+			}
+			else  {
+				fillFirstByteArrayByReplicatingSecondByteArray( icmpDataPtr, icmpMsgSize - 8, icmpPayloadPattern, icmpPayloadPatternSize );
+			}
 		}
 		else if( icmpMsgSize >= 24 )  {	/* no pattern specified so put nS time in the icmp data section if there is space */
 			clock_gettime( CLOCK_REALTIME, &timeToBeStoredInSentICMP );		/* get time to put in the message about to be sent */
@@ -822,20 +832,23 @@ void  useage( char *  name )  {
 	printf( "        -iX.X  ensure X.X second interval between each ping ( %.1f <= X.X <= %.1f )\n", MIN_INTERVAL_BW_PINGS, MAX_INTERVAL_BW_PINGS );
 	printf( "        -lXX  suggest desired IP header option length (max is 40 and should be a multiple of 4)\n" );
 	printf( "        -M ABC  specifies ping with ICMP Mask/Timestamp request instead of ICMP Echo.\n" );
-	printf( "          where ABC is a sting of characters.\n" );
+	printf( "          where ABC is a string of characters.\n" );
 	printf( "            If \"mask\" then send ICMP Mask request,\n" );
 	printf( "            if \"time\" then send ICMP Time Stamp request,\n" );
 	printf( "            if \"timew\" as above, but treat tsr and tst timestamps as little endian.\n" );
 	printf( "            (i.e. Windows default response, if the ICMP Time Stamp request\n" );
 	printf( "            is allowed through the Windows firewall. )\n" );
 	printf( "        -p ABC  specifies a pattern for the data payload included with the ping.\n" );
-	printf( "          where ABC is a sting of characters, specifying up to 16 bytes in hexadecimal.\n" );
+	printf( "          where ABC is a string of characters.\n" );
+	printf( "            if \"time\" then send milliseconds since midnight as the data payload,\n" );
+	printf( "            if \"random\" then send a random array of bytes as the data payload,\n" );
+	printf( "            if neither of the above then specifying up to 16 bytes in hexadecimal.\n" );
 	printf( "        -q  forces quiet (minimum) output and overrides -v\n" );
 	printf( "        -R  specifies header option Record Route (N.B. -T overrides -R when both are specified)\n" );
 	printf( "        -sXX  specifies ICMP Echo data section size (N.B. 16 <= XX <= 1472 works best on macOS)\n" );
 	printf( "        -tXX  specifies IPv4 header Time to Live (N.B. doesn't work on macOS)\n" );
 	printf( "        -T ABC  specifies header option time stamp type.\n" );
-	printf( "          where ABC is a sting of characters.\n" );
+	printf( "          where ABC is a string of characters.\n" );
 	printf( "            If \"tsonly\" then record Time Stamp Only list of time stamps,\n" );
 	printf( "            if \"tsandaddr\" then record Address and Time Stamp pair list,\n" );
 	printf( "            if \"tsprespec H.I.J.K [ L.M.N.O [ P.Q.R.S [ T.U.V.W ]]]\" then Time Stamp prespecified Addresses.\n" );
@@ -924,10 +937,16 @@ int  processCommandLineOptions( int  argc, char *  argv[] )  {
 			printf( "?? \"-T %s\" not recognized (-h for help) - attempting ICMP request without header option timestamps instead.\n", T_Strng );
 		}
 	}
-	if( p_Flag )  {
-		icmpPayloadPatternSize = convertHexByteStringToByteArray( p_Strng, icmpPayloadPattern, ICMP_PAYLOAD_MAX_PATTERN_SIZE );
-		p_Flag = ( icmpPayloadPatternSize > 0 );	/* reset flag if pattern specified wasn't valid */
-		if( verboseFlag )  printNamedByteArray( icmpPayloadPattern, icmpPayloadPatternSize, 10, "ICMP Payload Pattern" );
+	if( p_Flag )  {		/* determine a pattern to use as the ICMP (Echo) payload data pattern */
+		if( strncmp( p_Strng, "random", 6 ) == 0 )  icmpPayloadPatternType = ICMP_PAYLOAD_RANDOM_BYTE_PATTERN;
+		else if( strncmp( p_Strng, "time", 4 ) == 0 )  icmpPayloadPatternType = ICMP_PAYLOAD_TIME_PATTERN;
+		else  {
+			icmpPayloadPatternType = ICMP_PAYLOAD_HEX_PATTERN;
+			icmpPayloadPatternSize = convertHexByteStringToByteArray( p_Strng, icmpPayloadPattern, ICMP_PAYLOAD_MAX_PATTERN_SIZE );
+			p_Flag = ( icmpPayloadPatternSize > 0 );	/* reset flag if pattern specified wasn't valid */
+			if( ! p_Flag )  icmpPayloadPatternType = ICMP_PAYLOAD_NO_PATTERN;
+			else  if( verboseFlag )  printNamedByteArray( icmpPayloadPattern, icmpPayloadPatternSize, 10, "ICMP Payload Pattern" );
+		}
 	}
 	/* By default set maximum available space for Record Route option */
 	if( R_Flag && ! l_Flag )  ip4_HdrOptionSize = MAX_IP4_HDR_OPTION_LEN;

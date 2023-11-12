@@ -187,20 +187,23 @@ where options are; -
         -iX.X  ensure X.X second interval between each ping ( 0.1 <= X.X <= 60.0 )
         -lXX  suggest desired IP header option length (max is 40 and should be a multiple of 4)
         -M ABC  specifies ping with ICMP Mask/Timestamp request instead of ICMP Echo.
-          where ABC is a sting of characters.
+          where ABC is a string of characters.
             If "mask" then send ICMP Mask request,
             if "time" then send ICMP Time Stamp request,
             if "timew" as above, but treat tsr and tst timestamps as little endian.
             (i.e. Windows default response, if the ICMP Time Stamp request
             is allowed through the Windows firewall. )
         -p ABC  specifies a pattern for the data payload included with the ping.
-          where ABC is a sting of characters, specifying up to 16 bytes in hexadecimal.
+          where ABC is a string of characters.
+            if "time" then send milliseconds since midnight as the data payload,
+            if "random" then send a random array of bytes as the data payload,
+            if neither of the above then specifying up to 16 bytes in hexadecimal.
         -q  forces quiet (minimum) output and overrides -v
         -R  specifies header option Record Route (N.B. -T overrides -R when both are specified)
         -sXX  specifies ICMP Echo data section size (N.B. 16 <= XX <= 1472 works best on macOS)
         -tXX  specifies IPv4 header Time to Live (N.B. doesn't work on macOS)
         -T ABC  specifies header option time stamp type.
-          where ABC is a sting of characters.
+          where ABC is a string of characters.
             If "tsonly" then record Time Stamp Only list of time stamps,
             if "tsandaddr" then record Address and Time Stamp pair list,
             if "tsprespec H.I.J.K [ L.M.N.O [ P.Q.R.S [ T.U.V.W ]]]" then Time Stamp prespecified Addresses.
