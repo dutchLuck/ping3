@@ -1,7 +1,7 @@
 /*
  * P I N G 3 . C
  *
- * ping3.c last edited Sun Nov 12 21:16:59 2023
+ * ping3.c last edited Sun Nov 12 22:22:38 2023
  * 
  */
 
@@ -314,7 +314,10 @@ int  sendICMP_EchoRequest( int  socketID, u_char *  icmpMsgBfr, int  icmpMsgSize
 	ssize_t	 numberOfBytesSent = 0;
 	struct icmp	*  icmpHdrPtr;
 	u_char *  icmpDataPtr;
-	int *  timeInNetworkFormat;
+	int *  intPtr;
+#ifdef __linux__
+	long *  longPtr;
+#endif
 
 #ifdef DEBUG	
 	if( debugFlag )  printf( "ICMP Echo Message Size %d, Sequence ID 0x%04x\n", icmpMsgSize, seqID );
@@ -327,12 +330,21 @@ int  sendICMP_EchoRequest( int  socketID, u_char *  icmpMsgBfr, int  icmpMsgSize
 		icmpHdrPtr = (struct icmp *) icmpMsgBfr;
 		fill_ICMP_HdrPreChkSum( icmpHdrPtr, ICMP_ECHO, 0, seqID, process_id );
 		icmpDataPtr = icmpMsgBfr + 8;	/* point to icmp Data area */
+		clock_gettime( CLOCK_REALTIME, &timeToBeStoredInSentICMP );		/* get time to put in the message about to be sent */
 		if( p_Flag )  {
-			if( icmpPayloadPatternType == ICMP_PAYLOAD_RANDOM_BYTE_PATTERN )  arc4random_buf( icmpDataPtr, icmpMsgSize - 8 );
+			if( icmpPayloadPatternType == ICMP_PAYLOAD_RANDOM_BYTE_PATTERN )  {
+#ifdef __linux__
+				longPtr = ( long * )  icmpPayloadPattern;
+				srandom( calcMillisecondsSinceMidnightFromTimeSpec( &timeToBeStoredInSentICMP ));
+				*longPtr = random();
+				fillFirstByteArrayByReplicatingSecondByteArray( icmpDataPtr, icmpMsgSize - 8, icmpPayloadPattern, sizeof( long ));
+#else
+				arc4random_buf( icmpDataPtr, icmpMsgSize - 8 );
+#endif
+			}
 			else if( icmpPayloadPatternType == ICMP_PAYLOAD_TIME_PATTERN )  {
-				timeInNetworkFormat = ( int * )  icmpPayloadPattern;
-				clock_gettime( CLOCK_REALTIME, &timeToBeStoredInSentICMP );		/* get time to put in the message about to be sent */
-				*timeInNetworkFormat = htonl( calcMillisecondsSinceMidnightFromTimeSpec( &timeToBeStoredInSentICMP ));
+				intPtr = ( int * )  icmpPayloadPattern;
+				*intPtr = htonl( calcMillisecondsSinceMidnightFromTimeSpec( &timeToBeStoredInSentICMP ));
 				fillFirstByteArrayByReplicatingSecondByteArray( icmpDataPtr, icmpMsgSize - 8, icmpPayloadPattern, 4 );
 			}
 			else  {
@@ -340,7 +352,6 @@ int  sendICMP_EchoRequest( int  socketID, u_char *  icmpMsgBfr, int  icmpMsgSize
 			}
 		}
 		else if( icmpMsgSize >= 24 )  {	/* no pattern specified so put nS time in the icmp data section if there is space */
-			clock_gettime( CLOCK_REALTIME, &timeToBeStoredInSentICMP );		/* get time to put in the message about to be sent */
 			memcpy( (void *) icmpDataPtr, ( void * ) &timeToBeStoredInSentICMP, sizeof( struct timespec )); /* Don't worry about endianess */	
 	    }
 		numberOfBytesSent = computeCheckSumAndSendIPv4_ICMP_Datagram( socketID, icmpMsgBfr, icmpMsgSize );
