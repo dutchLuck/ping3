@@ -1,12 +1,12 @@
 /*
  * G E N F U N . C
  *
- * genFun.c last edited Sat Nov 11 21:31:46 2023
+ * genFun.c last edited Mon Nov 13 21:37:05 2023
  * 
  */
 
 #include <stdio.h>		/* printf() */
-#include <stdlib.h>		/* atoi() malloc() free() atol() strtod() strtol() */
+#include <stdlib.h>		/* atoi() malloc() free() atol() strtod() strtol() random() */
 #include <limits.h>		/* LONG_MIN LONG_MAX INT_MIN strtol() */
 #include <ctype.h>		/* touppper() */
 #include "genFun.h"
@@ -43,6 +43,30 @@ void  fillFirstByteArrayByReplicatingSecondByteArray( unsigned char *  firstArra
 		for( cnt = 0; cnt < firstArraySize; cnt++ )  {
 			if(( cnt % secondArraySize ) == 0 )  ptr2 = secondArray;	/* set the pointer back to the start of the 2nd Array */
 			*ptr1++ = *ptr2++;
+		}
+	}
+}
+
+
+/* fillByteArrayWithPseudoRandomData( icmpDataPtr, icmpMsgSize ) */
+void  fillByteArrayWithPseudoRandomData( unsigned char *  array, int  arraySize )  {
+	int  cnt, pseudoRandomInt;
+	unsigned char *  chrPtr;
+	int *  intPtr;
+
+	intPtr = ( int * ) array;
+	for( cnt = 0; cnt < arraySize; )  {
+		pseudoRandomInt = ( int )( random() & 0xffffffff );	/* use of random() is far from perfect  */
+		if(( cnt + 4 ) <= arraySize )  {
+			*intPtr++ = pseudoRandomInt;	/* put an pseudo reandom integer into the array */
+			cnt += 4;
+		}
+		else  {
+			chrPtr = ( unsigned char * ) intPtr;
+			for( ; cnt < arraySize; cnt++ )  {
+				*chrPtr++ = ( unsigned char )( pseudoRandomInt & 0xff );
+				pseudoRandomInt = pseudoRandomInt >> 8;
+			}
 		}
 	}
 }

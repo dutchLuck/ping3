@@ -1,7 +1,7 @@
 /*
  * G E N F U N . H
  *
- * genFun.h last edited Sat Nov 11 21:31:53 2023
+ * genFun.h last edited Mon Nov 13 21:37:08 2023
  * 
  */
 
@@ -11,6 +11,7 @@
 void  clearByteArray( unsigned char *, int );
 void  fillByteArray( unsigned char,  unsigned char *, int );
 void  fillFirstByteArrayByReplicatingSecondByteArray( unsigned char *, int, unsigned char *, int );
+void  fillByteArrayWithPseudoRandomData( unsigned char *, int );
 void  printByteArray( unsigned char *, int, int );
 double  limitDoubleValueToEqualOrMoreNegetiveThanBoundary( double, double );
 double  limitDoubleValueToEqualOrMorePositiveThanBoundary( double, double );

@@ -1,7 +1,7 @@
 /*
  * P I N G 3 . C
  *
- * ping3.c last edited Sun Nov 12 22:22:38 2023
+ * ping3.c last edited Mon Nov 13 21:36:58 2023
  * 
  */
 
@@ -315,9 +315,6 @@ int  sendICMP_EchoRequest( int  socketID, u_char *  icmpMsgBfr, int  icmpMsgSize
 	struct icmp	*  icmpHdrPtr;
 	u_char *  icmpDataPtr;
 	int *  intPtr;
-#ifdef __linux__
-	long *  longPtr;
-#endif
 
 #ifdef DEBUG	
 	if( debugFlag )  printf( "ICMP Echo Message Size %d, Sequence ID 0x%04x\n", icmpMsgSize, seqID );
@@ -334,16 +331,14 @@ int  sendICMP_EchoRequest( int  socketID, u_char *  icmpMsgBfr, int  icmpMsgSize
 		if( p_Flag )  {
 			if( icmpPayloadPatternType == ICMP_PAYLOAD_RANDOM_BYTE_PATTERN )  {
 #ifdef __linux__
-				longPtr = ( long * )  icmpPayloadPattern;
-				srandom( calcMillisecondsSinceMidnightFromTimeSpec( &timeToBeStoredInSentICMP ));
-				*longPtr = random();
-				fillFirstByteArrayByReplicatingSecondByteArray( icmpDataPtr, icmpMsgSize - 8, icmpPayloadPattern, sizeof( long ));
+				srandom( calcMillisecondsSinceMidnightFromTimeSpec( &timeToBeStoredInSentICMP ));	/* seed number generator */
+				fillByteArrayWithPseudoRandomData( icmpDataPtr, icmpMsgSize - 8 );
 #else
 				arc4random_buf( icmpDataPtr, icmpMsgSize - 8 );
 #endif
 			}
 			else if( icmpPayloadPatternType == ICMP_PAYLOAD_TIME_PATTERN )  {
-				intPtr = ( int * )  icmpPayloadPattern;
+				intPtr = ( int * ) icmpPayloadPattern;
 				*intPtr = htonl( calcMillisecondsSinceMidnightFromTimeSpec( &timeToBeStoredInSentICMP ));
 				fillFirstByteArrayByReplicatingSecondByteArray( icmpDataPtr, icmpMsgSize - 8, icmpPayloadPattern, 4 );
 			}
