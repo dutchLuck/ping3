@@ -71,8 +71,11 @@ over-rides the -R option if both are specified on the command line.
 .TP
 \fB\-s \fI\,icmp_payload_size\/\fR
 The size of the ICMP request message can be addjusted with \fI\,icmp_payload_size\/\fR
-The size is specified as an positive integer number. Numbers less than 1500 seem to work
-best on macOS. ping3 may ignore or modify the suggested size.
+The size is specified by up to three (positive) integer numbers. The first number is
+required and two further numbers are optional, but allow a sweep of the ICMP
+payload size. For example -s "100 200 10" would specify that the size start at 100 bytes
+and step 10 bytes each ping up to 200 bytes. Numbers less than 1500 seem to work
+best on macOS. Note that ping3 may ignore or modify the suggested size(s). 
 .TP
 \fB\-T \fI\,ipv4_header_option_type\/\fR
 Sends pings with IPv4 header option requesting Timestamp information of the type
