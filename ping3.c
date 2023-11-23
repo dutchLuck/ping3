@@ -771,10 +771,12 @@ void  printStats( void )  {
 	timeSinceFirstPingSent = calcTimeSpecClockDifferenceInSeconds( &timeOfFirstPing, &currentTime );
 	printf( " in %4.2f [S]\n", timeSinceFirstPingSent );
 	/* Print summary stats such as min, mean, max and if there is enough samples stddev */
-	printf( "RTT Min %5.3f, Mean %5.3f, Max %5.3f",
-		statsMinimumRTT * 1000.0, statsRunningMeanRTT * 1000.0 , statsMaximumRTT * 1000.0 );
-	if( statsSamplesReceived > 9 )  printf( ", StdDev %5.3f", sqrt( statsRunningVarianceRTT / ( double ) statsSamplesReceived ) * 1000.0 );
-	printf( " [mS]\n" );
+	if( statsSamplesReceived > 0 )  {
+		printf( "RTT Min %5.3f, Mean %5.3f, Max %5.3f",
+			statsMinimumRTT * 1000.0, statsRunningMeanRTT * 1000.0 , statsMaximumRTT * 1000.0 );
+		if( statsSamplesReceived > 9 )  printf( ", StdDev %5.3f", sqrt( statsRunningVarianceRTT / ( double ) statsSamplesReceived ) * 1000.0 );
+		printf( " [mS]\n" );
+	}
 }
 
 

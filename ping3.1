@@ -98,9 +98,9 @@ The wait period is specified as a positive integer number.
 The ping3 utility returns 0 on success, and greater than zero if an error occurs.
 .PP
 .SH EXAMPLES
-\fB\ ping3 -s100 a_network_device\fR
+\fB\ ping3 a_network_device\fR
 .br
-send 3 ICMP Echo requests with 100 bytes of icmp payload to another device on the network.
+send 3 ICMP Echo requests to another device on the network.
 .PP
 \fB\ ping3 -c1 -M time a_network_device\fR
 .br
@@ -136,6 +136,16 @@ send 3 ICMP Echo requests to www.apple.com and expect to receive replies listing
 the IP addresses of the route taken to, and maybe from, www.apple.com server. Note
 that some or perhaps even all network devices in the route may ignore the request. 
 .PP
+\fB\ ping3 -c 20 -s "100 200 10" www.apple.com\fR
+.br
+send 20 ICMP Echo requests to www.apple.com with a sweep of ICMP message payload
+length varying from 100 to 200 bytes and back in steps of 10 bytes. 
+.PP
+\fB\ ping3 -p random www.apple.com\fR
+.br
+send 3 ICMP Echo requests to www.apple.com with pseudo random data in the ICMP
+message payload. 
+.PP
 .SH AUTHOR
 Written by Owen Holland.
 .PP
@@ -152,5 +162,17 @@ ping utility, please use the ping provided by your operating system.
 .SH "SEE ALSO"
 ping(1)
 .br
-More documentation at: <https://github.com/dutchLuck/ping3>
+More ping3 documentation at: <https://github.com/dutchLuck/ping3>
+.PP
+.SH "ALSO OF POSSIBLE INTEREST"
+bing - bandwidth ping
+.br
+clockdiff - measure clock difference between network devices
+.br
+fping - ping multiple network devices
+.br
+oping - ping multiple network devices in parallel
+.br
+traceroute - print the route packets take to a network device
+.br
 .PP

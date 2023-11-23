@@ -1,26 +1,29 @@
 # ping3
-Send multiple Internet Protocol version 4 (IPv4) Internet
-Control Message Protocol (ICMP) Echo requests or multiple
-IPv4 ICMP Time Stamp requests or multiple IPv4 ICMP Address
-Mask requests to a remote network device and display round
-trip time (RTT) information if the corresponding ICMP
-replies are received back.
+The "ping3" utility program can be used to send multiple
+Internet Protocol version 4 (IPv4) Internet Control Message
+Protocol (ICMP) Echo requests or multiple IPv4 ICMP Time Stamp
+requests or multiple IPv4 ICMP Address Mask requests to a
+remote network device and display information about the round
+trip time (RTT) if corresponding ICMP replies are received back.
 
 This utility program is named "ping3" because it has the ability
-to ping a remote network device with three types of ICMP requests
-in similar fashion to the macOS system utility named "ping". These
-three ICMP requests are Echo or Timestamp or Mask. "ping3" also
-defaults to sending three ICMP echo/timestamp/mask request to a
+to ping a network device with any one of three types of ICMP
+requests in similar fashion to the macOS system utility named
+"ping". The three possible ICMP requests are Echo, Timestamp and
+Mask. By default Echo requests are sent to the target network
+device. "ping3" also defaults to sending three requests to a
 network device and waits for the device to reply to each request.
-If the device replies then some information on how long the round-
-trip-time (RTT) was is printed out.
+If the device replies then ping3 outputs information on the time
+taken between the request being sent and the reply being received.
+This time is known as the round-trip-time (RTT).
 
-By default "ping3" provides a (very much) cut down version of the
-capability provided by the standard computer system utility "ping".
-It does not provide any Internet Protocol version 6 (IPv6) capability.
-It currently provides only very limited summary statistics and doesn't
-provide congestion testing or pattern testing or alternate interface
-specification or multicast functionality.
+The "ping3" utility provides a cut down version of the standard
+"ping" utility that is included in all major computer operating
+systems. Unlike ping it does not provide any Internet Protocol
+version 6 (IPv6) capability. It doesn't provide flood or preload
+options for congestion testing, alternate interface specification,
+alternate routing options or any specific broadcast or multicast
+functionality.
 
 The standard ping utility that comes with Apple Mac OSX, such as
 macOS Sonoma, provides similar default capability to the Linux ping
@@ -48,20 +51,21 @@ as is shown in the output lines from ping.
 Both outputs follow; -
 ```
 % ./ping3 www.apple.com
-80 bytes from 23.219.60.201: seq 1, ttl 59, RTT 22.676 [mS]
-80 bytes from 23.219.60.201: seq 2, ttl 59, RTT 25.695 [mS]
-80 bytes from 23.219.60.201: seq 3, ttl 59, RTT 25.609 [mS]
+80 bytes from 23.48.156.212: seq 1, ttl 57, RTT 25.608 [mS]
+80 bytes from 23.48.156.212: seq 2, ttl 57, RTT 25.56 [mS]
+80 bytes from 23.48.156.212: seq 3, ttl 57, RTT 25.624 [mS]
 3 requests sent, 3 replies received, 0.0% loss in 4.01 [S]
-%
+RTT Min 25.560, Mean 25.597, Max 25.624 [mS]
+% 
 % ping -c3 www.apple.com
-PING e6858.dscx.akamaiedge.net (23.219.60.201): 56 data bytes
-64 bytes from 23.219.60.201: icmp_seq=0 ttl=59 time=22.690 ms
-64 bytes from 23.219.60.201: icmp_seq=1 ttl=59 time=25.686 ms
-64 bytes from 23.219.60.201: icmp_seq=2 ttl=59 time=22.870 ms
+PING e6858.dscx.akamaiedge.net (23.48.156.212): 56 data bytes
+64 bytes from 23.48.156.212: icmp_seq=0 ttl=57 time=25.947 ms
+64 bytes from 23.48.156.212: icmp_seq=1 ttl=57 time=77.821 ms
+64 bytes from 23.48.156.212: icmp_seq=2 ttl=57 time=27.012 ms
 
 --- e6858.dscx.akamaiedge.net ping statistics ---
 3 packets transmitted, 3 packets received, 0.0% packet loss
-round-trip min/avg/max/stddev = 22.690/23.749/25.686/1.372 ms
+round-trip min/avg/max/stddev = 25.947/43.593/77.821/24.207 ms
 %
 ```
 There doesn't appear to be equivalent options on the macOS ping
@@ -152,7 +156,7 @@ Successful ICMP Netmask request pings produce the following output (N.B. Normall
 Network Devices do not respond to ICMP Netmask requests. However, as noted in the
 Apple macOS man page for ping, macOS can reply to Netmask requests after a change
 to a system setting. The command to make a temporary setting change to macOS is; -
-"sudo sysctl net.inet.icmp.maskrepl=1"); -
+"sudo sysctl net.inet.icmp.maskrepl=1"
 ```
 % ./ping3 -M mask 192.168.1.103
 32 bytes from 192.168.1.103: seq 1, ttl 64, RTT 69.548 [mS] mask 255.255.255.0
@@ -174,7 +178,7 @@ PING 192.168.1.103 (192.168.1.103): 0 data bytes
 The help / usage information for ping3 can be seen by using the "-h"
 command line option as follows; -
 ```
-% ./ping3 -h
+% ./ping3 -h                         
 
 useage: ping3 [options] NetworkDeviceName
 or      ping3 [options] NetworkDeviceIP_Number
@@ -200,7 +204,8 @@ where options are; -
             if neither of the above then specifying up to 16 bytes in hexadecimal.
         -q  forces quiet (minimum) output and overrides -v
         -R  specifies header option Record Route (N.B. -T overrides -R when both are specified)
-        -sXX  specifies ICMP Echo data section size (N.B. 16 <= XX <= 1472 works best on macOS)
+        -s "XX [YY [ZZ]]" specifies ICMP Echo data section size (N.B. 16 <= XX <= 1472 works best on macOS)
+          where XX is an integer number and YY, ZZ are optional integer numbers to specify a size sweep.
         -tXX  specifies IPv4 header Time to Live (N.B. doesn't work on macOS)
         -T ABC  specifies header option time stamp type.
           where ABC is a string of characters.
