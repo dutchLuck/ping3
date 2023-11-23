@@ -1,7 +1,7 @@
 /*
  * P I N G 3 . C
  *
- * ping3.c last edited Wed Nov 22 22:13:28 2023
+ * ping3.c last edited Thu Nov 23 21:29:56 2023
  * 
  */
 
@@ -28,10 +28,9 @@
  * 3. Setting the time-to-live (ttl) on macOS fails
  * 4. Reports total length of reply not data length
  * 5. So many <abc.h> header files included - are they all still necessary?
- * 6. No version information
- * 7. IPv4 Header option tsprespec with a single Device specified triggers overrun count
- * 8. IPv4 Header option tsprespec with no devices specified has different first ping to subsequent pings
- * 9. No Windows version - yet.
+ * 6. IPv4 Header option tsprespec with a single Device specified triggers overrun count
+ * 7. IPv4 Header option tsprespec with no devices specified has different first ping to subsequent pings
+ * 8. No Windows version - yet.
  */
 
 /*
@@ -44,7 +43,6 @@
  * 6. ? TCP port 7 (echo) ping?
  * 7. ? ARP ping for local subnet ping?
  * 8. Report what doesn't match if ICMP Echo request payload != reply payload
- * 9. -p pattern to set ICMP payload to a pattern other than all zeros
  */
 
 #include <stdlib.h> 	/* exit() atexit() arc4random() */
@@ -68,7 +66,6 @@
 #include <netdb.h>		/* gethostbyname() */
 #include <unistd.h>		/* gethostname() alarm() getopt() */
 #include <stdio.h>		/* printf() fprintf() perror() */
-#include <ctype.h>
 #include <errno.h>
 #include <string.h>		/* strncpy() */
 #include <strings.h>	/* bzero() bcmp() */
@@ -88,6 +85,7 @@
 #define  TRUE  (! FALSE)
 #endif
 
+#define VERSION_STRING "0.9"	/* version */
 #define MIN_PING_ATTEMPTS  0	/* smallest number of ICMP requests sent (limits X for -cX option) */
 #define DEFAULT_PING_COUNT  3	/* default number of pings to send */
 #define MAX_PING_ATTEMPTS  100	/* largest number of ICMP requests sent (limits X for -cX option) */
@@ -216,18 +214,11 @@ char *  prespecDeviceNameBuffer[ 4 ];
 char  timeOutMessage[ 256 ];
 
 
-/*
-def stats(x):
-  n = 0
-  S = 0.0
-  m = 0.0
-  for x_i in x:
-    n = n + 1
-    m_prev = m
-    m = m + (x_i - m) / n
-    S = S + (x_i - m) * (x_i - m_prev)
-  return {'mean': m, 'variance': S/n}
-*/
+void  printVersion( void )  {
+	printf( "ping3 version %s\n", VERSION_STRING );
+}
+
+
 /*
  * Code adapted from; -
  * https://dsp.stackexchange.com/questions/811/determining-the-mean-and-standard-deviation-in-real-time
@@ -264,7 +255,7 @@ void  setSendTimer( u_long  seconds, u_long  uSec )  {
 	old.it_interval.tv_usec = ( long ) 0;
 	setitimer( ITIMER_REAL, &val, &old );
 #ifdef DEBUG	
-	if( debugFlag )  printf( "Timer set to: %lu [S]: %lu [uS]\n", seconds, uSec );
+	if( debugFlag )  printf( "Debug: Timer set to: %lu [S]: %lu [uS]\n", seconds, uSec );
 #endif
 }
 
@@ -278,7 +269,7 @@ int  computeCheckSumAndSendIPv4_ICMP_Datagram( int  socketID, u_char *  icmpMsg,
 	icmpHdrPtr->icmp_cksum = calcCheckSum((u_short *) icmpHdrPtr, icmpMsgSize );
 #ifdef DEBUG	
 	if( debugFlag )  {
-		printf( "ICMP Message size to transmit is %d\n", icmpMsgSize );
+		printf( "Debug: ICMP Message size to transmit is %d\n", icmpMsgSize );
 		printNamedByteArray( icmpMsg, icmpMsgSize, 20, "ICMP request messsage (send array contents)" );
 		printf( "\n" );
 	}
@@ -305,7 +296,7 @@ int  sendICMP_MaskRequest( int  socketID, u_char *  icmpMsgBfr, int  icmpMsgSize
 	u_int32_t *  icmpMaskPtr;
 
 #ifdef DEBUG	
-	if( debugFlag )  printf( "About to send %d byte ICMP Mask Request Message with Sequence ID 0x%04x\n", icmpMsgSize, seqID );
+	if( debugFlag )  printf( "Debug: About to send %d byte ICMP Mask Request Message with Sequence ID 0x%04x\n", icmpMsgSize, seqID );
 #endif
 	/* Set up the ICMP info if there is enough room in the ip_Data buffer */
 	if( icmpMsgSize > ICMP_HDR_LEN )  {
@@ -331,7 +322,7 @@ int  sendICMP_TimestampRequest( int  socketID, u_char *  icmpMsgBfr, int  icmpMs
 	u_int32_t *  icmpOrigTimestampPtr;
 
 #ifdef DEBUG	
-	if( debugFlag )  printf( "About to send %d byte ICMP Time Stamp Request Message with Sequence ID 0x%04x\n", icmpMsgSize, seqID );
+	if( debugFlag )  printf( "Debug: About to send %d byte ICMP Time Stamp Request Message with Sequence ID 0x%04x\n", icmpMsgSize, seqID );
 #endif
 	/* Set up the ICMP info if there is enough room in the ip_Data buffer */
 	if( icmpMsgSize > ICMP_HDR_LEN )  {
@@ -359,7 +350,7 @@ int  sendICMP_EchoRequest( int  socketID, u_char *  icmpMsgBfr, int  icmpMsgSize
 	int *  intPtr;
 
 #ifdef DEBUG	
-	if( debugFlag )  printf( "About to send %d byte ICMP Echo Request Message with Sequence ID 0x%04x\n", icmpMsgSize, seqID );
+	if( debugFlag )  printf( "Debug: About to send %d byte ICMP Echo Request Message with Sequence ID 0x%04x\n", icmpMsgSize, seqID );
 #endif
 	/* Set up the ICMP info if there is enough room in the buffer */
 	if( icmpMsgSize < ICMP_HDR_LEN )
@@ -523,7 +514,7 @@ int  processReceivedDatagram( char *  buf, int  datagramSize, struct sockaddr_in
 	icmpHdrPtr = (struct icmp *)( buf + hdrLen );	/* point to the start of the datagram payload (i.e. ICMP message) */
 #ifdef DEBUG	
 	if( debugFlag )  {
-		printf( "Datagram Length is %d - Header Length is %d\n", datagramSize, hdrLen );
+		printf( "Debug: Datagram Length is %d - Header Length is %d\n", datagramSize, hdrLen );
 		printNamedByteArray(( u_char *) ip, datagramSize, 20, "processReceivedDatagram(): Complete IP4 datagram received" );
 	}
 #endif
@@ -1100,9 +1091,9 @@ int  processCommandLineOptions( int  argc, char *  argv[] )  {
 	}
 #ifdef  DEBUG
 	if( debugFlag )  {
-		printf( "First -s value %d\n", icmpFirstExtraDataSizeValue );
-		printf( "Second -s value %d\n", icmpSecondExtraDataSizeValue );
-		printf( "Third -s value %d\n", icmpStepExtraDataSizeValue );
+		printf( "Debug: First -s value %d\n", icmpFirstExtraDataSizeValue );
+		printf( "Debug: Second -s value %d\n", icmpSecondExtraDataSizeValue );
+		printf( "Debug: Third -s value %d\n", icmpStepExtraDataSizeValue );
 	}
 #endif
 	/* make sure TX buffer is big enough to hold max amount of payload data */
@@ -1111,8 +1102,10 @@ int  processCommandLineOptions( int  argc, char *  argv[] )  {
  	if( debugFlag )  {
 		verboseFlag = TRUE;
 		quietFlag = FALSE;		/* Debug flag over-rides quiet flag if they are both TRUE */
+#ifdef DEBUG
 		printf( "Debug: IPv4 Header Option length is %d bytes\n", ip4_HdrOptionSize );
 		printf( "Debug: Transmit Buffer Size is %d, Receive Buffer Size is %d\n", txICMP_BfrSize, rxIPv4_BfrSize );
+#endif
 	}
 	if( quietFlag )  verboseFlag = FALSE;	/* quiet flag over-rides verbose flag if they are both TRUE */
 	/* return the option index of the first positional argument (i.e. network device name or IPv4 address?) */
@@ -1217,6 +1210,9 @@ int  main( int  argc, char *  argv[] )  {
 
 /* Process switch options from the command line */
 	commandLineIndex = processCommandLineOptions( argc, argv );
+
+/* Version information */
+	if( verboseFlag )  printVersion();
 
 /* Print useage message and exit if the "-h" flag was amongst the command line options */
 /*  or if no icmp echo target is specified ) */
