@@ -43,30 +43,69 @@ ICMP mask pings on a Linux system. On Linux ping3 requires the
 increased privelege via sudo to work, but it does not require
 sudo to work on macOS.
 
-The default output of ping3 on a macOS system is somewhat similar
-to the ping utility output, but with very simple summary statistics.
-The ping3 length value at the start of each reply line is the total
-size of the IPv4 (ICMP) datagram, not the size of the ICMP message
-as is shown in the output lines from ping.
+The default output of ping3 is somewhat similar to ping utility
+output, but with a different length number at the start of each
+reply description. The ping3 length value is the total size of
+the IPv4 (ICMP) datagram, not the size of the ICMP message
+as is shown in the output lines from ping. In the following
+example ping3 reports a total of 84 bytes received, which is
+20 bytes of IPv4 header and 64 bytes of ICMP echo reply message.
+In comparison ping reports 64 bytes of ICMP echo reply message,
+which implies the total length of the datagram was 84 bytes
+since the default IPv4 header size is 20 bytes.
 Both outputs follow; -
 ```
 % ./ping3 www.apple.com
-80 bytes from 23.48.156.212: seq 1, ttl 57, RTT 25.608 [mS]
-80 bytes from 23.48.156.212: seq 2, ttl 57, RTT 25.56 [mS]
-80 bytes from 23.48.156.212: seq 3, ttl 57, RTT 25.624 [mS]
-3 requests sent, 3 replies received, 0.0% loss in 4.01 [S]
-RTT Min 25.560, Mean 25.597, Max 25.624 [mS]
+84 bytes from 23.202.170.41: seq 1, ttl 52, RTT 21.764 [mS]
+84 bytes from 23.202.170.41: seq 2, ttl 52, RTT 21.488 [mS]
+84 bytes from 23.202.170.41: seq 3, ttl 52, RTT 21.277 [mS]
+3 requests sent, 3 replies received, 0.0% loss in 4.02 [S]
+RTT Min 21.277, Avg 21.510, Max 21.764 [mS]
 % 
-% ping -c3 www.apple.com
-PING e6858.dscx.akamaiedge.net (23.48.156.212): 56 data bytes
-64 bytes from 23.48.156.212: icmp_seq=0 ttl=57 time=25.947 ms
-64 bytes from 23.48.156.212: icmp_seq=1 ttl=57 time=77.821 ms
-64 bytes from 23.48.156.212: icmp_seq=2 ttl=57 time=27.012 ms
+% ping -c3 www.apple.com 
+PING e6858.dscx.akamaiedge.net (23.202.170.41): 56 data bytes
+64 bytes from 23.202.170.41: icmp_seq=0 ttl=52 time=25.608 ms
+64 bytes from 23.202.170.41: icmp_seq=1 ttl=52 time=21.081 ms
+64 bytes from 23.202.170.41: icmp_seq=2 ttl=52 time=21.578 ms
 
 --- e6858.dscx.akamaiedge.net ping statistics ---
 3 packets transmitted, 3 packets received, 0.0% packet loss
-round-trip min/avg/max/stddev = 25.947/43.593/77.821/24.207 ms
+round-trip min/avg/max/stddev = 21.081/22.756/25.608/2.027 ms
 %
+```
+The default echo request sent by ping3 is much the same as the
+echo request sent by the linux ping utility, but differs from the
+macOS ping echo request because the ICMP Echo message payload data
+is different. The default payload for ping3 is 16 bytes of time
+information and then 40 bytes of incrementing byte values. The
+macOS ping echo request payload data only allocates the first 8
+bytes to time and then has 48 bytes incrementing byte values.
+The manual pages (man ping) for ping on both linux and macOS
+state that the ICMP header is followed by a "struct timeval"
+(i.e. structured time data) and then "pad" bytes to fill out the
+packet. (?? It is not clear to me why the size of "struct timeval"
+is 16 bytes on 64 bit linux and only 8 bytes on 64 bit macOS.)
+The following datagram capture and display from tcpdump
+illustrates an example of the default ping3 echo request
+followed by an example of the default macOS ping echo request; -
+```
+22:48:16.105211 IP (tos 0x0, ttl 64, id 22724, offset 0, flags [none], proto ICMP (1), length 84)
+    192.168.1.124 > 192.168.1.106: ICMP echo request, id 3996, seq 1, length 64
+	0x0000:  4500 0054 58c4 0000 4001 9dae c0a8 017c
+	0x0010:  c0a8 016a 0800 a7a2 0f9c 0001 8019 6b65
+	0x0020:  0000 0000 4066 5608 0000 0000 1011 1213
+	0x0030:  1415 1617 1819 1a1b 1c1d 1e1f 2021 2223
+	0x0040:  2425 2627 2829 2a2b 2c2d 2e2f 3031 3233
+	0x0050:  3435 3637
+
+22:48:50.406844 IP (tos 0x0, ttl 64, id 50467, offset 0, flags [none], proto ICMP (1), length 84)
+    192.168.1.124 > 192.168.1.106: ICMP echo request, id 40207, seq 0, length 64
+	0x0000:  4500 0054 c523 0000 4001 314f c0a8 017c
+	0x0010:  c0a8 016a 0800 c6e3 9d0f 0000 656b 19a2
+	0x0020:  0006 29f6 0809 0a0b 0c0d 0e0f 1011 1213
+	0x0030:  1415 1617 1819 1a1b 1c1d 1e1f 2021 2223
+	0x0040:  2425 2627 2829 2a2b 2c2d 2e2f 3031 3233
+	0x0050:  3435 3637
 ```
 There doesn't appear to be equivalent options on the macOS ping
 that give "tsonly" (time stamp only) timestamps in the following fashion; -
@@ -184,6 +223,7 @@ useage: ping3 [options] NetworkDeviceName
 or      ping3 [options] NetworkDeviceIP_Number
 
 where options are; -
+        -a  switches on audible output notification of replies received
         -cX  specifies number of times to ping remote network device ( 0 <= X <= 100 )
           where a value of 0 invokes continuous ping mode. Stop this mode with control-C or control-\.
         -D  switches on debug output and over-rides -q

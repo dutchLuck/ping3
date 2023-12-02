@@ -24,6 +24,9 @@ operating system. Instead it is meant to provide the macOS user with features
 found on linux ping, but not on macOS ping and vice versa.
 .SH OPTIONS
 .TP
+\fB\-a\fR
+Output an audible indication (ASCII BEL character) whenever a reply is received.
+.TP
 \fB\-c \fI\,ping_count\/\fR
 Send \fI\,ping_count\/\fR pings. The ping count is specified as a positive
 value integer or zero. Zero specifies continuous ping mode, which will send
@@ -59,7 +62,10 @@ setting change enacted by the command "sudo sysctl net.inet.icmp.maskrepl=1"
 \fB\-p \fI\,pattern\/\fR
 Send echo request pings with \fI\,pattern\/\fR data in the payload part of the ICMP message,
 where the \fI\,pattern\/\fR is one of three types. The types are "time", "random" or a string
-of up to 16 hexadecimal bytes.
+of up to 16 hexadecimal bytes. If -p is not specified then the echo request payload data
+defaults to a sequence of incrementing bytes and if the size of the echo request payload section
+is greater than 16 bytes then the time in seconds and nanoseconds is stored at the start of
+the payload data.
 .TP
 \fB\-q\fR
 specifies quiet mode to output a minimum of information. The -q option over-rides the -v

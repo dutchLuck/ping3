@@ -1,7 +1,7 @@
 /*
  * P I N G 3 . C
  *
- * ping3.c last edited Thu Nov 23 21:29:56 2023
+ * ping3.c last edited Sat Dec  2 22:15:27 2023
  * 
  */
 
@@ -85,7 +85,7 @@
 #define  TRUE  (! FALSE)
 #endif
 
-#define VERSION_STRING "0.9"	/* version */
+#define VERSION_STRING "0.9.1"	/* version */
 #define MIN_PING_ATTEMPTS  0	/* smallest number of ICMP requests sent (limits X for -cX option) */
 #define DEFAULT_PING_COUNT  3	/* default number of pings to send */
 #define MAX_PING_ATTEMPTS  100	/* largest number of ICMP requests sent (limits X for -cX option) */
@@ -96,7 +96,7 @@
 #define DEFAULT_WAIT_PERIOD  2	/* default wait after last ping time out period in seconds */
 #define MAX_WAIT_PERIOD  20		/* largest wait after last ping (limits X for -wX option) */
 
-#define DEFAULT_ICMP_EXTRA_DATA  52	/* default ICMP Payload size for ICMP Echo */
+#define DEFAULT_ICMP_EXTRA_DATA  56	/* default ICMP Payload size for ICMP Echo */
 #define	MAX_IP4_PACKET_LEN	65535	/* max IP version 4 datagram size - i.e. length is specified by 16 bit word */
 #define	STD_IP4_HDR_LEN  20
 #define MAX_IP4_HDR_OPTION_LEN	40	/* max IP version 4 extra header option length */
@@ -130,7 +130,7 @@ extern int  errno;
 /* Command line Optional Switches: */
 /*  count, Debug, help, interval, length, Mask/Timestamp, quiet,  */
 /*  Record route, Time tp Live, Time stamp, verbosity, wait */
-const char  optionStr[] = "c:Dhi:l:M:p:qRs:t:T:vw:";
+const char  optionStr[] = "ac:Dhi:l:M:p:qRs:t:T:vw:";
 
 /* Command Line options that may or may not be set by the user */
 int	 verboseFlag;	/* when TRUE more info is output */
@@ -138,6 +138,7 @@ int	 quietFlag;		/* when TRUE minimise the output info */
 int	 helpFlag;		/* when TRUE help message is printed and program exits */
 int	 debugFlag;		/* when TRUE output lots of info */
 int	 haveLocalHostNameFlag;	/* Local host name is known if true */
+int  a_Flag;						/* Audible flag was found in the command line options */
 int  c_Flag;						/* Ping count was found in the command line options */
 char *  c_Strng = ( char * ) NULL;	/*  pointer to -c value as there should be a value */
 int	 pingSendAttemptsLeft;			/* attempt pingSendAttemptsLeft pings */
@@ -367,7 +368,7 @@ int  sendICMP_EchoRequest( int  socketID, u_char *  icmpMsgBfr, int  icmpMsgSize
 				srandom( calcMillisecondsSinceMidnightFromTimeSpec( &timeToBeStoredInSentICMP ));	/* seed number generator */
 				fillByteArrayWithPseudoRandomData( icmpDataPtr, icmpMsgSize - 8 );
 #else
-				arc4random_buf( icmpDataPtr, icmpMsgSize - 8 );
+				arc4random_buf( icmpDataPtr, icmpMsgSize - 8 );		/* fill payload area with random bytes */
 #endif
 			}
 			else if( icmpPayloadPatternType == ICMP_PAYLOAD_TIME_PATTERN )  {
@@ -379,9 +380,12 @@ int  sendICMP_EchoRequest( int  socketID, u_char *  icmpMsgBfr, int  icmpMsgSize
 				fillFirstByteArrayByReplicatingSecondByteArray( icmpDataPtr, icmpMsgSize - 8, icmpPayloadPattern, icmpPayloadPatternSize );
 			}
 		}
-		else if( icmpMsgSize >= ( ICMP_HDR_LEN + sizeof( struct timespec )))  {	/* no pattern specified so put nS time in the icmp data section if there is space */
-			memcpy( (void *) icmpDataPtr, ( void * ) &timeToBeStoredInSentICMP, sizeof( struct timespec )); /* Don't worry about endianess */	
-	    }
+		else  {		/* -p hasn't been specified so setup default payload pattern */
+			fillByteArrayWithIncByOne( 0, icmpDataPtr, icmpMsgSize - 8 );	/* Incrementing byte pattern is the default for macOS & linux ping */
+			if( icmpMsgSize >= ( ICMP_HDR_LEN + sizeof( struct timespec )))  {	/* no pattern specified so put nS time in the icmp data section if there is space */
+				memcpy( (void *) icmpDataPtr, ( void * ) &timeToBeStoredInSentICMP, sizeof( struct timespec )); /* Don't worry about endianess */	
+	    	}
+		}
 		numberOfBytesSent = computeCheckSumAndSendIPv4_ICMP_Datagram( socketID, icmpMsgBfr, icmpMsgSize );
 	}
 	return( numberOfBytesSent );
@@ -421,6 +425,7 @@ int sendICMP_Request( int  socketID, u_char *  icmpMsgBfr, int  icmpMsgSize, u_s
 /* Print the normal ping info */
 /* E.g. XX bytes from AAA.BBB.CCC.DDD: seq YYYYY, ttl ZZZ, RTT 0.994 [mS] */
 void  printStdPingInfo( struct ip *  ip, struct icmp *  icmpHdrPtr, int  ICMP_MsgSize )  {
+	if( a_Flag )  printf( "\007" );	/* Output the bell character if audible reply is requested */
 	printPingCommonInfo( ip, ICMP_MsgSize );
 	printf( " seq %d, ", ntohs( icmpHdrPtr->icmp_seq));
 	printIPv4_TimeToLiveInfo( ip );
@@ -505,7 +510,7 @@ int  processReceivedDatagram( char *  buf, int  datagramSize, struct sockaddr_in
 	tsPntr = (IP_TIMESTAMP * ) ( buf + sizeof( struct ip ));
  /* Received datagram is assumed to be an IP4 datagram, but check to make sure */
     if( ip->ip_v != 4 )  {
-		fprintf( stderr, "\n?? Datagram from %s isn't IP version 4, instead it is version %x\n", 
+		fprintf( stderr, "?? Datagram from %s isn't IP version 4, instead it is version %x\n", 
 			inet_ntoa( *(struct in_addr *)&from->sin_addr.s_addr), ip->ip_v );
 		printNamedByteArray(( u_char *) ip, datagramSize, 20, "processReceivedDatagram(): non IP4 datagram received" );
 		return( -1 );
@@ -521,7 +526,7 @@ int  processReceivedDatagram( char *  buf, int  datagramSize, struct sockaddr_in
 	ip->ip_len = htons( datagramSize );		/* restore total length in header in case it has been altered */
 	if(( chkSumResult = calcCheckSum( (u_short * ) ip, hdrLen )) != 0 )  {
 		if( hdrLen == STD_IP4_HDR_LEN || verboseFlag )  {	/* Don't report if header options are in use - FIX checksum for options use */
-			fprintf( stderr, "\n?? Calculated checksum of IPv4 datagram from %s is 0x%04x, but should be 0x0000\n", 
+			fprintf( stderr, "?? Calculated checksum of IPv4 datagram from %s is 0x%04x, but should be 0x0000\n", 
 				inet_ntoa( *(struct in_addr *)&from->sin_addr.s_addr), chkSumResult );
 		 /* Try zero the time option if there is one */
 #ifdef DEBUG	
@@ -532,14 +537,14 @@ int  processReceivedDatagram( char *  buf, int  datagramSize, struct sockaddr_in
 	}
  /* Received datagram is assumed to be an ICMP datagram, but check to make sure */
     if( ip->ip_p != 0x01 )  {
-		fprintf( stderr, "\n?? IPv4 datagram from %s doesn't carry an ICMP message (protocol is 0x%x )\n", 
+		fprintf( stderr, "?? IPv4 datagram from %s doesn't carry an ICMP message (protocol is 0x%x )\n", 
 			inet_ntoa( *(struct in_addr *)&from->sin_addr.s_addr), ip->ip_p );
 		if( verboseFlag )
 			printNamedByteArray(( u_char *) ip, datagramSize, 20, "processReceivedDatagram(): non ICMP IP4 received" );
 		return( -1 );
 	}
 	if ( datagramSize < ( hdrLen + ICMP_MINLEN )) {
-		fprintf( stderr, "\n?? IPv4 datagram from %s is too short (%d bytes) to contain ICMP message\n", 
+		fprintf( stderr, "?? IPv4 datagram from %s is too short (%d bytes) to contain ICMP message\n", 
 			inet_ntoa( *(struct in_addr *)&from->sin_addr.s_addr), datagramSize );
 		if( verboseFlag )
 			printNamedByteArray(( u_char *) ip, datagramSize, 20, "processReceivedDatagram(): too short ICMP IP4 received" );
@@ -552,7 +557,7 @@ int  processReceivedDatagram( char *  buf, int  datagramSize, struct sockaddr_in
 	}
  /* Now the ICMP message + header options (if there are any) */
 	if(( chkSumResult = calcCheckSum( (u_short * ) icmpHdrPtr, datagramSize - hdrLen )) != 0 )  {
-		fprintf( stderr, "\n?? Calculated checksum of ICMP message from %s is 0x%04x, but should be 0x0000\n", 
+		fprintf( stderr, "?? Calculated checksum of ICMP message from %s is 0x%04x, but should be 0x0000\n", 
 			inet_ntoa( *(struct in_addr *)&from->sin_addr.s_addr), chkSumResult );
 	}
      /* With a raw ICMP socket we get all ICMP datagrams that come into the kernel. Only accept Echo, Timestamp or Mask replies */
@@ -752,7 +757,9 @@ void  printStats( void )  {
 	struct timespec  currentTime;	/* now time stamp */
 	double  timeSinceFirstPingSent;
 
-	printf( "%d requests sent, %d replies received", pingsSent, pingsReceived );
+	printf( "%d reques%s sent, %d repl%s received",
+		pingsSent, ( pingsSent == 1 ) ? "t" : "ts",
+		pingsReceived, ( pingsReceived == 1 ) ? "y" : "ies" );
 	/* Calculate % loss as long as some pings were sent and we will get a % between 0 & 100 */
 	if(( pingsSent > 0 ) && ( pingsReceived <= pingsSent ))  {
 		percentageLoss = 100.0 * (( float ) ( pingsSent - pingsReceived ) / ( float ) pingsSent );
@@ -761,10 +768,10 @@ void  printStats( void )  {
 	clock_gettime( CLOCK_REALTIME, &currentTime );	/* get current time */
 	timeSinceFirstPingSent = calcTimeSpecClockDifferenceInSeconds( &timeOfFirstPing, &currentTime );
 	printf( " in %4.2f [S]\n", timeSinceFirstPingSent );
-	/* Print summary stats such as min, mean, max and if there is enough samples stddev */
-	if( statsSamplesReceived > 0 )  {
-		printf( "RTT Min %5.3f, Mean %5.3f, Max %5.3f",
-			statsMinimumRTT * 1000.0, statsRunningMeanRTT * 1000.0 , statsMaximumRTT * 1000.0 );
+	/* Print summary statistics such as minimum, average, maximum and if there is enough samples standard deviations */
+	if( statsSamplesReceived > 1 )  {
+		printf( "RTT Min %5.3f, Avg %5.3f, Max %5.3f",
+			statsMinimumRTT * 1000.0, statsRunningMeanRTT * 1000.0, statsMaximumRTT * 1000.0 );
 		if( statsSamplesReceived > 9 )  printf( ", StdDev %5.3f", sqrt( statsRunningVarianceRTT / ( double ) statsSamplesReceived ) * 1000.0 );
 		printf( " [mS]\n" );
 	}
@@ -888,6 +895,7 @@ void  useage( char *  name )  {
 	printf( "\nuseage: %s [options] NetworkDeviceName\n", name );
 	printf( "or      %s [options] NetworkDeviceIP_Number\n", name );
 	printf( "\nwhere options are; -\n" );
+	printf( "        -a  switches on audible output notification of replies received\n" );
 	printf( "        -cX  specifies number of times to ping remote network device ( %d <= X <= %d )\n", MIN_PING_ATTEMPTS, MAX_PING_ATTEMPTS );
 	printf( "          where a value of 0 invokes continuous ping mode. Stop this mode with control-C or control-\\.\n" );
 	printf( "        -D  switches on debug output and over-rides -q\n" );
@@ -932,6 +940,7 @@ int  processCommandLineOptions( int  argc, char *  argv[] )  {
 	/* Process switch options from the command line */
 	while(( result = getopt( argc, argv, optionStr )) != -1 )  {
     	switch( result )  {
+			case 'a' :  a_Flag = TRUE; break;
     		case 'c' :  c_Flag = TRUE; c_Strng = optarg; break;	/* Count of ping requests to be sent */
 			case 'D' :  debugFlag = TRUE; break;
 			case 'h' :  helpFlag = TRUE; break;
@@ -1118,6 +1127,7 @@ void  setGlobalFlagDefaults( char *  argv[] )  {	/* Set up any Global variables 
 	int  i;
 
 	helpFlag = debugFlag = verboseFlag = quietFlag = FALSE;
+	a_Flag = FALSE;
 	c_Flag = FALSE;
 	pingSendAttemptsLeft = DEFAULT_PING_COUNT;
 	continousPingMode = FALSE;		/* normal mode is a specific number of pings */

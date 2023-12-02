@@ -1,7 +1,7 @@
 /*
  * G E N F U N . C
  *
- * genFun.c last edited Mon Nov 13 21:37:05 2023
+ * genFun.c last edited Sat Dec  2 21:30:25 2023
  * 
  */
 
@@ -26,6 +26,11 @@ void  clearByteArray( unsigned char *  ptr, int  sizeOfArray )  {
 
 void  fillByteArray( unsigned char  dataByte,  unsigned char *  ptr, int  sizeOfArray )  {
 	for( ; sizeOfArray > 0; --sizeOfArray )  *ptr++ = dataByte;
+}
+
+
+void  fillByteArrayWithIncByOne( unsigned char  startDataByte,  unsigned char *  ptr, int  sizeOfArray )  {
+	for( ; sizeOfArray > 0; --sizeOfArray )  *ptr++ = startDataByte++;
 }
 
 

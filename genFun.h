@@ -1,7 +1,7 @@
 /*
  * G E N F U N . H
  *
- * genFun.h last edited Mon Nov 13 21:37:08 2023
+ * genFun.h last edited Sat Dec  2 21:30:27 2023
  * 
  */
 
@@ -10,6 +10,7 @@
 
 void  clearByteArray( unsigned char *, int );
 void  fillByteArray( unsigned char,  unsigned char *, int );
+void  fillByteArrayWithIncByOne( unsigned char,  unsigned char *, int );
 void  fillFirstByteArrayByReplicatingSecondByteArray( unsigned char *, int, unsigned char *, int );
 void  fillByteArrayWithPseudoRandomData( unsigned char *, int );
 void  printByteArray( unsigned char *, int, int );
