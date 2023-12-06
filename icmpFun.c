@@ -1,7 +1,7 @@
 /*
  * I C M P F U N . C
  *
- * icmpFun.c last edited Sun Oct 22 22:28:27 2023
+ * icmpFun.c last edited Wed Dec  6 23:18:49 2023
  *
  * Functions to handle ICMP Protocol message in the IP datagram payload.
  *
@@ -26,7 +26,15 @@
 
 
 void  displayEchoReply( struct icmp *  ptr )  {
-	printf( "ICMP Echo Reply - Type: 0x%02x, Code: 0x%02x, Checksum 0x%04x, Sequence 0x%04x, Identifier 0x%04x\n",
+	printf( "ICMP Echo Reply: Type %d, Code %d, Checksum 0x%04x, Sequence 0x%04x, Identifier 0x%04x\n",
+		ptr->icmp_type, ptr->icmp_code, ntohs( ptr->icmp_cksum ),
+		ntohs( ptr->icmp_seq ), /* seq and id must be reflected */
+		ntohs( ptr->icmp_id ));
+}
+
+
+void  displayEchoRequest( struct icmp *  ptr )  {
+	printf( "ICMP Echo Request: Type %d, Code %d, Checksum 0x%04x, Sequence 0x%04x, Identifier 0x%04x\n",
 		ptr->icmp_type, ptr->icmp_code, ntohs( ptr->icmp_cksum ),
 		ntohs( ptr->icmp_seq ), /* seq and id must be reflected */
 		ntohs( ptr->icmp_id ));
@@ -75,13 +83,6 @@ void  displayRedirect( struct icmp *  ptr )  {
 		case ICMP_REDIRECT_TOSHOST : printf( "Redirect TOS Host"); break;
 		default : printf( "Unknown Code" ); break;
 	}
-	printf( "\nICMP: Type %d, Code %d, Checksum 0x%04x\n", ptr->icmp_type,
-		ptr->icmp_code, ntohs( ptr->icmp_cksum ));
-}
-
-
-void  displayEchoRequest( struct icmp *  ptr )  {
-	printf( "ICMP Echo Request\n" );
 	printf( "\nICMP: Type %d, Code %d, Checksum 0x%04x\n", ptr->icmp_type,
 		ptr->icmp_code, ntohs( ptr->icmp_cksum ));
 }
@@ -178,8 +179,8 @@ void  displayInfoReply( struct icmp *  ptr )  {
 
 
 void displayMaskRequest( struct icmp *  ptr )  {
-	printf( "ICMP Mask Request\n" );
-	printf( "\nICMP: Type %d, Code %d, Checksum 0x%04x\n", ptr->icmp_type,
+	printf( "ICMP Mask Request: " );
+	printf( "Type %d, Code %d, Checksum 0x%04x\n", ptr->icmp_type,
 		ptr->icmp_code, ntohs( ptr->icmp_cksum ));
 }
 
@@ -196,8 +197,8 @@ void  displayMaskReplyMask( struct icmp *  ptr )  {
 
 
 void displayMaskReply( struct icmp *  ptr )  {
-	printf( "ICMP Mask Reply\n" );
-	printf( "\nICMP: Type %d, Code %d, Checksum 0x%04x\n", ptr->icmp_type,
+	printf( "ICMP Mask Reply: " );
+	printf( "ICMP: Type %d, Code %d, Checksum 0x%04x\n", ptr->icmp_type,
 		ptr->icmp_code, ntohs( ptr->icmp_cksum ));
 }
 

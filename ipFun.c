@@ -203,18 +203,33 @@ int  getIPv4_DontFragment( int  scktID, int *  dontFragmentSetting, int  verbosi
 
 	scktOpt = 0;
 	scktOptLen = sizeof( scktOpt );
+#ifdef __linux__
+	result = getsockopt( scktID, IPPROTO_IP, IP_MTU_DISCOVER, &scktOpt, &scktOptLen );
+	if( result < 0 )  perror( "Error: getsockopt( IP_MTU_DISCOVER )" );
+	else  {
+		if( verbosityLvl > 5 )  printf( "IP_MTU_Discover value is %d and its size is %u\n", scktOpt, scktOptLen );
+		if( scktOptLen != sizeof( int ))  {
+			printf( "Error: IP_MTU_Discover value is unexpected size of %u bytes\n", scktOptLen );
+			result = -2;	/* flag error */
+		}
+		else  {
+			*dontFragmentSetting = (( scktOpt == IP_PMTUDISC_DO ) ? 1 : 0 );
+		}
+	}
+#else
 	result = getsockopt( scktID, IPPROTO_IP, IP_DONTFRAG, &scktOpt, &scktOptLen );
 	if( result < 0 )  perror( "Error: getsockopt( IP_DONTFRAG )" );
 	else  {
 		if( verbosityLvl > 5 )  printf( "Don't Fragment value is %d and its size is %u\n", scktOpt, scktOptLen );
 		if( scktOptLen != sizeof( int ))  {
-			printf( "Error: Don't Fragment value is unexpect size of %u bytes\n", scktOptLen );
+			printf( "Error: Don't Fragment value is unexpected size of %u bytes\n", scktOptLen );
 			result = -2;	/* flag error */
 		}
 		else  {
 			*dontFragmentSetting = scktOpt;
 		}
 	}
+#endif
 	return( result );
 }
 
@@ -222,6 +237,15 @@ int  getIPv4_DontFragment( int  scktID, int *  dontFragmentSetting, int  verbosi
 int  setIPv4_DontFragment( int  scktID,  int  dontFragmentSetting, int  verbosityLvl )  {
 	int  result, scktOpt;
 
+#ifdef __linux__
+	scktOpt = (( dontFragmentSetting == 1 ) ? IP_PMTUDISC_DO : IP_PMTUDISC_DONT );
+	result = setsockopt( scktID, IPPROTO_IP, IP_MTU_DISCOVER, &scktOpt, sizeof( scktOpt ));
+	if( result < 0 )  {
+		perror( "Error: setsockopt( IP_MTU_DISCOVER)" );
+		printf( "Error: Unable to set IP MTU Discover to %d\n", scktOpt );
+	}
+	else if( verbosityLvl > 5 )  printf( "IPv4 MTU Discover value set to %d\n", scktOpt );
+#else
 	scktOpt = dontFragmentSetting;
 	result = setsockopt( scktID, IPPROTO_IP, IP_DONTFRAG, &scktOpt, sizeof( scktOpt ));
 	if( result < 0 )  {
@@ -229,5 +253,6 @@ int  setIPv4_DontFragment( int  scktID,  int  dontFragmentSetting, int  verbosit
 		printf( "Error: Unable to set Don't Fragment to %d\n", scktOpt );
 	}
 	else if( verbosityLvl > 5 )  printf( "IPv4 Don't Fragment value set to %d\n", scktOpt );
+#endif
 	return( result );
 }

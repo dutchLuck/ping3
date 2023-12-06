@@ -1,7 +1,7 @@
 /*
  * P I N G 3 . C
  *
- * ping3.c last edited Wed Dec  6 16:47:40 2023
+ * ping3.c last edited Wed Dec  6 23:20:48 2023
  * 
  */
 
@@ -85,7 +85,7 @@
 #define  TRUE  (! FALSE)
 #endif
 
-#define VERSION_STRING "0.9.2"	/* version */
+#define VERSION_STRING "0.9.3"	/* version */
 #define MIN_PING_ATTEMPTS  0	/* smallest number of ICMP requests sent (limits X for -cX option) */
 #define DEFAULT_PING_COUNT  3	/* default number of pings to send */
 #define MAX_PING_ATTEMPTS  100	/* largest number of ICMP requests sent (limits X for -cX option) */
@@ -1304,11 +1304,9 @@ int  main( int  argc, char *  argv[] )  {
 			if( getIPv4_TimeToLive( sckt, &scktOpt, verbosityLevel ) < 0 )  printf( "Warning: unable to get current TTL value\n" );
 			else  printf( "Debug: IPv4 header Time-To-Live value is %d\n", scktOpt );
 		}
-		/* Set the Don't Fragment if required */
-		if( D_Flag )  {	/* is the DF Flag active ? */
-			if( setIPv4_DontFragment( sckt, 1, verbosityLevel ) < 0 )
-				printf( "Error: Unable to set Time to Live to 1\n" );
-		}
+		/* Set or reset the Don't Fragment setting - Linux defaults on, macOS defaults off - so force it on or off */
+		if( setIPv4_DontFragment( sckt, (( D_Flag ) ? 1 : 0 ), verbosityLevel ) < 0 )
+			printf( "Error: Unable to set Time to Live to 1\n" );
 		if( debugFlag )  {
 			if( getIPv4_DontFragment( sckt, &scktOpt, verbosityLevel ) < 0 )  printf( "Warning: unable to get current Don't Fragment value\n" );
 			else  printf( "Debug: IPv4 header Don't Fragment value is %s\n", ( scktOpt == 1 ) ? "True" : "False" );
