@@ -2,7 +2,7 @@
 #
 # C H K
 #
-# chk last edited Fri Oct 20 20:19:30 2023
+# chk last edited Wed Dec  6 18:30:44 2023
 #
 PROGRAM=ping3
 TARGET=localhost
@@ -26,6 +26,17 @@ echo
 #
 echo "$PRIV ../$PROGRAM $TARGET"
 $PRIV ../$PROGRAM $TARGET
+RESULT=$?
+echo
+echo "$RESULT returned by $PROGRAM to this ($0) shell script"
+sleep 1
+echo
+#
+echo "$PRIV ../$PROGRAM -v -9 -c 1 $TARGET"
+$PRIV ../$PROGRAM -v -9 -c 1 $TARGET
+RESULT=$?
+echo
+echo "$RESULT returned by $PROGRAM to this ($0) shell script"
 sleep 1
 echo
 #
@@ -38,6 +49,8 @@ echo
 #
 echo "$PRIV ../$PROGRAM -M time $TARGET"
 $PRIV ../$PROGRAM -M time $TARGET
+echo
+echo "$RESULT returned by $PROGRAM to this ($0) shell script"
 sleep 1
 echo
 #
@@ -51,6 +64,8 @@ echo
 #
 echo "$PRIV ../$PROGRAM -T tsonly $TARGET"
 $PRIV ../$PROGRAM -T tsonly $TARGET
+echo
+echo "$RESULT returned by $PROGRAM to this ($0) shell script"
 sleep 1
 echo
 #
@@ -59,8 +74,10 @@ echo
 # in the target and the local interface being
 # put in as a default.
 #
-echo "$PRIV ../$PROGRAM -T tsprespec -v $TARGET"
-$PRIV ../$PROGRAM -T tsprespec -v $TARGET
+echo "$PRIV ../$PROGRAM -T tsprespec -v1 $TARGET"
+$PRIV ../$PROGRAM -T tsprespec -v1 $TARGET
+echo
+echo "$RESULT returned by $PROGRAM to this ($0) shell script"
 sleep 1
 echo
 #
@@ -74,5 +91,7 @@ echo
 #
 echo "$PRIV ../$PROGRAM -R $TARGET"
 $PRIV ../$PROGRAM -R $TARGET
+echo
+echo "$RESULT returned by $PROGRAM to this ($0) shell script"
 #
 

@@ -101,7 +101,9 @@ Wait \fI\,wait_period_after_last_ping_sent\/\fR seconds after the last ping is t
 The wait period is specified as a positive integer number.
 .PP
 .SH "EXIT STATUS"
-The ping3 utility returns 0 on success, and greater than zero if an error occurs.
+The ping3 utility returns 0 on success, and greater than zero if an error occurs. Success
+is defined as all ICMP requests sent were matched by a corresponding reply from the network device.
+If there were datagrams lost then the returned result is 1.
 .PP
 .SH EXAMPLES
 \fB\ ping3 a_network_device\fR

@@ -2,7 +2,7 @@
 #
 # C H E C K
 #
-# check last edited Sat Oct 28 18:58:10 2023
+# check last edited Wed Dec  6 18:30:41 2023
 #
 PROGRAM=ping3
 #
@@ -34,7 +34,7 @@ fi
 #
 #
 echo "Obtaining Local Interface IP Address"
-LOCAL_INTERFACE=`$PRIV ../$PROGRAM -D -c1 $TARGET | awk '/Destination Address/{print $4}'`
+LOCAL_INTERFACE=`$PRIV ../$PROGRAM -v5 -c1 $TARGET | awk '/Destination Address/{print $4}'`
 echo "Local interface IP Address is $LOCAL_INTERFACE"
 echo
 #
@@ -50,7 +50,7 @@ $PRIV ../$PROGRAM  $TARGET
 RESULT=$?
 if [[ "$RESULT" != "0" ]] ; then
   echo
-  echo "Return value passed back to this shell was $RESULT"
+  echo "Non zero ($RESULT) return value passed back to this ($0) shell script"
 fi
 sleep 1
 echo
@@ -60,7 +60,7 @@ ping -c 3 $TARGET
 RESULT=$?
 if [[ "$RESULT" != "0" ]] ; then
   echo
-  echo "Return value passed back to this shell was $RESULT"
+  echo "Non zero ($RESULT) return value passed back to this ($0) shell script"
 fi
 sleep 1
 echo
@@ -80,7 +80,7 @@ $PRIV ../$PROGRAM -T tsonly $TARGET
 RESULT=$?
 if [[ "$RESULT" != "0" ]] ; then
   echo
-  echo "Return value passed back to this shell was $RESULT"
+  echo "Non zero ($RESULT) return value passed back to this ($0) shell script"
 fi
 sleep 1
 echo
@@ -91,7 +91,7 @@ if [[ "$OSTYPE" == "linux-gnu" ]] ; then
   RESULT=$?
   if [[ "$RESULT" != "0" ]] ; then
     echo
-    echo "Return value passed back to this shell was $RESULT"
+    echo "Non zero ($RESULT) return value passed back to this ($0) shell script"
   fi
   sleep 1
   echo
@@ -102,7 +102,7 @@ $PRIV ../$PROGRAM -T tsandaddr $TARGET
 RESULT=$?
 if [[ "$RESULT" != "0" ]] ; then
   echo
-  echo "Return value passed back to this shell was $RESULT"
+  echo "Non zero ($RESULT) return value passed back to this ($0) shell script"
 fi
 sleep 1
 echo
@@ -113,7 +113,7 @@ if [[ "$OSTYPE" == "linux-gnu" ]] ; then
   RESULT=$?
   if [[ "$RESULT" != "0" ]] ; then
     echo
-    echo "Return value passed back to this shell was $RESULT"
+    echo "Non zero ($RESULT) return value passed back to this ($0) shell script"
   fi
   sleep 1
   echo
@@ -124,7 +124,7 @@ $PRIV ../$PROGRAM -T "tsprespec $TARGET ${LOCAL_INTERFACE}" $TARGET
 RESULT=$?
 if [[ "$RESULT" != "0" ]] ; then
   echo
-  echo "Return value passed back to this shell was $RESULT"
+  echo "Non zero ($RESULT) return value passed back to this ($0) shell script"
 fi
 sleep 1
 echo
@@ -135,7 +135,7 @@ if [[ "$OSTYPE" == "linux-gnu" ]] ; then
   RESULT=$?
   if [[ "$RESULT" != "0" ]] ; then
     echo
-    echo "Return value passed back to this shell was $RESULT"
+    echo "Non zero ($RESULT) return value passed back to this ($0) shell script"
   fi
   sleep 1
   echo
@@ -156,7 +156,7 @@ $PRIV ../$PROGRAM -R $TARGET
 RESULT=$?
 if [[ "$RESULT" != "0" ]] ; then
   echo
-  echo "Return value passed back to this shell was $RESULT"
+  echo "Non zero ($RESULT) return value passed back to this ($0) shell script"
 fi
 sleep 1
 echo
@@ -167,7 +167,7 @@ if [[ "$OSTYPE" == "linux-gnu" ]] ; then
   RESULT=$?
   if [[ "$RESULT" != "0" ]] ; then
     echo
-    echo "Return value passed back to this shell was $RESULT"
+    echo "Non zero ($RESULT) return value passed back to this ($0) shell script"
   fi
   sleep 1
   echo
@@ -187,7 +187,7 @@ $PRIV ../$PROGRAM -M time $TARGET
 RESULT=$?
 if [[ "$RESULT" != "0" ]] ; then
   echo
-  echo "Return value passed back to this shell was $RESULT"
+  echo "Non zero ($RESULT) return value passed back to this ($0) shell script"
 fi
 sleep 1
 echo
@@ -200,10 +200,10 @@ if [[ "$OSTYPE" == "darwin"* ]] ; then
   echo "ping -c 3 -M time -s 0 $TARGET"
   ping -c 3 -M time -s 0 $TARGET
   RESULT=$?
-  if [[ "$RESULT" != "0" ]] ; then
-    echo
-    echo "Return value passed back to this shell was $RESULT"
-  fi
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Non zero ($RESULT) return value passed back to this ($0) shell script"
+fi
   sleep 1
   echo
 fi
@@ -221,7 +221,7 @@ $PRIV ../$PROGRAM -M timew $WINDOWS_TARGET
 RESULT=$?
 if [[ "$RESULT" != "0" ]] ; then
   echo
-  echo "Return value passed back to this shell was $RESULT"
+  echo "Non zero ($RESULT) return value passed back to this ($0) shell script"
 fi
 sleep 1
 echo
@@ -232,7 +232,7 @@ if [[ "$OSTYPE" == "darwin"* ]] ; then
   RESULT=$?
   if [[ "$RESULT" != "0" ]] ; then
     echo
-    echo "Return value passed back to this shell was $RESULT"
+    echo "Non zero ($RESULT) return value passed back to this ($0) shell script"
   fi
   sleep 1
   echo
@@ -252,7 +252,7 @@ $PRIV ../$PROGRAM -M mask $NETMASK_TARGET
 RESULT=$?
 if [[ "$RESULT" != "0" ]] ; then
   echo
-  echo "Return value passed back to this shell was $RESULT"
+  echo "Non zero ($RESULT) return value passed back to this ($0) shell script"
 fi
 sleep 1
 echo
@@ -267,7 +267,7 @@ if [[ "$OSTYPE" == "darwin"* ]] ; then
   RESULT=$?
   if [[ "$RESULT" != "0" ]] ; then
     echo
-    echo "Return value passed back to this shell was $RESULT"
+    echo "Non zero ($RESULT) return value passed back to this ($0) shell script"
   fi
   sleep 1
   echo
@@ -287,7 +287,7 @@ $PRIV ../$PROGRAM -T tsonly -M time $TARGET
 RESULT=$?
 if [[ "$RESULT" != "0" ]] ; then
   echo
-  echo "Return value passed back to this shell was $RESULT"
+  echo "Non zero ($RESULT) return value passed back to this ($0) shell script"
 fi
 sleep 1
 echo
@@ -297,7 +297,7 @@ $PRIV ../$PROGRAM -R -M time $TARGET
 RESULT=$?
 if [[ "$RESULT" != "0" ]] ; then
   echo
-  echo "Return value passed back to this shell was $RESULT"
+  echo "Non zero ($RESULT) return value passed back to this ($0) shell script"
 fi
 sleep 1
 echo
@@ -317,7 +317,7 @@ $PRIV ../$PROGRAM
 RESULT=$?
 if [[ "$RESULT" != "0" ]] ; then
   echo
-  echo "Return value passed back to this shell was $RESULT"
+  echo "Non zero ($RESULT) return value passed back to this ($0) shell script"
 fi
 sleep 1
 echo
@@ -329,7 +329,7 @@ $PRIV ../$PROGRAM -h
 RESULT=$?
 if [[ "$RESULT" != "0" ]] ; then
   echo
-  echo "Return value passed back to this shell was $RESULT"
+  echo "Non zero ($RESULT) return value passed back to this ($0) shell script"
 fi
 sleep 1
 echo
@@ -341,31 +341,31 @@ $PRIV ../$PROGRAM -c1 -t128 192.168.1.1
 RESULT=$?
 if [[ "$RESULT" != "0" ]] ; then
   echo
-  echo "Return value passed back to this shell was $RESULT"
+  echo "Non zero ($RESULT) return value passed back to this ($0) shell script"
 fi
 sleep 1
 echo
 #
 # Test debug mode
 #
-echo "$PRIV ../$PROGRAM -c1 -D 192.168.1.1"
-$PRIV ../$PROGRAM -c1 -D 192.168.1.1
+echo "$PRIV ../$PROGRAM -c1 -v9 192.168.1.1"
+$PRIV ../$PROGRAM -c1 -v9 192.168.1.1
 RESULT=$?
 if [[ "$RESULT" != "0" ]] ; then
   echo
-  echo "Return value passed back to this shell was $RESULT"
+  echo "Non zero ($RESULT) return value passed back to this ($0) shell script"
 fi
 sleep 1
 echo
 #
 # Test quiet mode ( over-rides verbose mode )
 #
-echo "$PRIV ../$PROGRAM -v -q 192.168.1.1"
-$PRIV ../$PROGRAM -v -q 192.168.1.1
+echo "$PRIV ../$PROGRAM -v9 -q 192.168.1.1"
+$PRIV ../$PROGRAM -v9 -q 192.168.1.1
 RESULT=$?
 if [[ "$RESULT" != "0" ]] ; then
   echo
-  echo "Return value passed back to this shell was $RESULT"
+  echo "Non zero ($RESULT) return value passed back to this ($0) shell script"
 fi
 sleep 1
 echo
@@ -377,7 +377,7 @@ $PRIV ../$PROGRAM -c1 -w5 192.168.1.255
 RESULT=$?
 if [[ "$RESULT" != "0" ]] ; then
   echo
-  echo "Return value passed back to this shell was $RESULT"
+  echo "Non zero ($RESULT) return value passed back to this ($0) shell script"
 fi
 sleep 1
 echo
@@ -389,7 +389,7 @@ $PRIV ../$PROGRAM nonExistant.com.au
 RESULT=$?
 if [[ "$RESULT" != "0" ]] ; then
   echo
-  echo "Return value passed back to this shell was $RESULT"
+  echo "Non zero ($RESULT) return value passed back to this ($0) shell script"
 fi
 echo
 #

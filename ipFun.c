@@ -1,13 +1,14 @@
 /*
  * I P F U N . C
  *
- * ipFun.c last edited Mon Oct 16 23:54:30 2023
+ * ipFun.c last edited Wed Dec  6 16:22:27 2023
  *
  * Functions to handle aspects of IP datagrams
  *
  */
 
 #include  <stdio.h>
+#include  <sys/socket.h>	/* getsockopt() setsockopt() */
 #include  "ipFun.h"
 #include  "icmpFun.h"
 #include  "ipOptionsFun.h"
@@ -147,7 +148,7 @@ void  display_ip( struct ip *  datagram, int  len )  {
 	unsigned char  *ptr;
 
 	if( len < 20 )
-		fprintf( stderr, "?? IP version 4 must have at least 20 bytes to be a valid datagram\n" );
+		fprintf( stderr, "Warning: IP version 4 must have at least 20 bytes to be a valid datagram\n" );
 	else  {
 		displayIpHeader( datagram );
 		printf( "\n" );
@@ -157,4 +158,76 @@ void  display_ip( struct ip *  datagram, int  len )  {
 			default : break;
 		}
 	}
+}
+
+
+int  getIPv4_TimeToLive( int  scktID, int *  timeToLive, int  verbosityLvl )  {
+	int  result, scktOpt;
+	socklen_t  scktOptLen;
+
+	scktOpt = 0;
+	scktOptLen = sizeof( scktOpt );
+	result = getsockopt( scktID, IPPROTO_IP, IP_TTL, &scktOpt, &scktOptLen );
+	if( result < 0 )  perror( "Error: getsockopt( IP_TTL )" );
+	else  {
+		if( verbosityLvl > 5 )  printf( "TTL value is %d and size of TTL value is %u\n", scktOpt, scktOptLen );
+		if( scktOptLen != sizeof( int ))  {
+			printf( "Error: TTL value is unexpect size of %u bytes\n", scktOptLen );
+			result = -2;	/* flag error */
+		}
+		else  {
+			*timeToLive = scktOpt;
+		}
+	}
+	return( result );
+}
+
+
+int  setIPv4_TimeToLive( int  scktID,  int  timeToLive, int  verbosityLvl )  {
+	int  result, scktOpt;
+
+	scktOpt = timeToLive;
+	result = setsockopt( scktID, IPPROTO_IP, IP_TTL, &scktOpt, sizeof( scktOpt ));
+	if( result < 0 )  {
+		perror( "Error: setsockopt( IP_TTL )" );
+		printf( "Error: Unable to set Time to Live to %d\n", scktOpt );
+	}
+	else if( verbosityLvl > 5 )  printf( "IPv4 Time to Live set to %d\n", scktOpt );
+	return( result );
+}
+
+
+int  getIPv4_DontFragment( int  scktID, int *  dontFragmentSetting, int  verbosityLvl )  {
+	int  result, scktOpt;
+	socklen_t  scktOptLen;
+
+	scktOpt = 0;
+	scktOptLen = sizeof( scktOpt );
+	result = getsockopt( scktID, IPPROTO_IP, IP_DONTFRAG, &scktOpt, &scktOptLen );
+	if( result < 0 )  perror( "Error: getsockopt( IP_DONTFRAG )" );
+	else  {
+		if( verbosityLvl > 5 )  printf( "Don't Fragment value is %d and its size is %u\n", scktOpt, scktOptLen );
+		if( scktOptLen != sizeof( int ))  {
+			printf( "Error: Don't Fragment value is unexpect size of %u bytes\n", scktOptLen );
+			result = -2;	/* flag error */
+		}
+		else  {
+			*dontFragmentSetting = scktOpt;
+		}
+	}
+	return( result );
+}
+
+
+int  setIPv4_DontFragment( int  scktID,  int  dontFragmentSetting, int  verbosityLvl )  {
+	int  result, scktOpt;
+
+	scktOpt = dontFragmentSetting;
+	result = setsockopt( scktID, IPPROTO_IP, IP_DONTFRAG, &scktOpt, sizeof( scktOpt ));
+	if( result < 0 )  {
+		perror( "Error: setsockopt( IP_DONTFRAG )" );
+		printf( "Error: Unable to set Don't Fragment to %d\n", scktOpt );
+	}
+	else if( verbosityLvl > 5 )  printf( "IPv4 Don't Fragment value set to %d\n", scktOpt );
+	return( result );
 }

@@ -73,6 +73,12 @@ PING e6858.dscx.akamaiedge.net (23.202.170.41): 56 data bytes
 round-trip min/avg/max/stddev = 21.081/22.756/25.608/2.027 ms
 %
 ```
+The summary information output by ping3 in the example above
+does not show a Standard Deviation value as does the output
+of the macOS ping. This is a deliberate choice as ping3 only
+shows a StdDev value when it has 10 or more RTT values to put
+into the standard deviation calculation.
+
 The default echo request sent by ping3 is much the same as the
 echo request sent by the linux ping utility, but differs from the
 macOS ping echo request because the ICMP Echo message payload data
@@ -82,9 +88,17 @@ macOS ping echo request payload data only allocates the first 8
 bytes to time and then has 48 bytes incrementing byte values.
 The manual pages (man ping) for ping on both linux and macOS
 state that the ICMP header is followed by a "struct timeval"
-(i.e. structured time data) and then "pad" bytes to fill out the
-packet. (?? It is not clear to me why the size of "struct timeval"
-is 16 bytes on 64 bit linux and only 8 bytes on 64 bit macOS.)
+(i.e. structured time data) and then "pad" bytes to fill out
+the packet. (?? It is not clear to me why the apparent size
+of the time is 16 bytes on 64 bit linux and only 8 bytes on
+64 bit macOS. I also note that both linux and macOS ping do
+not show any RTT time values for operation with -s option
+smaller than 16 (i.e. ping -s 15 www.apple.com), so maybe
+apple ping does sometimes use 16 bytes of time - just not
+when I captured the echo request shown below. N.B. the ping3
+utility does not rely on the time being sent in echo requests
+and so does not suffer the no RTT time shown problem for pings
+with very small datagram size.)
 The following datagram capture and display from tcpdump
 illustrates an example of the default ping3 echo request
 followed by an example of the default macOS ping echo request; -
@@ -144,24 +158,25 @@ $
 ```
 Successful ICMP Timestamp request pings produce the following output; -
 ```
-% ./ping3 -M time 192.168.1.1 
-40 bytes from 192.168.1.1: seq 1, ttl 64, RTT 5.467 [mS] tso 10:56:33.537 tsr 10:56:32.793 tst 10:56:32.793
-40 bytes from 192.168.1.1: seq 2, ttl 64, RTT 5.447 [mS] tso 10:56:34.542 tsr 10:56:33.799 tst 10:56:33.799
-40 bytes from 192.168.1.1: seq 3, ttl 64, RTT 3.908 [mS] tso 10:56:35.547 tsr 10:56:34.802 tst 10:56:34.802
-3 requests sent, 3 replies received, 0.0% loss in 4.02 [S]
+% ./ping3 -M time 192.168.1.1
+40 bytes from 192.168.1.1: seq 1, ttl 64, RTT 5.513 [mS] tso 12:08:58.942 tsr 12:08:58.572 tst 12:08:58.572
+40 bytes from 192.168.1.1: seq 2, ttl 64, RTT 5.507 [mS] tso 12:08:59.947 tsr 12:08:59.577 tst 12:08:59.577
+40 bytes from 192.168.1.1: seq 3, ttl 64, RTT 4.302 [mS] tso 12:09:00.948 tsr 12:09:00.576 tst 12:09:00.576
+3 requests sent, 3 replies received, 0.0% loss in 4.01 [S]
+RTT Min 4.302, Avg 5.107, Max 5.513 [mS]
 %
 ```
 The output from macOS ICMP Timestamp request ping for
 comparison purposes is (N.B. macOS prints integer Hrs:Min:Sec
-since midnight GMT, but the reply has milliseconds since midnight
-resolution ); -
+since midnight GMT even though the reply has milliseconds
+since midnight resolution ); -
 ```
 % ping -c3 -Mt -s0 192.168.1.1
 ICMP_TSTAMP
 PING 192.168.1.1 (192.168.1.1): 0 data bytes
-20 bytes from 192.168.1.1: icmp_seq=0 ttl=64 tso=10:58:21 tsr=10:58:20 tst=10:58:20
-20 bytes from 192.168.1.1: icmp_seq=1 ttl=64 tso=10:58:22 tsr=10:58:21 tst=10:58:21
-20 bytes from 192.168.1.1: icmp_seq=2 ttl=64 tso=10:58:23 tsr=10:58:22 tst=10:58:22
+20 bytes from 192.168.1.1: icmp_seq=0 ttl=64 tso=12:09:21 tsr=12:09:21 tst=12:09:21
+20 bytes from 192.168.1.1: icmp_seq=1 ttl=64 tso=12:09:22 tsr=12:09:22 tst=12:09:22
+20 bytes from 192.168.1.1: icmp_seq=2 ttl=64 tso=12:09:23 tsr=12:09:23 tst=12:09:23
 
 --- 192.168.1.1 ping statistics ---
 3 packets transmitted, 3 packets received, 0.0% packet loss
@@ -175,17 +190,18 @@ make no sense as output by normal ping when the target is a Windows device
 requests. Normally Windows devices do not respond to ICMP timestamp requests.)
 ```
 % ./ping3 -M timew 192.168.1.121
-40 bytes from 192.168.1.121: seq 1, ttl 128, RTT 35.471 [mS] tso 01:55:48.637 tsr 01:55:48.867 tst 01:55:48.867
-40 bytes from 192.168.1.121: seq 2, ttl 128, RTT 2.479 [mS] tso 01:55:49.638 tsr 01:55:49.836 tst 01:55:49.836
-40 bytes from 192.168.1.121: seq 3, ttl 128, RTT 1.447 [mS] tso 01:55:50.644 tsr 01:55:50.836 tst 01:55:50.836
+40 bytes from 192.168.1.121: seq 1, ttl 128, RTT 7.207 [mS] tso 10:28:21.982 tsr 10:28:22.174 tst 10:28:22.174
+40 bytes from 192.168.1.121: seq 2, ttl 128, RTT 4.422 [mS] tso 10:28:22.988 tsr 10:28:23.189 tst 10:28:23.189
+40 bytes from 192.168.1.121: seq 3, ttl 128, RTT 5.974 [mS] tso 10:28:23.989 tsr 10:28:24.189 tst 10:28:24.189
 3 requests sent, 3 replies received, 0.0% loss in 4.01 [S]
+RTT Min 4.422, Avg 5.868, Max 7.207 [mS]
 %
-% ping -c3 -Mt -s0 192.168.1.121
+% ping -c 3 -M time -s 0 192.168.1.121
 ICMP_TSTAMP
 PING 192.168.1.121 (192.168.1.121): 0 data bytes
-20 bytes from 192.168.1.121: icmp_seq=0 ttl=128 tso=01:56:16 tsr=747:47:29 tst=747:47:29
-20 bytes from 192.168.1.121: icmp_seq=1 ttl=128 tso=01:56:17 tsr=710:34:53 tst=710:34:53
-20 bytes from 192.168.1.121: icmp_seq=2 ttl=128 tso=01:56:18 tsr=598:48:22 tst=598:48:22
+20 bytes from 192.168.1.121: icmp_seq=0 ttl=128 tso=10:28:27 tsr=919:47:02 tst=919:47:02
+20 bytes from 192.168.1.121: icmp_seq=1 ttl=128 tso=10:28:28 tsr=803:20:54 tst=803:20:54
+20 bytes from 192.168.1.121: icmp_seq=2 ttl=128 tso=10:28:29 tsr=766:08:18 tst=766:08:18
 
 --- 192.168.1.121 ping statistics ---
 3 packets transmitted, 3 packets received, 0.0% packet loss
@@ -226,7 +242,7 @@ where options are; -
         -a  switches on audible output notification of replies received
         -cX  specifies number of times to ping remote network device ( 0 <= X <= 100 )
           where a value of 0 invokes continuous ping mode. Stop this mode with control-C or control-\.
-        -D  switches on debug output and over-rides -q
+        -D  switches on IPv4 header Don't Fragment setting in ICMP request datagrams
         -h  switches on this help output and then terminates ping3
         -iX.X  ensure X.X second interval between each ping ( 0.1 <= X.X <= 60.0 )
         -lXX  suggest desired IP header option length (max is 40 and should be a multiple of 4)
@@ -242,18 +258,20 @@ where options are; -
             if "time" then send milliseconds since midnight as the data payload,
             if "random" then send a random array of bytes as the data payload,
             if neither of the above then specifying up to 16 bytes in hexadecimal.
-        -q  forces quiet (minimum) output and overrides -v
+        -q  forces quiet (minimum) output and forces -v level <= -5
         -R  specifies header option Record Route (N.B. -T overrides -R when both are specified)
         -s "XX [YY [ZZ]]" specifies ICMP Echo data section size (N.B. 16 <= XX <= 1472 works best on macOS)
           where XX is an integer number and YY, ZZ are optional integer numbers to specify a size sweep.
-        -tXX  specifies IPv4 header Time to Live (N.B. doesn't work on macOS)
+        -tXX  specifies IPv4 header Time-to-Live setting ( 1 <= XX <= 255 )
         -T ABC  specifies header option time stamp type.
           where ABC is a string of characters.
             If "tsonly" then record Time Stamp Only list of time stamps,
             if "tsandaddr" then record Address and Time Stamp pair list,
             if "tsprespec H.I.J.K [ L.M.N.O [ P.Q.R.S [ T.U.V.W ]]]" then Time Stamp prespecified Addresses.
-        -v  switches on verbose output
+        -vX  sets a verbosity level ( -9 <= X <= 9 ) unless -q is active and then -9 <= X <= -5 applies.
+             X > 5 displays Debug as well as other verbose amounts of information.
         -wX  wait for X seconds after last request for any replies ( 1 <= X <= 20 )
+
 
 %
 ```
