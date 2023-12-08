@@ -1,7 +1,7 @@
 /*
  * I P F U N . C
  *
- * ipFun.c last edited Wed Dec  6 16:22:27 2023
+ * ipFun.c last edited Fri Dec  8 11:50:42 2023
  *
  * Functions to handle aspects of IP datagrams
  *
@@ -255,4 +255,20 @@ int  setIPv4_DontFragment( int  scktID,  int  dontFragmentSetting, int  verbosit
 	else if( verbosityLvl > 5 )  printf( "IPv4 Don't Fragment value set to %d\n", scktOpt );
 #endif
 	return( result );
+}
+
+/* Apparently before Big Sur macOS doesn't support IP_DONTFRAG */
+int  isIPv4_DontFragmentManipulatableOnThisOS_Version( void )  {
+#ifdef  __APPLE__
+#ifdef  IP_DONTFRAG
+	return( TRUE );
+#endif
+#endif
+#ifdef  __linux__
+#ifdef  IP_MTU_DISCOVER
+	return( TRUE );
+#endif
+#endif
+/* defaults to telling caller that DF cannot be set */
+return( FALSE );
 }

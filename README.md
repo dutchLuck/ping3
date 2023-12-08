@@ -95,7 +95,10 @@ of the time is 16 bytes on 64 bit linux and only 8 bytes on
 not show any RTT time values for operation with -s option
 smaller than 16 (i.e. ping -s 15 www.apple.com), so maybe
 apple ping does sometimes use 16 bytes of time - just not
-when I captured the echo request shown below. N.B. the ping3
+when I captured the echo request shown below. ( I have
+lodged feedback with Apple about the man page information
+for macOS ping in regard to the size of the timestamp size
+in feedback item FB13453152 ) N.B. the ping3
 utility does not rely on the time being sent in echo requests
 and so does not suffer the no RTT time shown problem for pings
 with very small datagram size.)
@@ -275,6 +278,10 @@ where options are; -
 
 %
 ```
+Note that the IPv4 header Don't Fragment setting manipulation is not available on early (before Big Sur? )
+macOS and so the -D option is not shown in the above ping3 useage message on versions of macOS that do not
+give access to the IP_DONTFRAG setting in the setsockopt function call.
+
 ping3 is released under the MIT license and must be used at your own risk.
 Therefore unless it provides some specific capability you need then it is
 almost certainly better to use your operating systems standard ping utility.

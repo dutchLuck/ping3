@@ -34,7 +34,10 @@ pings until terminated by the user with control-C. If this -c option is not
 used then 3 pings will be sent.
 .TP
 \fB\-D\fR
-Debug information output enable.
+Set the IPv4 header Don't Fragment setting if manipulation of it is available
+on the version of the Operating System that compiled the ping3 source code.
+The -h help and usage information will not show -D if this option is not
+available.
 .TP
 \fB\-h\fR
 Output help and usage information and then exit.

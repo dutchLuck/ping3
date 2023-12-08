@@ -1,7 +1,7 @@
 /*
  * I P F U N . C
  *
- * ipFun.h last edited Wed Dec  6 16:22:29 2023
+ * ipFun.h last edited Fri Dec  8 11:50:47 2023
  *
  * header for ipFun.c functions
  *
@@ -52,5 +52,6 @@ int  setIPv4_TimeToLive( int,  int, int );
 int  getIPv4_TimeToLive( int, int *, int );
 int  setIPv4_DontFragment( int,  int, int );
 int  getIPv4_DontFragment( int, int *, int );
+int  isIPv4_DontFragmentManipulatableOnThisOS_Version( void );
 
 #endif

@@ -1,8 +1,9 @@
 /*
  * P I N G 3 . C
  *
- * ping3.c last edited Wed Dec  6 23:20:48 2023
+ * ping3.c last edited Fri Dec  8 11:50:32 2023
  * 
+ * v0.9.4 Fix compile error in Don't Fragment processing on macOS before Big Sur
  */
 
 /*
@@ -35,6 +36,7 @@
 
 /*
  * Not yet implemented; -
+ * 0. Socket level time-stamping if available on the OS
  * 1. Multiple IPv4 Header options in the same ICMP request
  * 2. Separation of sending and receiving functions
  * 3. Reverse DNS lookup on the IP address of target
@@ -85,7 +87,7 @@
 #define  TRUE  (! FALSE)
 #endif
 
-#define VERSION_STRING "0.9.3"	/* version */
+#define VERSION_STRING "0.9.4"	/* version */
 #define MIN_PING_ATTEMPTS  0	/* smallest number of ICMP requests sent (limits X for -cX option) */
 #define DEFAULT_PING_COUNT  3	/* default number of pings to send */
 #define MAX_PING_ATTEMPTS  100	/* largest number of ICMP requests sent (limits X for -cX option) */
@@ -907,7 +909,8 @@ void  useage( char *  name )  {
 	printf( "        -a  switches on audible output notification of replies received\n" );
 	printf( "        -cX  specifies number of times to ping remote network device ( %d <= X <= %d )\n", MIN_PING_ATTEMPTS, MAX_PING_ATTEMPTS );
 	printf( "          where a value of 0 invokes continuous ping mode. Stop this mode with control-C or control-\\.\n" );
-	printf( "        -D  switches on IPv4 header Don't Fragment setting in ICMP request datagrams\n" );
+	if( isIPv4_DontFragmentManipulatableOnThisOS_Version())
+		printf( "        -D  switches on IPv4 header Don't Fragment setting in ICMP request datagrams\n" );
 	printf( "        -h  switches on this help output and then terminates %s\n", name );
 	printf( "        -iX.X  ensure X.X second interval between each ping ( %.1f <= X.X <= %.1f )\n", MIN_INTERVAL_BW_PINGS, MAX_INTERVAL_BW_PINGS );
 	printf( "        -lXX  suggest desired IP header option length (max is 40 and should be a multiple of 4)\n" );
@@ -952,7 +955,7 @@ int  processCommandLineOptions( int  argc, char *  argv[] )  {
     	switch( result )  {
 			case 'a' :  a_Flag = TRUE; break;					/* Audible reply receive */
     		case 'c' :  c_Flag = TRUE; c_Strng = optarg; break;	/* Count of ping requests to be sent */
-			case 'D' :  D_Flag = TRUE; break;					/* Don't Fragment setting on requests */
+			case 'D' :  D_Flag = isIPv4_DontFragmentManipulatableOnThisOS_Version(); break;		/* Don't Fragment setting on requests */
 			case 'h' :  helpFlag = TRUE; break;
 			case 'i' :  i_Flag = TRUE; i_Strng = optarg; break;	/* time interval between ping transmits */
 			case 'l' :  l_Flag = TRUE; l_Strng = optarg; break;	/* IPv4 header option section length */
@@ -1123,10 +1126,18 @@ int  processCommandLineOptions( int  argc, char *  argv[] )  {
 	/* make sure TX buffer is big enough to hold max amount of payload data */
 	txICMP_BfrSize = icmpMessageSize + (( icmpSecondExtraDataSizeValue > icmpFirstExtraDataSizeValue ) ? icmpSecondExtraDataSizeValue : icmpFirstExtraDataSizeValue);
 	rxIPv4_BfrSize = txICMP_BfrSize + STD_IP4_HDR_LEN + ip4_HdrOptionSize;	/* Receive Buffer must be bigger than Transmit Buffer */
- 	if( debugFlag )  {
+	/* Provide feedback on what options are in play in Debug mode */
+	if( debugFlag )  {
 		printf( "Debug: -a option ( audible ) is %s\n", ( a_Flag ) ? "active" : "inactive" );
 		printf( "Debug: -c option ( count ) is %s\n", ( c_Flag ) ? "active" : "inactive" );
-		printf( "Debug: -D option ( don't fragment ) is %s\n", ( D_Flag ) ? "active" : "inactive" );
+	}
+	if( isIPv4_DontFragmentManipulatableOnThisOS_Version())  {
+		if( debugFlag )	printf( "Debug: -D option ( don't fragment ) is %s\n", ( D_Flag ) ? "active" : "inactive" );
+	}
+	else if( D_Flag )  {
+		printf( "Warning: IPv4 header Don't Fragment manipulation is not available on this version of the OS" );
+	}
+	if( debugFlag )  {
 		printf( "Debug: -h option ( help ) is %s\n", ( helpFlag ) ? "active" : "inactive" );
 		printf( "Debug: -i option ( interval ) is %s\n", ( i_Flag ) ? "active" : "inactive" );
 		printf( "Debug: -l option ( header option length ) is %s\n", ( l_Flag ) ? "active" : "inactive" );
@@ -1304,12 +1315,14 @@ int  main( int  argc, char *  argv[] )  {
 			if( getIPv4_TimeToLive( sckt, &scktOpt, verbosityLevel ) < 0 )  printf( "Warning: unable to get current TTL value\n" );
 			else  printf( "Debug: IPv4 header Time-To-Live value is %d\n", scktOpt );
 		}
-		/* Set or reset the Don't Fragment setting - Linux defaults on, macOS defaults off - so force it on or off */
-		if( setIPv4_DontFragment( sckt, (( D_Flag ) ? 1 : 0 ), verbosityLevel ) < 0 )
-			printf( "Error: Unable to set Time to Live to 1\n" );
-		if( debugFlag )  {
-			if( getIPv4_DontFragment( sckt, &scktOpt, verbosityLevel ) < 0 )  printf( "Warning: unable to get current Don't Fragment value\n" );
-			else  printf( "Debug: IPv4 header Don't Fragment value is %s\n", ( scktOpt == 1 ) ? "True" : "False" );
+		if( isIPv4_DontFragmentManipulatableOnThisOS_Version())  {
+			/* Set or reset the Don't Fragment setting - Linux defaults on, macOS defaults off - so force it on or off */
+			if( setIPv4_DontFragment( sckt, (( D_Flag ) ? 1 : 0 ), verbosityLevel ) < 0 )
+				printf( "Error: Unable to set Don't Fragment setting to %s\n", ( D_Flag ) ? "True" : "False" );
+			if( debugFlag )  {
+				if( getIPv4_DontFragment( sckt, &scktOpt, verbosityLevel ) < 0 )  printf( "Warning: unable to get current Don't Fragment value\n" );
+				else  printf( "Debug: IPv4 header Don't Fragment value is %s\n", ( scktOpt == 1 ) ? "True" : "False" );
+			}
 		}
 		clock_gettime( CLOCK_REALTIME, &timeOfFirstPing );	/* get current time as the time of the first ping request */
 		sendPing( 0 );	/* Send first ping and start interrupt timer for further pings as necessary */
