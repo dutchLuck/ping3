@@ -1,7 +1,7 @@
 /*
  * I P F U N . C
  *
- * ipFun.c last edited Fri Dec  8 11:50:42 2023
+ * ipFun.c last edited Fri Dec  8 13:49:05 2023
  *
  * Functions to handle aspects of IP datagrams
  *
@@ -198,10 +198,10 @@ int  setIPv4_TimeToLive( int  scktID,  int  timeToLive, int  verbosityLvl )  {
 
 
 int  getIPv4_DontFragment( int  scktID, int *  dontFragmentSetting, int  verbosityLvl )  {
-	int  result, scktOpt;
+	int  result = -1;
+	int  scktOpt = 0;
 	socklen_t  scktOptLen;
 
-	scktOpt = 0;
 	scktOptLen = sizeof( scktOpt );
 #ifdef __linux__
 	result = getsockopt( scktID, IPPROTO_IP, IP_MTU_DISCOVER, &scktOpt, &scktOptLen );
@@ -217,6 +217,7 @@ int  getIPv4_DontFragment( int  scktID, int *  dontFragmentSetting, int  verbosi
 		}
 	}
 #else
+#ifdef IP_DONTFRAG
 	result = getsockopt( scktID, IPPROTO_IP, IP_DONTFRAG, &scktOpt, &scktOptLen );
 	if( result < 0 )  perror( "Error: getsockopt( IP_DONTFRAG )" );
 	else  {
@@ -230,12 +231,14 @@ int  getIPv4_DontFragment( int  scktID, int *  dontFragmentSetting, int  verbosi
 		}
 	}
 #endif
+#endif
 	return( result );
 }
 
 
 int  setIPv4_DontFragment( int  scktID,  int  dontFragmentSetting, int  verbosityLvl )  {
-	int  result, scktOpt;
+	int  result = -1;
+	int  scktOpt = 0;
 
 #ifdef __linux__
 	scktOpt = (( dontFragmentSetting == 1 ) ? IP_PMTUDISC_DO : IP_PMTUDISC_DONT );
@@ -246,6 +249,7 @@ int  setIPv4_DontFragment( int  scktID,  int  dontFragmentSetting, int  verbosit
 	}
 	else if( verbosityLvl > 5 )  printf( "IPv4 MTU Discover value set to %d\n", scktOpt );
 #else
+#ifdef IP_DONTFRAG
 	scktOpt = dontFragmentSetting;
 	result = setsockopt( scktID, IPPROTO_IP, IP_DONTFRAG, &scktOpt, sizeof( scktOpt ));
 	if( result < 0 )  {
@@ -254,8 +258,10 @@ int  setIPv4_DontFragment( int  scktID,  int  dontFragmentSetting, int  verbosit
 	}
 	else if( verbosityLvl > 5 )  printf( "IPv4 Don't Fragment value set to %d\n", scktOpt );
 #endif
+#endif
 	return( result );
 }
+
 
 /* Apparently before Big Sur macOS doesn't support IP_DONTFRAG */
 int  isIPv4_DontFragmentManipulatableOnThisOS_Version( void )  {
