@@ -278,3 +278,26 @@ int  isIPv4_DontFragmentManipulatableOnThisOS_Version( void )  {
 /* defaults to telling caller that DF cannot be set */
 return( FALSE );
 }
+
+
+int  ensureIPv4_DontFragmentSettingIsTheRequiredValue( int  scktID,  int  requiredDontFragmentValue, int  verbosityLvl )  {
+	int  result = -1;
+	int  scktOpt = 0;
+
+/* What is the current setting */
+	result = getIPv4_DontFragment( scktID, &scktOpt, verbosityLvl );
+/* Were we able to read the DF setting ? */
+    if( result < 0 )  {	/* No we were unable to read the DF setting so see if error message is required */
+		if( verbosityLvl > 0 )  printf( "Error: Unable to read the current IPv4 header Don't Fragment setting\n" );
+	}
+	else  {		/* Yes we were able to read the DF setting */
+		if( scktOpt != requiredDontFragmentValue )  {	/* not the required value so see if we can set it */
+			result = setIPv4_DontFragment( scktID, requiredDontFragmentValue, verbosityLvl );
+		    if( result < 0 )  {	/* No we were unable to set the DF setting so see if error message is required */
+				if( verbosityLvl > 0 )
+					printf( "Error: Unable to set the IPv4 header Don't Fragment setting to %d\n",  requiredDontFragmentValue );
+			}
+		}
+	}
+	return( result );
+}

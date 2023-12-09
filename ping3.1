@@ -1,4 +1,4 @@
-.TH PING3 "1" "October 2023" "ping3 0.0.0" "User Commands"
+.TH PING3 "8" "December 2023" "ping3 0.9.4" "User Commands"
 .SH NAME
 .I ping3
 \- ping a network device with internet protocol version 4 icmp echo/timestamp/netmask requests
@@ -21,7 +21,7 @@ encapsulated ICMP Echo or Timestamp or Netmask request message.
 .PP
 ping3 is not meant to take the place of the ping utility provided by the
 operating system. Instead it is meant to provide the macOS user with features
-found on linux ping, but not on macOS ping and vice versa.
+found on iputils (linux) ping, but not on macOS ping, and vice versa.
 .SH OPTIONS
 .TP
 \fB\-a\fR
@@ -94,10 +94,13 @@ or "tsprespec" ( a list of the prespecified addresses and timestamp pairs ). If 
 is used then the list should be quoted. For example -T "tsprespec 192.168.1.1 192.168.1.2"
 .TP
 \fB\-v\fR
-Verbose output enable. Information provided in verbose mode includes the local device
-name and the names associated with the remote device. It also provides an estimate of
-time difference between the local and remote device clocks for ICMP Timestamp requests
-( -M time ) or IP header option Prespecified Timestamp requests ( -T "tsprespec" ).
+\fB\-v \fI\,verbosity_level\/\fR
+Verbosity of output control. The \fI\,verbosity_level\/\fR is an integer in the range from -9
+to +9. Least information is provided by more negetive integers and more information is
+provided by more positive integers. Information provided for levels greater than 0 includes
+the local device name and the names associated with the remote device. It also provides an
+estimate of time difference between the local and remote device clocks for ICMP Timestamp
+requests ( -M time ) or IP header option Prespecified Timestamp requests ( -T "tsprespec" ).
 .TP
 \fB\-w \fI\,wait_period_after_last_ping_sent\/\fR
 Wait \fI\,wait_period_after_last_ping_sent\/\fR seconds after the last ping is transmitted.
@@ -115,7 +118,7 @@ send 3 ICMP Echo requests to another device on the network.
 .PP
 \fB\ ping3 -c1 -M time a_network_device\fR
 .br
-send 1 ICMP Timestamp requests to another device on the network.
+send 1 ICMP Timestamp request to another device on the network.
 .PP
 \fB\ ping3 -i2.0 -M mask a_network_device\fR
 .br
@@ -128,12 +131,14 @@ replies containing timestamps from the first two network devices in the path tak
 by the ping. Without the -l12 the first nine, if there are that many, network
 devices timestamps will be listed.
 .PP
-\fB\ ping3 -v -c 10 -T tsandaddr a_network_device\fR
+\fB\ ping3 -v1 -c 10 -T tsandaddr a_network_device\fR
 .br
 send 10 ICMP Echo requests to another device on the network and expect to receive
 replies containing address and timestamps pairs from some, prehaps even most, of
-the network devices in the path taken by the ping. The verbose option will mean
-a few extra lines of information will be output.
+the network devices in the path taken by the ping. The verbosity level 1 option
+will mean a few extra lines of information will be output. If there are 10 replies
+to the 10 requests then the standard deviation of the RTT measured will be shown
+along with other summary information at the completion of the run of 10 pings.
 .PP
 \fB\ ping3 -T "tsprespec 192.168.1.1 www.apple.com 192.168.1.1" www.apple.com\fR
 .br
@@ -157,6 +162,14 @@ length varying from 100 to 200 bytes and back in steps of 10 bytes.
 send 3 ICMP Echo requests to www.apple.com with pseudo random data in the ICMP
 message payload. 
 .PP
+\fB\ ping3 -c 4 -t 128 -p 6162636465666768696a6b6d6e6f7071727374757677 -s 32 www.apple.com\fR
+.br
+attempt to mimic Microsoft Windows (Win10) ping defaults by sending 4 ICMP Echo requests
+to www.apple.com with the IPv4 header time-to-live set to 128, instead of the default
+value of 64, a pattern of ASCII characters from 'a' up to 'w', instead of time and bytes
+increasing in value from 0x10 upward in a ICMP Echo message with a payload section length
+of 32 bytes. 
+.PP
 .SH AUTHOR
 Written by Owen Holland.
 .PP
@@ -171,7 +184,7 @@ software provides a function not found in your operating systems
 ping utility, please use the ping provided by your operating system.
 .PP
 .SH "SEE ALSO"
-ping(1)
+man ping
 .br
 More ping3 documentation at: <https://github.com/dutchLuck/ping3>
 .PP

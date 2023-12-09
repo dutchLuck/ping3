@@ -53,5 +53,6 @@ int  getIPv4_TimeToLive( int, int *, int );
 int  setIPv4_DontFragment( int,  int, int );
 int  getIPv4_DontFragment( int, int *, int );
 int  isIPv4_DontFragmentManipulatableOnThisOS_Version( void );
+int  ensureIPv4_DontFragmentSettingIsTheRequiredValue( int,  int, int );
 
 #endif

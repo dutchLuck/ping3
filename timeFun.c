@@ -1,15 +1,22 @@
 /*
  * T I M E F U N . C
  *
- * timeFun.c last edited on Tue Oct 31 23:05:02 2023
+ * timeFun.c last edited on Sat Dec  9 16:25:45 2023
  *
  * Functions to handle time
  * 
  */
 
 #include  <stdio.h>
-#include  <time.h>	/* struct timespec */
+#include  <time.h>	/* struct timespec ctime_r() */
+#include  <sys/time.h>	/* struct timeval */
 #include  <limits.h>	/* LONG_MAX */
+
+
+void  convertTimeSpecTimeToTimeValTime( struct timespec *  tsPtr, struct timeval *  tvPtr )  {
+	tvPtr->tv_sec = tsPtr->tv_sec;
+	tvPtr->tv_usec = tsPtr->tv_nsec / 1000;
+}
 
 
 double  calcTimeSpecClockDifferenceInSeconds( struct timespec *  earlier, struct timespec *  later )  {
@@ -18,8 +25,43 @@ double  calcTimeSpecClockDifferenceInSeconds( struct timespec *  earlier, struct
 }
 
 
-void  printTimeSpecTime( struct timespec *  timeSpecTime )  {
+void  printTimeValTimeInStructForm( struct timeval *  timeValTimePtr )  {
+#ifdef __APPLE__
+	printf( "%ld [Sec] %06d [uS]", timeValTimePtr->tv_sec, timeValTimePtr->tv_usec );
+#else
+	printf( "%ld [Sec] %06ld [uS]", timeValTimePtr->tv_sec, timeValTimePtr->tv_usec );
+#endif
+}
+
+
+void  printTimeSpecTimeInStructForm( struct timespec *  timeSpecTime )  {
 	printf( "%ld [Sec] %09ld [nS]", timeSpecTime->tv_sec, timeSpecTime->tv_nsec );
+}
+
+
+void  printTimeValTimeInHMS( struct timeval *  timeValTimePtr, int  verbosityLvl )  {
+	char *  chrPtr;
+	char  dateAndTimeString[ 26 ];
+
+	ctime_r( ( time_t * ) &timeValTimePtr->tv_sec, dateAndTimeString );
+	chrPtr = dateAndTimeString + (( verbosityLvl > 4 ) ? 0 : 11 );	/* point to start of HMS or on debug start of string */
+	dateAndTimeString[ 19 ] = '\0';		/* terminate string after HMS*/
+#ifdef __APPLE__
+	printf( "%s.%06d", chrPtr, timeValTimePtr->tv_usec );
+#else
+	printf( "%s.%06ld", chrPtr, timeValTimePtr->tv_usec );
+#endif
+}
+
+
+void  printTimeSpecTimeInHMS( struct timespec *  timeSpecTime, int  verbosityLvl )  {
+	char *  chrPtr;
+	char  dateAndTimeString[ 26 ];
+
+	ctime_r( ( time_t * ) &timeSpecTime->tv_sec, dateAndTimeString );
+	chrPtr = dateAndTimeString + (( verbosityLvl > 4 ) ? 0 : 11 );	/* point to start of HMS or on debug start of string */
+	dateAndTimeString[ 19 ] = '\0';		/* terminate string after HMS*/
+	printf( "%s.%09ld", chrPtr, timeSpecTime->tv_nsec );
 }
 
 
@@ -70,12 +112,32 @@ int  calcMillisecondsSinceMidnightFromTimeSpec( struct timespec *  tStampInNanoS
 }
 
 
-void  printClockRealTimeTxRxTimes( struct timespec *  originateTime,  struct timespec *  receiveTime )  {
+void  printClockRealTimeTxRxTimes( struct timespec *  originateTime,  struct timespec *  receiveTime, int  verbosityLvl )  {
+#ifdef __APPLE__
+	struct timeval  tmpTimeValTime;
+#endif
+
 	printf( "ICMP Request send time:  " );
-	printTimeSpecTime( originateTime );
+	printTimeSpecTimeInStructForm( originateTime );
 	printf( "\nICMP Reply receive time: " );
-	printTimeSpecTime( receiveTime );
+	printTimeSpecTimeInStructForm( receiveTime );
 	printf( "\n" );
+#ifdef __APPLE__
+	convertTimeSpecTimeToTimeValTime( originateTime, &tmpTimeValTime );
+	printf( "ICMP Request send time:  " );
+	printTimeValTimeInHMS( &tmpTimeValTime, verbosityLvl );
+	printf( "\n" );
+	convertTimeSpecTimeToTimeValTime( receiveTime, &tmpTimeValTime );
+	printf( "ICMP Reply receive time: " );
+	printTimeValTimeInHMS( &tmpTimeValTime, verbosityLvl );
+	printf( "\n" );
+#else
+	printf( "ICMP Request send time:  " );
+	printTimeSpecTimeInHMS( originateTime, verbosityLvl );
+	printf( "\nICMP Reply receive time: " );
+	printTimeSpecTimeInHMS( receiveTime, verbosityLvl );
+	printf( "\n" );
+#endif
 }
 
 

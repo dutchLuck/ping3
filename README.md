@@ -98,7 +98,7 @@ apple ping does sometimes use 16 bytes of time - just not
 when I captured the echo request shown below. ( I have
 lodged feedback with Apple about the man page information
 for macOS ping in regard to the size of the timestamp size
-in feedback item FB13453152 ) N.B. the ping3
+through feedback item FB13453152 ) N.B. the ping3
 utility does not rely on the time being sent in echo requests
 and so does not suffer the no RTT time shown problem for pings
 with very small datagram size.)
@@ -260,7 +260,7 @@ where options are; -
           where ABC is a string of characters.
             if "time" then send milliseconds since midnight as the data payload,
             if "random" then send a random array of bytes as the data payload,
-            if neither of the above then specifying up to 16 bytes in hexadecimal.
+            if neither of the above then specifying up to 28 bytes in hexadecimal.
         -q  forces quiet (minimum) output and forces -v level <= -5
         -R  specifies header option Record Route (N.B. -T overrides -R when both are specified)
         -s "XX [YY [ZZ]]" specifies ICMP Echo data section size (N.B. 16 <= XX <= 1472 works best on macOS)

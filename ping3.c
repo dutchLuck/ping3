@@ -1,8 +1,9 @@
 /*
  * P I N G 3 . C
  *
- * ping3.c last edited Fri Dec  8 11:50:32 2023
+ * ping3.c last edited Sat Dec  9 16:25:56 2023
  * 
+ * v0.9.5 Increased ICMP_PAYLOAD_MAX_PATTERN_SIZE to 28
  * v0.9.4 Fix compile error in Don't Fragment processing on macOS before Big Sur
  */
 
@@ -52,7 +53,7 @@
 #include <sys/param.h>
 #include <sys/socket.h>	/* inet_addr() inet_ntoa() */
 #include <sys/time.h>	/* setitimer() */
-#include <time.h>		/* clock_gettime() */
+#include <time.h>		/* clock_gettime() - implies that code only compiles on macOS 10.12 (Sierra) and later */
 #include <sys/signal.h>
 #include <signal.h>		/* psignal() */
 #include <libgen.h>		/* basename() */
@@ -87,7 +88,7 @@
 #define  TRUE  (! FALSE)
 #endif
 
-#define VERSION_STRING "0.9.4"	/* version */
+#define VERSION_STRING "0.9.5"	/* version */
 #define MIN_PING_ATTEMPTS  0	/* smallest number of ICMP requests sent (limits X for -cX option) */
 #define DEFAULT_PING_COUNT  3	/* default number of pings to send */
 #define MAX_PING_ATTEMPTS  100	/* largest number of ICMP requests sent (limits X for -cX option) */
@@ -106,7 +107,7 @@
 #define CONTRIVED_NUMBER  0		/* start number for ICMP message identifier */
 #define USEC_CONV_ULONG_CONST 1000000L
 
-#define ICMP_PAYLOAD_MAX_PATTERN_SIZE  16
+#define ICMP_PAYLOAD_MAX_PATTERN_SIZE  28
 #define ICMP_PAYLOAD_NO_PATTERN  0
 #define ICMP_PAYLOAD_HEX_PATTERN  1
 #define ICMP_PAYLOAD_TIME_PATTERN  2
@@ -430,6 +431,10 @@ int sendICMP_Request( int  socketID, u_char *  icmpMsgBfr, int  icmpMsgSize, u_s
 /* E.g. XX bytes from AAA.BBB.CCC.DDD: seq YYYYY, ttl ZZZ, RTT 0.994 [mS] */
 void  printStdPingInfo( struct ip *  ip, struct icmp *  icmpHdrPtr, int  ICMP_MsgSize )  {
 	if( a_Flag )  printf( "\007" );	/* Output the bell character if audible reply is requested */
+	if( verbosityLevel > 2 )  {		/* Output a receive time stamp at the start of the normal line */
+		printTimeSpecTimeInHMS( &recvTime, verbosityLevel );
+		printf( " " );
+	}
 	printPingCommonInfo( ip, ICMP_MsgSize );
 	printf( " seq %d, ", ntohs( icmpHdrPtr->icmp_seq));
 	printIPv4_TimeToLiveInfo( ip );
@@ -449,7 +454,7 @@ void  printLineOfPingInfo( struct ip *  ip, struct icmp *  icmpHdrPtr, int  ICMP
 		displayMaskReplyMask( icmpHdrPtr );
 	}
 	printf( "\n" );
-	if( debugFlag )  printClockRealTimeTxRxTimes( &origTime, &recvTime );
+	if( debugFlag )  printClockRealTimeTxRxTimes( &origTime, &recvTime, verbosityLevel );
 }
 
 
@@ -488,7 +493,7 @@ void  printTimeDifferenceFromHeaderOption( IP_TIMESTAMP *  tsPntr, int  hdrLen, 
 				}
 			}
 			printf( "IP_HDR_OPT_TS: ");
-			printSentVsReceiveDeviceClockDifferenceEstimate( tstarget, tsrecv, ( long ) halfRndTripTime, verbosityLvl );
+			printSentVsReceiveDeviceClockDifferenceEstimate( tstarget, tsrecv, ( long ) halfRndTripTime, ( verbosityLvl > 1 ));
 		}
 		if( verbosityLvl > 1 )  printf( "IP_HDR_OPT_TS: Orig = %ld, Target %ld, Recv = %ld\n", tsorig, tstarget, tsrecv );
 	}
@@ -807,9 +812,11 @@ void  finishOnUserInterrupt( int signo )  {
 		else  printf( "\n" );
 	}
 	if( verbosityLevel > -9 )  printStats();	/* Unless super quiet print the stats about requests sent, replies received etc */
+	if( debugFlag )
+		printf( "Debug: about to exit( %d ) from finishOnUserInterrupt( %d )\n", ( pingsReceived < pingsSent ) ? EXIT_FAILURE : EXIT_SUCCESS, signo );
 	fflush( stdout );	/* Ensure anything printed to stdout is output to the user terminal */
 	fflush( stderr );	/* Ensure anything printed is stderr output to the user terminal */
-	exit( pingsReceived < pingsSent );		/* Terminate the program & report a 1 if more requests were sent than replies received */
+	exit( ( pingsReceived < pingsSent ) ? EXIT_FAILURE : EXIT_SUCCESS );	/* Terminate the program & report if more requests were sent than replies received */
 }
 
 
@@ -925,7 +932,7 @@ void  useage( char *  name )  {
 	printf( "          where ABC is a string of characters.\n" );
 	printf( "            if \"time\" then send milliseconds since midnight as the data payload,\n" );
 	printf( "            if \"random\" then send a random array of bytes as the data payload,\n" );
-	printf( "            if neither of the above then specifying up to 16 bytes in hexadecimal.\n" );
+	printf( "            if neither of the above then specifying up to %d bytes in hexadecimal.\n", ICMP_PAYLOAD_MAX_PATTERN_SIZE );
 	printf( "        -q  forces quiet (minimum) output and forces -v level <= -5\n" );
 	printf( "        -R  specifies header option Record Route (N.B. -T overrides -R when both are specified)\n" );
 	printf( "        -s \"XX [YY [ZZ]]\" specifies ICMP Echo data section size (N.B. 16 <= XX <= 1472 works best on macOS)\n" );
@@ -1317,7 +1324,7 @@ int  main( int  argc, char *  argv[] )  {
 		}
 		if( isIPv4_DontFragmentManipulatableOnThisOS_Version())  {
 			/* Set or reset the Don't Fragment setting - Linux defaults on, macOS defaults off - so force it on or off */
-			if( setIPv4_DontFragment( sckt, (( D_Flag ) ? 1 : 0 ), verbosityLevel ) < 0 )
+			if( ensureIPv4_DontFragmentSettingIsTheRequiredValue( sckt, (( D_Flag ) ? 1 : 0 ), verbosityLevel ) < 0 )
 				printf( "Error: Unable to set Don't Fragment setting to %s\n", ( D_Flag ) ? "True" : "False" );
 			if( debugFlag )  {
 				if( getIPv4_DontFragment( sckt, &scktOpt, verbosityLevel ) < 0 )  printf( "Warning: unable to get current Don't Fragment value\n" );
@@ -1329,5 +1336,8 @@ int  main( int  argc, char *  argv[] )  {
 		for( ; pingSendAttemptsLeft >= 0; )
 			if( getResponseAndProcessIt( sckt ))  pingsReceived += 1;
 	}
-	return( pingsReceived < pingsSent );	/* report a 1 if more requests were sent than replies received */
+	/* Probably will not terminate execution via this code as the interrupt signal code will kill it off */
+	if( debugFlag )
+		printf( "Debug: about to return( %d ) from program end\n", ( pingsReceived < pingsSent ) ? EXIT_FAILURE : EXIT_SUCCESS );
+	return( ( pingsReceived < pingsSent ) ? EXIT_FAILURE : EXIT_SUCCESS );	/* report a Failure if more requests were sent than replies received */
 }

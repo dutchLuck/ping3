@@ -49,6 +49,7 @@ echo
 #
 echo "$PRIV ../$PROGRAM -M time $TARGET"
 $PRIV ../$PROGRAM -M time $TARGET
+RESULT=$?
 echo
 echo "$RESULT returned by $PROGRAM to this ($0) shell script"
 sleep 1
@@ -64,6 +65,7 @@ echo
 #
 echo "$PRIV ../$PROGRAM -T tsonly $TARGET"
 $PRIV ../$PROGRAM -T tsonly $TARGET
+RESULT=$?
 echo
 echo "$RESULT returned by $PROGRAM to this ($0) shell script"
 sleep 1
@@ -76,6 +78,7 @@ echo
 #
 echo "$PRIV ../$PROGRAM -T tsprespec -v1 $TARGET"
 $PRIV ../$PROGRAM -T tsprespec -v1 $TARGET
+RESULT=$?
 echo
 echo "$RESULT returned by $PROGRAM to this ($0) shell script"
 sleep 1
@@ -91,7 +94,7 @@ echo
 #
 echo "$PRIV ../$PROGRAM -R $TARGET"
 $PRIV ../$PROGRAM -R $TARGET
+RESULT=$?
 echo
 echo "$RESULT returned by $PROGRAM to this ($0) shell script"
 #
-
