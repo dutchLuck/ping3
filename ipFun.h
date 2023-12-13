@@ -1,7 +1,7 @@
 /*
  * I P F U N . C
  *
- * ipFun.h last edited Fri Dec  8 11:50:47 2023
+ * ipFun.h last edited Wed Dec 13 22:10:04 2023
  *
  * header for ipFun.c functions
  *
@@ -54,5 +54,8 @@ int  setIPv4_DontFragment( int,  int, int );
 int  getIPv4_DontFragment( int, int *, int );
 int  isIPv4_DontFragmentManipulatableOnThisOS_Version( void );
 int  ensureIPv4_DontFragmentSettingIsTheRequiredValue( int,  int, int );
+int  getSocketBroadcastPermission( int, int *, int );
+int  setSocketBroadcastPermission( int,  int, int );
+int  ensureSocketBroadcastPermissionSettingIsTheRequiredValue( int,  int, int );
 
 #endif

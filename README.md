@@ -243,6 +243,7 @@ or      ping3 [options] NetworkDeviceIP_Number
 
 where options are; -
         -a  switches on audible output notification of replies received
+        -b  switches on broadcast permission for requests to be sent to a broadcast address
         -cX  specifies number of times to ping remote network device ( 0 <= X <= 100 )
           where a value of 0 invokes continuous ping mode. Stop this mode with control-C or control-\.
         -D  switches on IPv4 header Don't Fragment setting in ICMP request datagrams

@@ -2,7 +2,7 @@
 #
 # C H E C K
 #
-# check last edited Wed Dec  6 18:30:41 2023
+# check last edited Wed Dec 13 22:30:03 2023
 #
 PROGRAM=ping3
 #
@@ -372,8 +372,8 @@ echo
 #
 # Test broadcast
 #
-echo "$PRIV ../$PROGRAM -c1 -w5 192.168.1.255"
-$PRIV ../$PROGRAM -c1 -w5 192.168.1.255
+echo "$PRIV ../$PROGRAM -c1 -w5 -b 192.168.1.255"
+$PRIV ../$PROGRAM -c1 -w5 -b 192.168.1.255
 RESULT=$?
 if [[ "$RESULT" != "0" ]] ; then
   echo

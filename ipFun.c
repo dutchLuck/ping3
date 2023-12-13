@@ -1,7 +1,7 @@
 /*
  * I P F U N . C
  *
- * ipFun.c last edited Fri Dec  8 13:49:05 2023
+ * ipFun.c last edited Wed Dec 13 22:09:59 2023
  *
  * Functions to handle aspects of IP datagrams
  *
@@ -172,7 +172,7 @@ int  getIPv4_TimeToLive( int  scktID, int *  timeToLive, int  verbosityLvl )  {
 	else  {
 		if( verbosityLvl > 5 )  printf( "TTL value is %d and size of TTL value is %u\n", scktOpt, scktOptLen );
 		if( scktOptLen != sizeof( int ))  {
-			printf( "Error: TTL value is unexpect size of %u bytes\n", scktOptLen );
+			fprintf( stderr, "Error: TTL value is unexpected size of %u bytes\n", scktOptLen );
 			result = -2;	/* flag error */
 		}
 		else  {
@@ -190,7 +190,7 @@ int  setIPv4_TimeToLive( int  scktID,  int  timeToLive, int  verbosityLvl )  {
 	result = setsockopt( scktID, IPPROTO_IP, IP_TTL, &scktOpt, sizeof( scktOpt ));
 	if( result < 0 )  {
 		perror( "Error: setsockopt( IP_TTL )" );
-		printf( "Error: Unable to set Time to Live to %d\n", scktOpt );
+		fprintf( stderr, "Error: Unable to set Time to Live to %d\n", scktOpt );
 	}
 	else if( verbosityLvl > 5 )  printf( "IPv4 Time to Live set to %d\n", scktOpt );
 	return( result );
@@ -209,7 +209,7 @@ int  getIPv4_DontFragment( int  scktID, int *  dontFragmentSetting, int  verbosi
 	else  {
 		if( verbosityLvl > 5 )  printf( "IP_MTU_Discover value is %d and its size is %u\n", scktOpt, scktOptLen );
 		if( scktOptLen != sizeof( int ))  {
-			printf( "Error: IP_MTU_Discover value is unexpected size of %u bytes\n", scktOptLen );
+			fprintf( stderr, "Error: IP_MTU_Discover value is unexpected size of %u bytes\n", scktOptLen );
 			result = -2;	/* flag error */
 		}
 		else  {
@@ -223,7 +223,7 @@ int  getIPv4_DontFragment( int  scktID, int *  dontFragmentSetting, int  verbosi
 	else  {
 		if( verbosityLvl > 5 )  printf( "Don't Fragment value is %d and its size is %u\n", scktOpt, scktOptLen );
 		if( scktOptLen != sizeof( int ))  {
-			printf( "Error: Don't Fragment value is unexpected size of %u bytes\n", scktOptLen );
+			fprintf( stderr, "Error: Don't Fragment value is unexpected size of %u bytes\n", scktOptLen );
 			result = -2;	/* flag error */
 		}
 		else  {
@@ -245,7 +245,7 @@ int  setIPv4_DontFragment( int  scktID,  int  dontFragmentSetting, int  verbosit
 	result = setsockopt( scktID, IPPROTO_IP, IP_MTU_DISCOVER, &scktOpt, sizeof( scktOpt ));
 	if( result < 0 )  {
 		perror( "Error: setsockopt( IP_MTU_DISCOVER)" );
-		printf( "Error: Unable to set IP MTU Discover to %d\n", scktOpt );
+		fprintf( stderr, "Error: Unable to set IP MTU Discover to %d\n", scktOpt );
 	}
 	else if( verbosityLvl > 5 )  printf( "IPv4 MTU Discover value set to %d\n", scktOpt );
 #else
@@ -254,7 +254,7 @@ int  setIPv4_DontFragment( int  scktID,  int  dontFragmentSetting, int  verbosit
 	result = setsockopt( scktID, IPPROTO_IP, IP_DONTFRAG, &scktOpt, sizeof( scktOpt ));
 	if( result < 0 )  {
 		perror( "Error: setsockopt( IP_DONTFRAG )" );
-		printf( "Error: Unable to set Don't Fragment to %d\n", scktOpt );
+		fprintf( stderr, "Error: Unable to set Don't Fragment to %d\n", scktOpt );
 	}
 	else if( verbosityLvl > 5 )  printf( "IPv4 Don't Fragment value set to %d\n", scktOpt );
 #endif
@@ -288,14 +288,73 @@ int  ensureIPv4_DontFragmentSettingIsTheRequiredValue( int  scktID,  int  requir
 	result = getIPv4_DontFragment( scktID, &scktOpt, verbosityLvl );
 /* Were we able to read the DF setting ? */
     if( result < 0 )  {	/* No we were unable to read the DF setting so see if error message is required */
-		if( verbosityLvl > 0 )  printf( "Error: Unable to read the current IPv4 header Don't Fragment setting\n" );
+		if( verbosityLvl > 0 )  fprintf( stderr, "Error: Unable to read the current IPv4 header Don't Fragment setting\n" );
 	}
 	else  {		/* Yes we were able to read the DF setting */
 		if( scktOpt != requiredDontFragmentValue )  {	/* not the required value so see if we can set it */
 			result = setIPv4_DontFragment( scktID, requiredDontFragmentValue, verbosityLvl );
 		    if( result < 0 )  {	/* No we were unable to set the DF setting so see if error message is required */
 				if( verbosityLvl > 0 )
-					printf( "Error: Unable to set the IPv4 header Don't Fragment setting to %d\n",  requiredDontFragmentValue );
+					fprintf( stderr, "Error: Unable to set the IPv4 header Don't Fragment setting to %d\n",  requiredDontFragmentValue );
+			}
+		}
+	}
+	return( result );
+}
+
+
+int  getSocketBroadcastPermission( int  scktID, int *  broadcastPermission, int  verbosityLvl )  {
+	int  result, scktOpt;
+	socklen_t  scktOptLen;
+
+	scktOpt = 0;
+	scktOptLen = sizeof( scktOpt );
+	result = getsockopt( scktID, SOL_SOCKET, SO_BROADCAST, &scktOpt, &scktOptLen );
+	if( result < 0 )  perror( "Error: getsockopt( Broadcast Permission )" );
+	else  {
+		if( verbosityLvl > 5 )  printf( "Broadcast Permission value is %d and size of Broadcast value is %u\n", scktOpt, scktOptLen );
+		if( scktOptLen != sizeof( int ))  {
+			fprintf( stderr, "Error: Socket Broadcast value is unexpected size of %u bytes\n", scktOptLen );
+			result = -2;	/* flag error */
+		}
+		else  {
+			*broadcastPermission = scktOpt;
+		}
+	}
+	return( result );
+}
+
+
+int  setSocketBroadcastPermission( int  scktID,  int  broadcastPermission, int  verbosityLvl )  {
+	int  result, scktOpt;
+
+	scktOpt = broadcastPermission;
+	result = setsockopt( scktID, SOL_SOCKET, SO_BROADCAST, &scktOpt, sizeof( scktOpt ));
+	if( result < 0 )  {
+		perror( "Error: setsockopt( Broadcast Permission )" );
+		fprintf( stderr, "Error: Unable to set Broadcast Permission to %d\n", scktOpt );
+	}
+	else if( verbosityLvl > 5 )  printf( "Socket Broadcast Permission set to %d\n", scktOpt );
+	return( result );
+}
+
+
+int  ensureSocketBroadcastPermissionSettingIsTheRequiredValue( int  scktID,  int  requiredBroadcastPermissionValue, int  verbosityLvl )  {
+	int  result = -1;
+	int  scktOpt = 0;
+
+/* What is the current setting */
+	result = getSocketBroadcastPermission( scktID, &scktOpt, verbosityLvl );
+/* Were we able to read the Socket Broadcast Permission setting ? */
+    if( result < 0 )  {	/* No we were unable to read the Socket Broadcast Permission setting so see if error message is required */
+		if( verbosityLvl > 0 )  fprintf( stderr, "Error: Unable to read the current Socket Broadcast Permission setting\n" );
+	}
+	else  {		/* Yes we were able to read the Socket Broadcast Permission setting */
+		if( scktOpt != requiredBroadcastPermissionValue )  {	/* not the required value so see if we can set it */
+			result = setSocketBroadcastPermission( scktID, requiredBroadcastPermissionValue, verbosityLvl );
+		    if( result < 0 )  {	/* No we were unable to set the Socket Broadcast Permission setting so see if error message is required */
+				if( verbosityLvl > 0 )
+					fprintf( stderr, "Error: Unable to set the Socket Broadcast Permission setting to %d\n",  requiredBroadcastPermissionValue );
 			}
 		}
 	}

@@ -27,6 +27,10 @@ found on iputils (linux) ping, but not on macOS ping, and vice versa.
 \fB\-a\fR
 Output an audible indication (ASCII BEL character) whenever a reply is received.
 .TP
+\fB\-b\fR
+Set the broadcast permission so that pings can be sent to a broadcast address.
+This setting doesn't appear to be necessary on macOS, but is on linux.
+.TP
 \fB\-c \fI\,ping_count\/\fR
 Send \fI\,ping_count\/\fR pings. The ping count is specified as a positive
 value integer or zero. Zero specifies continuous ping mode, which will send

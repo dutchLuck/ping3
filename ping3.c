@@ -1,7 +1,7 @@
 /*
  * P I N G 3 . C
  *
- * ping3.c last edited Sat Dec  9 16:25:56 2023
+ * ping3.c last edited Wed Dec 13 22:09:47 2023
  * 
  * v0.9.5 Increased ICMP_PAYLOAD_MAX_PATTERN_SIZE to 28
  * v0.9.4 Fix compile error in Don't Fragment processing on macOS before Big Sur
@@ -32,7 +32,6 @@
  * 5. IPv4 Header option tsprespec with a single Device specified triggers overrun count
  * 6. IPv4 Header option tsprespec with no devices pre-specified has different first ping to subsequent pings
  * 7. No Windows version - yet.
- * 8. Pinging the broadcast address does not work on linux.
  */
 
 /*
@@ -88,7 +87,7 @@
 #define  TRUE  (! FALSE)
 #endif
 
-#define VERSION_STRING "0.9.5"	/* version */
+#define VERSION_STRING "0.9.6"	/* version */
 #define MIN_PING_ATTEMPTS  0	/* smallest number of ICMP requests sent (limits X for -cX option) */
 #define DEFAULT_PING_COUNT  3	/* default number of pings to send */
 #define MAX_PING_ATTEMPTS  100	/* largest number of ICMP requests sent (limits X for -cX option) */
@@ -133,7 +132,7 @@ extern int  errno;
 /* Command line Optional Switches: */
 /*  count, Debug, help, interval, length, Mask/Timestamp, quiet,  */
 /*  Record route, Time tp Live, Time stamp, verbosity, wait */
-const char  optionStr[] = "ac:Dhi:l:M:p:qRs:t:T:v:w:";
+const char  optionStr[] = "abc:Dhi:l:M:p:qRs:t:T:v:w:";
 
 /* Command Line options that may or may not be set by the user */
 int	 quietFlag;		/* when TRUE minimise the output info */
@@ -141,6 +140,7 @@ int	 helpFlag;		/* when TRUE help message is printed and program exits */
 int	 debugFlag;		/* when TRUE output lots of info */
 int	 haveLocalHostNameFlag;	/* Local host name is known if true */
 int  a_Flag;						/* Audible flag was found in the command line options */
+int  b_Flag;						/* allow Broadcast flag was found in the command line options */
 int  c_Flag;						/* Ping count was found in the command line options */
 char *  c_Strng = ( char * ) NULL;	/*  pointer to -c value as there should be a value */
 int	 pingSendAttemptsLeft;			/* attempt pingSendAttemptsLeft pings */
@@ -914,6 +914,7 @@ void  useage( char *  name )  {
 	printf( "or      %s [options] NetworkDeviceIP_Number\n", name );
 	printf( "\nwhere options are; -\n" );
 	printf( "        -a  switches on audible output notification of replies received\n" );
+	printf( "        -b  switches on broadcast permission for requests to be sent to a broadcast address\n" );
 	printf( "        -cX  specifies number of times to ping remote network device ( %d <= X <= %d )\n", MIN_PING_ATTEMPTS, MAX_PING_ATTEMPTS );
 	printf( "          where a value of 0 invokes continuous ping mode. Stop this mode with control-C or control-\\.\n" );
 	if( isIPv4_DontFragmentManipulatableOnThisOS_Version())
@@ -961,6 +962,7 @@ int  processCommandLineOptions( int  argc, char *  argv[] )  {
 	while(( result = getopt( argc, argv, optionStr )) != -1 )  {
     	switch( result )  {
 			case 'a' :  a_Flag = TRUE; break;					/* Audible reply receive */
+			case 'b' :  b_Flag = TRUE; break;					/* Broadcast permission for requests */
     		case 'c' :  c_Flag = TRUE; c_Strng = optarg; break;	/* Count of ping requests to be sent */
 			case 'D' :  D_Flag = isIPv4_DontFragmentManipulatableOnThisOS_Version(); break;		/* Don't Fragment setting on requests */
 			case 'h' :  helpFlag = TRUE; break;
@@ -1136,6 +1138,7 @@ int  processCommandLineOptions( int  argc, char *  argv[] )  {
 	/* Provide feedback on what options are in play in Debug mode */
 	if( debugFlag )  {
 		printf( "Debug: -a option ( audible ) is %s\n", ( a_Flag ) ? "active" : "inactive" );
+		printf( "Debug: -b option ( broadcast ) is %s\n", ( b_Flag ) ? "active" : "inactive" );
 		printf( "Debug: -c option ( count ) is %s\n", ( c_Flag ) ? "active" : "inactive" );
 	}
 	if( isIPv4_DontFragmentManipulatableOnThisOS_Version())  {
@@ -1170,8 +1173,9 @@ void  setGlobalFlagDefaults( char *  argv[] )  {	/* Set up any Global variables 
 	int  i;
 
 	helpFlag = debugFlag = quietFlag = FALSE;
-	a_Flag = FALSE;
-	c_Flag = FALSE;
+	a_Flag = FALSE;		/* Audible */
+	b_Flag = FALSE;		/* Broadcast */
+	c_Flag = FALSE;		/* Count */
 	pingSendAttemptsLeft = DEFAULT_PING_COUNT;
 	continousPingMode = FALSE;		/* normal mode is a specific number of pings */
 	D_Flag = FALSE;		/* Don't Fragment flag */
@@ -1316,7 +1320,7 @@ int  main( int  argc, char *  argv[] )  {
 		/* Set the Time to Live if required */
 		if( t_Flag )  {	/* is the TTL Flag active ? */
 			if( setIPv4_TimeToLive( sckt, ip4_HeaderTTL_Value, verbosityLevel ) < 0 )
-				printf( "Error: Unable to set Time to Live to %d\n", ( int ) ip4_HeaderTTL_Value );
+				fprintf( stderr, "Error: Unable to set Time to Live to %d\n", ( int ) ip4_HeaderTTL_Value );
 		}
 		if( debugFlag )  {
 			if( getIPv4_TimeToLive( sckt, &scktOpt, verbosityLevel ) < 0 )  printf( "Warning: unable to get current TTL value\n" );
@@ -1325,11 +1329,18 @@ int  main( int  argc, char *  argv[] )  {
 		if( isIPv4_DontFragmentManipulatableOnThisOS_Version())  {
 			/* Set or reset the Don't Fragment setting - Linux defaults on, macOS defaults off - so force it on or off */
 			if( ensureIPv4_DontFragmentSettingIsTheRequiredValue( sckt, (( D_Flag ) ? 1 : 0 ), verbosityLevel ) < 0 )
-				printf( "Error: Unable to set Don't Fragment setting to %s\n", ( D_Flag ) ? "True" : "False" );
+				fprintf( stderr, "Error: Unable to set Don't Fragment setting to %s\n", ( D_Flag ) ? "True" : "False" );
 			if( debugFlag )  {
 				if( getIPv4_DontFragment( sckt, &scktOpt, verbosityLevel ) < 0 )  printf( "Warning: unable to get current Don't Fragment value\n" );
 				else  printf( "Debug: IPv4 header Don't Fragment value is %s\n", ( scktOpt == 1 ) ? "True" : "False" );
 			}
+		}
+		if( ensureSocketBroadcastPermissionSettingIsTheRequiredValue( sckt, (( b_Flag ) ? 1 : 0 ), verbosityLevel ) < 0 )
+			fprintf( stderr, "Error: Unable to set Broadcast Permission setting to %s\n", ( b_Flag ) ? "True" : "False" );
+		if( debugFlag )  {
+			if( getSocketBroadcastPermission( sckt, &scktOpt, verbosityLevel ) < 0 )
+				printf( "Warning: unable to get current Socket Broadcast permission value\n" );
+			else  printf( "Debug: Socket broadcast value is %d\n", scktOpt );
 		}
 		clock_gettime( CLOCK_REALTIME, &timeOfFirstPing );	/* get current time as the time of the first ping request */
 		sendPing( 0 );	/* Send first ping and start interrupt timer for further pings as necessary */
