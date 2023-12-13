@@ -1,8 +1,8 @@
 #! /bin/bash
 #
-# C H E C K
+# C H K
 #
-# check last edited Wed Dec 13 22:30:03 2023
+# chk last edited Wed Dec 13 23:20:46 2023
 #
 PROGRAM=ping3
 #
@@ -57,6 +57,16 @@ echo
 #
 echo "ping -c 3 $TARGET"
 ping -c 3 $TARGET
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Non zero ($RESULT) return value passed back to this ($0) shell script"
+fi
+sleep 1
+echo
+#
+echo "$PRIV ../$PROGRAM -a -c 15 $TARGET"
+$PRIV ../$PROGRAM -a -c 15 $TARGET
 RESULT=$?
 if [[ "$RESULT" != "0" ]] ; then
   echo

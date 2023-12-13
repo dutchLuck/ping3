@@ -1,8 +1,8 @@
 #! /bin/bash
 #
-# C H K
+# C H E C K
 #
-# chk last edited Wed Dec  6 18:30:44 2023
+# check last edited Wed Dec 13 23:20:49 2023
 #
 PROGRAM=ping3
 TARGET=localhost
