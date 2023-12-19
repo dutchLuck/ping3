@@ -2,7 +2,7 @@
 #
 # C H K
 #
-# chk last edited Wed Dec 13 23:20:46 2023
+# chk last edited Tue Dec 19 18:43:58 2023
 #
 PROGRAM=ping3
 #
@@ -26,10 +26,18 @@ echo
 echo "Operating System designation is $OSTYPE"
 echo
 #
-if [[ "$OSTYPE" == "darwin"* ]] ; then
-  PRIV=""
-else
+if [[ "$OSTYPE" == "linux-gnu" ]] ; then
   PRIV="sudo"
+else
+  PRIV=""
+fi
+#
+if [[ "$OSTYPE" == "msys" ]] ; then
+  PROGRAM=ping3.exe
+fi
+#
+if [[ "$OSTYPE" == "cygwin" ]] ; then
+  PROGRAM=ping3.exe
 fi
 #
 #

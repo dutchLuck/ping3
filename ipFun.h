@@ -11,11 +11,10 @@
 #define  IP_FUN_H
 
 
-#include  <sys/types.h>
-#include  <sys/socket.h>
+/*
 #include  <netinet/in_systm.h>
-#include  <netinet/in.h>
-#include  <arpa/inet.h>
+#include  <netinet/in.h> */
+#include  <arpa/inet.h>     /* struct in_addr */
 #include  <netinet/ip.h>
 
 
@@ -42,7 +41,7 @@
 #define  IPTOS_RELIABILITY  0x04
 #endif
 
-u_short  calcCheckSum( u_short *, int );
+u_short  calcCheckSum( unsigned short *, int );
 void  printIPv4_AddressAsDottedQuad( struct in_addr * );
 void  display_ip( struct ip  *, int );
 void  printPingCommonInfo( struct ip  *, int );

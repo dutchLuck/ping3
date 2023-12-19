@@ -17,27 +17,34 @@
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
-#include <netinet/ip_icmp.h>
-#include <arpa/inet.h>		/* */
+#include "genFun.h"		/* FALSE */
+#include "dbgFun.h"		/* printNamedByteArray() */
 #include "ipFun.h"
 #include "timeFun.h"	/* printMilliSecondsSinceMidnightInHMS_Format() */
-#include "icmpFun.h"	/* ICMP_TYPE_* FALSE */
-#include "dbgFun.h"		/* printNamedByteArray() */
+#include "icmpFun.h"	/* ICMP_TYPE_* */
+
+
+void  displayICMP_UniversalHeader( struct icmp *  ptr, char *  typeDescription )  {
+	printf( "ICMP %s: ", typeDescription );
+	printf( "Type %d, Code %d, Checksum 0x%04x", ptr->icmp_type, ptr->icmp_code, ntohs( ptr->icmp_cksum ));
+}
+
+
+void  displayICMP_TypeCodeChksumSequenceIdentifier( struct icmp *  ptr, char *  typeDescription )  {
+	displayICMP_UniversalHeader( ptr, typeDescription );
+	printf( ", Sequence 0x%04x, Identifier 0x%04x", ntohs( ptr->icmp_seq ), ntohs( ptr->icmp_id ));
+}
 
 
 void  displayEchoReply( struct icmp *  ptr )  {
-	printf( "ICMP Echo Reply: Type %d, Code %d, Checksum 0x%04x, Sequence 0x%04x, Identifier 0x%04x\n",
-		ptr->icmp_type, ptr->icmp_code, ntohs( ptr->icmp_cksum ),
-		ntohs( ptr->icmp_seq ), /* seq and id must be reflected */
-		ntohs( ptr->icmp_id ));
+	displayICMP_TypeCodeChksumSequenceIdentifier( ptr, "Echo Reply" );
+	printf( "\n" );
 }
 
 
 void  displayEchoRequest( struct icmp *  ptr )  {
-	printf( "ICMP Echo Request: Type %d, Code %d, Checksum 0x%04x, Sequence 0x%04x, Identifier 0x%04x\n",
-		ptr->icmp_type, ptr->icmp_code, ntohs( ptr->icmp_cksum ),
-		ntohs( ptr->icmp_seq ), /* seq and id must be reflected */
-		ntohs( ptr->icmp_id ));
+	displayICMP_TypeCodeChksumSequenceIdentifier( ptr, "Echo Request" );
+	printf( "\n" );
 }
 
 
@@ -68,9 +75,8 @@ void  displayUnreachable( struct icmp *  ptr )  {
 
 
 void  displaySourceQuench( struct icmp *  ptr )  {
-	printf( "ICMP Source Quench\n" );
-	printf( "\nICMP: Type %d, Code %d, Checksum 0x%04x\n", ptr->icmp_type,
-		ptr->icmp_code, ntohs( ptr->icmp_cksum ));
+	displayICMP_UniversalHeader( ptr, "Source Quench" );
+	printf( "\n" );
 }
 
 
@@ -89,16 +95,14 @@ void  displayRedirect( struct icmp *  ptr )  {
 
 
 void  displayRouterAdvert( struct icmp *  ptr )  {
-	printf( "ICMP Router Advert\n" );
-	printf( "\nICMP: Type %d, Code %d, Checksum 0x%04x\n", ptr->icmp_type,
-		ptr->icmp_code, ntohs( ptr->icmp_cksum ));
+	displayICMP_UniversalHeader( ptr, "Router Advert" );
+	printf( "\n" );
 }
 
 
 void  displayRouterSolicit( struct icmp *  ptr )  {
-	printf( "ICMP Router Solicit\n" );
-	printf( "\nICMP: Type %d, Code %d, Checksum 0x%04x\n", ptr->icmp_type,
-		ptr->icmp_code, ntohs( ptr->icmp_cksum ));
+	displayICMP_UniversalHeader( ptr, "Router Solicit" );
+	printf( "\n" );
 }
 
 
@@ -113,11 +117,19 @@ void  displayTimeExceeded( struct icmp *  ptr )  {
 
 void  displayParameterProblem( struct icmp *  ptr )  {
 	struct ip  *problemPacketPtr;
+#ifdef  __CYGWIN__
+	unsigned char *  ih_pptr;
+#endif
 
+#ifdef  __CYGWIN__
+	ih_pptr = ( unsigned char * ) &ptr->icmp_id;
+	printf( "ICMP Parameter Problem at octet %d in the following packet ;-\n", *ih_pptr );
+#else
 	printf( "ICMP Parameter Problem at octet %d in the following packet ;-\n",
 		ptr->icmp_hun.ih_pptr );
+#endif
 	switch( ptr->icmp_code )  {
-#ifndef __linux__
+#ifdef __APPLE__
 		case ICMP_PARAMPROB_ERRATPTR : printf( "Problem Errata Ptr"); break;
 		case ICMP_PARAMPROB_LENGTH : printf( "Problem Length"); break;
 #endif
@@ -147,41 +159,36 @@ void  displayTimeStampReplyTimestamps( struct icmp *  ptr, int  nonStdFlag )  {
 
 
 void  displayTimeStampRequest( struct icmp *  ptr )  {
-	printf( "ICMP Time Stamp Request: " );
-	printf( "Type %d, Code %d, Checksum 0x%04x\n", ptr->icmp_type,
-		ptr->icmp_code, ntohs( ptr->icmp_cksum ));
+	displayICMP_UniversalHeader( ptr, "Time Stamp Request" );
+	printf( "\n" );
 	displayTimeStampReplyTimestamps( ptr, FALSE );
 	printf( "\n" );
 }
 
 
 void  displayTimeStampReply( struct icmp *  ptr )  {
-	printf( "ICMP Time Stamp Reply: " );
-	printf( "Type %d, Code %d, Checksum 0x%04x\n", ptr->icmp_type,
-		ptr->icmp_code, ntohs( ptr->icmp_cksum ));
+	displayICMP_UniversalHeader( ptr, "Time Stamp Reply" );
+	printf( "\n" );
 	displayTimeStampReplyTimestamps( ptr, FALSE );
 	printf( "\n" );
 }
 
 
 void  displayInfoRequest( struct icmp *  ptr )  {
-	printf( "ICMP Info Request\n" );
-	printf( "\nICMP: Type %d, Code %d, Checksum 0x%04x\n", ptr->icmp_type,
-		ptr->icmp_code, ntohs( ptr->icmp_cksum ));
+	displayICMP_UniversalHeader( ptr, "Info Request" );
+	printf( "\n" );
 }
 
 
 void  displayInfoReply( struct icmp *  ptr )  {
-	printf( "ICMP Info Reply\n" );
-	printf( "\nICMP: Type %d, Code %d, Checksum 0x%04x\n", ptr->icmp_type,
-		ptr->icmp_code, ntohs( ptr->icmp_cksum ));
+	displayICMP_UniversalHeader( ptr, "Info Reply" );
+	printf( "\n" );
 }
 
 
 void displayMaskRequest( struct icmp *  ptr )  {
-	printf( "ICMP Mask Request: " );
-	printf( "Type %d, Code %d, Checksum 0x%04x\n", ptr->icmp_type,
-		ptr->icmp_code, ntohs( ptr->icmp_cksum ));
+	displayICMP_UniversalHeader( ptr, "Mask Request" );
+	printf( "\n" );
 }
 
 
@@ -192,14 +199,15 @@ void  displayMaskReplyMask( struct icmp *  ptr )  {
 	u_Ptr = ( u_char * ) ptr;
 	maskPtr = ( u_int32_t * )( u_Ptr + 8 );
 	printf( "mask " );
-	printIPv4_AddressAsDottedQuad( (struct in_addr * ) maskPtr );
+	printIPv4_AddressAsDottedQuad( ( struct in_addr * ) maskPtr );
 }
 
 
 void displayMaskReply( struct icmp *  ptr )  {
-	printf( "ICMP Mask Reply: " );
-	printf( "ICMP: Type %d, Code %d, Checksum 0x%04x\n", ptr->icmp_type,
-		ptr->icmp_code, ntohs( ptr->icmp_cksum ));
+	displayICMP_UniversalHeader( ptr, "Mask Request" );
+	printf( " " );
+	displayMaskReplyMask( ptr );
+	printf( "\n" );
 }
 
 

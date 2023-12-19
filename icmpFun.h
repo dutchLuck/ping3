@@ -12,19 +12,20 @@
 
 #include <sys/types.h>
 #include <sys/param.h>
+#ifdef __CYGWIN__
+#include "icmpDefn.h"
+#else
+#ifdef __MINGW64__
+#include "icmpDefn.h"
+#else
 #include <netinet/ip_icmp.h>	/* struct icmp */
+#endif
+#endif
 
 #define ICMP_TYPE_ECHO  0		/* ICMP Echo request with standard replies expected */
 #define ICMP_TYPE_MASK  1		/* ICMP Mask request with standard replies expected */
 #define ICMP_TYPE_TIME  2		/* ICMP Timestamp request with standard replies expected */
 #define ICMP_TYPE_TIMEW  3		/* ICMP Timestamp request with little endian replies expected */
-
-#ifndef  FALSE
-#define  FALSE  ((int)0)
-#endif
-#ifndef  TRUE
-#define  TRUE  (! FALSE)
-#endif
 
 
 void  displayMaskReplyMask( struct icmp * );

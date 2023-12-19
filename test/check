@@ -2,7 +2,7 @@
 #
 # C H E C K
 #
-# check last edited Wed Dec 13 23:20:49 2023
+# check last edited Tue Dec 19 18:44:01 2023
 #
 PROGRAM=ping3
 TARGET=localhost
@@ -11,11 +11,20 @@ echo
 echo "Operating System designation is $OSTYPE"
 echo
 #
-if [[ "$OSTYPE" == "darwin"* ]] ; then
-  PRIV=""
+if [[ "$OSTYPE" == "linux-gnu" ]] ; then
+  PRIV="sudo"
 else
-  PRIV=sudo
+  PRIV=""
 fi
+#
+if [[ "$OSTYPE" == "msys" ]] ; then
+  PROGRAM=ping3.exe
+fi
+#
+if [[ "$OSTYPE" == "cygwin" ]] ; then
+  PROGRAM=ping3.exe
+fi
+#
 #
 # Test standard ICMP ECHO request ping
 #

@@ -2,7 +2,7 @@
 #
 # C O N F I G U R E
 #
-# configure last edited Mon Sep 18 21:02:16 2023
+# configure last edited Sat Dec 16 20:48:15 2023
 #
 NAME1=ping3
 NAME2=genFun
@@ -21,16 +21,22 @@ TRGT=$NAME1
 SRC1=$NAME1.c
 OBJ1=$NAME1.o
 SRC2=$NAME2.c
+HDR2=$NAME2.h
 OBJ2=$NAME2.o
 SRC3=$NAME3.c
+HDR3=$NAME3.h
 OBJ3=$NAME3.o
 SRC4=$NAME4.c
+HDR4=$NAME4.h
 OBJ4=$NAME4.o
 SRC5=$NAME5.c
+HDR5=$NAME5.h
 OBJ5=$NAME5.o
 SRC6=$NAME6.c
+HDR6=$NAME6.h
 OBJ6=$NAME6.o
 SRC7=$NAME7.c
+HDR7=$NAME7.h
 OBJ7=$NAME7.o
 HDR8=$NAME8.h
 #
@@ -49,31 +55,31 @@ echo "$TRGT: $OBJ1 $OBJ2 $OBJ3 $OBJ4 $OBJ5 $OBJ6 $OBJ7 $LNK_OPTIONS" > $OP_FILE_
 echo -e "\t$COMPILER -o "'$@ $^' >> $OP_FILE_NAME
 echo "" >> $OP_FILE_NAME
 #
-echo "$OBJ1: $SRC1 $HDR8" >> $OP_FILE_NAME
+echo "$OBJ1: $SRC1 $HDR2 $HDR3 $HDR4 $HDR5 $HDR6 $HDR7" >> $OP_FILE_NAME
 echo -e "\t$COMPILER $OPTIONS -c -UDEBUG "'$<' >> $OP_FILE_NAME
 echo "" >> $OP_FILE_NAME
 #
-echo "$OBJ2: $SRC2" >> $OP_FILE_NAME
+echo "$OBJ2: $SRC2 $HDR2" >> $OP_FILE_NAME
 echo -e "\t$COMPILER $OPTIONS -c -UDEBUG "'$<' >> $OP_FILE_NAME
 echo "" >> $OP_FILE_NAME
 #
-echo "$OBJ3: $SRC3" >> $OP_FILE_NAME
+echo "$OBJ3: $SRC3 $HDR2 $HDR3" >> $OP_FILE_NAME
 echo -e "\t$COMPILER $OPTIONS -c -UDEBUG "'$<' >> $OP_FILE_NAME
 echo "" >> $OP_FILE_NAME
 #
-echo "$OBJ4: $SRC4 $HDR6" >> $OP_FILE_NAME
+echo "$OBJ4: $SRC4 $HDR2 $HDR6" >> $OP_FILE_NAME
 echo -e "\t$COMPILER $OPTIONS -c -UDEBUG "'$<' >> $OP_FILE_NAME
 echo "" >> $OP_FILE_NAME
 #
-echo "$OBJ5: $SRC5" >> $OP_FILE_NAME
+echo "$OBJ5: $SRC5 $HDR2 $HDR3 $HDR4 $HDR5 $HDR7" >> $OP_FILE_NAME
 echo -e "\t$COMPILER $OPTIONS -c -UDEBUG "'$<' >> $OP_FILE_NAME
 echo "" >> $OP_FILE_NAME
 #
-echo "$OBJ6: $SRC6" >> $OP_FILE_NAME
+echo "$OBJ6: $SRC6 $HDR6 $HDR7 $HDR8" >> $OP_FILE_NAME
 echo -e "\t$COMPILER $OPTIONS -c -UDEBUG "'$<' >> $OP_FILE_NAME
 echo "" >> $OP_FILE_NAME
 #
-echo "$OBJ7: $SRC7" >> $OP_FILE_NAME
+echo "$OBJ7: $SRC7 $HDR7" >> $OP_FILE_NAME
 echo -e "\t$COMPILER $OPTIONS -c -UDEBUG "'$<' >> $OP_FILE_NAME
 echo "" >> $OP_FILE_NAME
 #
@@ -86,7 +92,7 @@ echo -e "\tcd test; ./chk" >> $OP_FILE_NAME
 echo "" >> $OP_FILE_NAME
 #
 echo "clean:" >> $OP_FILE_NAME
-echo -e "\trm -f $TRGT $TRGT.exe *.o" >> $OP_FILE_NAME
+echo -e "\trm -f $TRGT *.o" >> $OP_FILE_NAME
 echo "" >> $OP_FILE_NAME
 #
 echo "debug: clean" >> $OP_FILE_NAME

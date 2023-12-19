@@ -7,8 +7,9 @@
  *
  */
 
-#include  <stdio.h>
+#include  <stdio.h>			/* printf() */
 #include  <sys/socket.h>	/* getsockopt() setsockopt() */
+#include  "genFun.h"		/* TRUE FALSE */
 #include  "ipFun.h"
 #include  "icmpFun.h"
 #include  "ipOptionsFun.h"
@@ -17,9 +18,9 @@
 /*
  *	Checksum routine for Internet Protocol family headers (C Version)
  */
-u_short  calcCheckSum( u_short *  addr, int  len)  {
+u_short  calcCheckSum( unsigned short *  addr, int  len)  {
 	register int nleft = len;
-	register u_short * wrdPtr = addr;
+	register unsigned short * wrdPtr = addr;
 	register int sum = 0;
 	u_short answer = 0;
 

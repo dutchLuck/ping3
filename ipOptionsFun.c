@@ -1,23 +1,24 @@
 /*
  * I P O P T I O N S F U N . C
  *
- * ipOptionsFun.c  last edited Tue Oct 31 23:05:31 2023
+ * ipOptionsFun.c  last edited Mon Dec 18 23:06:51 2023
  *
  * Functions to handle IP Header Options in the IP packet.
  *
  */
 
-#include <stdio.h>
+#include <stdio.h>			/* printf() */
 #include <arpa/inet.h>			/* ntohl() */
-#include <netinet/ip.h>			/* struct ip_timestamp */
+#include <netinet/ip.h>			/* struct ip_timestamp for CYGWIN */
 #include <netinet/in_systm.h>	/* n_long */
-#ifdef __linux__
-#include "ipOptTS.h"	/* use a copy of the BSD option struct */
-typedef  struct ipOptTimestamp  IP_TIMESTAMP;
+#ifdef __APPLE__
+#include <netinet/ip_var.h>		/* struct ip_timestamp for APPLE */
 #else
-#include <netinet/ip_var.h>
-typedef  struct ip_timestamp  IP_TIMESTAMP;
+#ifdef __linux__
+#include "ipOptTS.h"			/* struct ip_timestamp in a macOS form for linux */
 #endif
+#endif
+typedef  struct ip_timestamp  IP_TIMESTAMP;
 #include "timeFun.h"	/* convert...() displayTimeAndDeltaTime() */
 
 

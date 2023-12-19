@@ -7,8 +7,8 @@
  * 
  */
 
-#include  <stdio.h>
-#include  <time.h>	/* struct timespec ctime_r() */
+#include  <stdio.h>		/* printf() */
+#include  <time.h>		/* struct timespec ctime_r() */
 #include  <sys/time.h>	/* struct timeval */
 #include  <limits.h>	/* LONG_MAX */
 

@@ -11,13 +11,6 @@
 #include <ctype.h>		/* touppper() */
 #include "genFun.h"
 
-#ifndef  FALSE
-#define  FALSE  ((int)0)
-#endif
-#ifndef  TRUE
-#define  TRUE  (! FALSE)
-#endif
-
 
 void  clearByteArray( unsigned char *  ptr, int  sizeOfArray )  {
 	for( ; sizeOfArray > 0; --sizeOfArray )  *ptr++ = ( unsigned char ) 0;

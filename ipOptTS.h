@@ -1,7 +1,7 @@
 /*
  * I P O P T T S . H
  *
- * ipOptTS.h last edited Mon Sep 18 20:32:20 2023
+ * ipOptTS.h last edited Mon Dec 18 23:06:32 2023
  *
  */
 
@@ -10,7 +10,7 @@
 
 #include <netinet/in_systm.h>	/* n_long */
 
-/* Get around Red Hat (at least?) linux ip.h defn bug */
+/* Get around linux ip.h IP options defn being different to macOS */
 #ifdef __linux__
 struct	ipOptTimestamp {
 	u_char	ipt_code;		/* IPOPT_TS */

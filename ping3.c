@@ -1,8 +1,9 @@
 /*
  * P I N G 3 . C
  *
- * ping3.c last edited Wed Dec 13 22:09:47 2023
+ * ping3.c last edited Tue Dec 19 20:04:10 2023
  * 
+ * v0.9.7 Reworked include files, added icmpDefn.h to project, compiles on CYGWIN
  * v0.9.5 Increased ICMP_PAYLOAD_MAX_PATTERN_SIZE to 28
  * v0.9.4 Fix compile error in Don't Fragment processing on macOS before Big Sur
  */
@@ -31,7 +32,7 @@
  * 4. So many <abc.h> header files included - are they all still necessary?
  * 5. IPv4 Header option tsprespec with a single Device specified triggers overrun count
  * 6. IPv4 Header option tsprespec with no devices pre-specified has different first ping to subsequent pings
- * 7. No Windows version - yet.
+ * 7. No stand-alone Windows version, but CYGWIN version is semi-functional.
  */
 
 /*
@@ -40,54 +41,40 @@
  * 1. Multiple IPv4 Header options in the same ICMP request
  * 2. Separation of sending and receiving functions
  * 3. Reverse DNS lookup on the IP address of target
- * 4. ? Broadcast/Multicast ping option
+ * 4. ? Multicast ping option
  * 5. ? UDP port 7 (echo) ping?
  * 6. ? TCP port 7 (echo) ping?
  * 7. ? ARP ping for local subnet ping?
  * 8. Report what doesn't match if ICMP Echo request payload != reply payload
  */
 
-#include <stdlib.h> 	/* exit() atexit() arc4random() */
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/socket.h>	/* inet_addr() inet_ntoa() */
-#include <sys/time.h>	/* setitimer() */
-#include <time.h>		/* clock_gettime() - implies that code only compiles on macOS 10.12 (Sierra) and later */
-#include <sys/signal.h>
-#include <signal.h>		/* psignal() */
+#include <stdlib.h> 	/* exit() atexit() arc4random() srandom() */
+#include <stdio.h>		/* printf() sprintf() fprintf() fflush() perror() */
+#include <sys/types.h>	/* legacy: sendto() setsockopt() inet_addr() inet_ntoa() */
+#include <sys/socket.h>	/* sendto() recvfrom() setsockopt() legacy: inet_addr() inet_ntoa() */
+#include <signal.h>		/* signal() SIGUSR1 SIGALRM psignal() */
 #include <libgen.h>		/* basename() */
-
-#include <netinet/in_systm.h>
-#include <netinet/in.h>	/* inet_addr() inet_ntoa() */
+#include <netinet/in.h>	/* legacy: inet_addr() inet_ntoa() */
 #include <arpa/inet.h>	/* inet_addr() inet_ntoa() */
-#include <netinet/ip.h>
 #include <netinet/ip_icmp.h>	/* struct icmp */
-#ifndef __linux__
-#include <netinet/ip_var.h>
-#endif
 #include <netdb.h>		/* gethostbyname() */
-#include <unistd.h>		/* gethostname() alarm() getopt() */
-#include <stdio.h>		/* printf() fprintf() perror() */
-#include <errno.h>
-#include <string.h>		/* strncpy() */
+#include <unistd.h>		/* gethostname() getopt() */
+#include <errno.h>		/* errno */
+#include <string.h>		/* strncmp() strdup() */
 #include <strings.h>	/* bzero() bcmp() */
 #include <float.h>		/* DBL_MAX */
 #include <math.h>		/* round() fmax() fmin() sqrt() */
-#include  "genFun.h"	/* clearByteArray() convertOptionStringToInteger() */
-#include  "dbgFun.h"	/* printNamedByteArray() */
-#include  "ipFun.h"		/* calcCheckSum() display_ip() */
-#include  "ipOptionsFun.h"	/* displayIpOptions() */
-#include  "icmpFun.h"	/* ICMP_TYPE_* displayICMP() */
-#include  "timeFun.h"	/* convertMilliSecondsSinceMidnightToHMS_String() calcTimeSpecClockDifferenceInSeconds() */
+#include "genFun.h"	/* clearByteArray() convertOptionStringToInteger() TRUE FALSE */
+#include "dbgFun.h"	/* printNamedByteArray() */
+#include "ipFun.h"		/* calcCheckSum() display_ip() */
+#include "ipOptionsFun.h"	/* displayIpOptions() */
+#include "icmpFun.h"	/* ICMP_TYPE_* displayICMP() */
+#include <time.h>		/* clock_gettime() - implies that code only compiles on macOS 10.12 (Sierra) and later */
+#include <sys/time.h>	/* setitimer() */
+#include "timeFun.h"	/* convertMilliSecondsSinceMidnightToHMS_String() calcTimeSpecClockDifferenceInSeconds() */
 
-#ifndef  FALSE
-#define  FALSE  ((int)0)
-#endif
-#ifndef  TRUE
-#define  TRUE  (! FALSE)
-#endif
 
-#define VERSION_STRING "0.9.6"	/* version */
+#define VERSION_STRING "0.9.7"	/* version */
 #define MIN_PING_ATTEMPTS  0	/* smallest number of ICMP requests sent (limits X for -cX option) */
 #define DEFAULT_PING_COUNT  3	/* default number of pings to send */
 #define MAX_PING_ATTEMPTS  100	/* largest number of ICMP requests sent (limits X for -cX option) */
@@ -813,10 +800,12 @@ void  finishOnUserInterrupt( int signo )  {
 	}
 	if( verbosityLevel > -9 )  printStats();	/* Unless super quiet print the stats about requests sent, replies received etc */
 	if( debugFlag )
-		printf( "Debug: about to exit( %d ) from finishOnUserInterrupt( %d )\n", ( pingsReceived < pingsSent ) ? EXIT_FAILURE : EXIT_SUCCESS, signo );
+		printf( "Debug: ping3 terminating with %s status from finishOnUserInterrupt( %d )\n",
+			( pingsReceived < pingsSent ) ? "EXIT_FAILURE" : (( pingsSent == 0 ) ? "EXIT_FAILURE" : "EXIT_SUCCESS" ), signo );
 	fflush( stdout );	/* Ensure anything printed to stdout is output to the user terminal */
 	fflush( stderr );	/* Ensure anything printed is stderr output to the user terminal */
-	exit( ( pingsReceived < pingsSent ) ? EXIT_FAILURE : EXIT_SUCCESS );	/* Terminate the program & report if more requests were sent than replies received */
+ /* Terminate the program & report a failure if no pings were sent or more requests were sent than replies received */
+	exit( ( pingsReceived < pingsSent ) ? EXIT_FAILURE : (( pingsSent == 0 ) ? EXIT_FAILURE : EXIT_SUCCESS ));
 }
 
 
@@ -1349,6 +1338,8 @@ int  main( int  argc, char *  argv[] )  {
 	}
 	/* Probably will not terminate execution via this code as the interrupt signal code will kill it off */
 	if( debugFlag )
-		printf( "Debug: about to return( %d ) from program end\n", ( pingsReceived < pingsSent ) ? EXIT_FAILURE : EXIT_SUCCESS );
-	return( ( pingsReceived < pingsSent ) ? EXIT_FAILURE : EXIT_SUCCESS );	/* report a Failure if more requests were sent than replies received */
+		printf( "Debug: ping3 terminating with %s status from program end\n",
+			( pingsReceived < pingsSent ) ? "EXIT_FAILURE" : (( pingsSent == 0 ) ? "EXIT_FAILURE" : "EXIT_SUCCESS" ));
+ /* report a Failure if no pings were sent or more requests were sent than replies received */
+	return( ( pingsReceived < pingsSent ) ? EXIT_FAILURE : (( pingsSent == 0 ) ? EXIT_FAILURE : EXIT_SUCCESS ) );
 }

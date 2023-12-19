@@ -30,4 +30,11 @@ int  convertOptionStringToInteger( int, char *, char *, int *, int );
 double  convertOptionStringToDouble( double, char *, char *, int *, int );
 int  convertHexByteStringToByteArray( char *, unsigned char *, int );
 
+#ifndef  FALSE
+#define  FALSE  ((int)0)
+#endif
+#ifndef  TRUE
+#define  TRUE  (! FALSE)
+#endif
+
 #endif
