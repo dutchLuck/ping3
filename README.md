@@ -22,12 +22,12 @@ The "ping3" utility provides a cut down version of the standard
 systems. Unlike ping it does not provide any Internet Protocol
 version 6 (IPv6) capability. It doesn't provide flood or preload
 options for congestion testing, alternate interface specification,
-alternate routing options or any specific broadcast or multicast
-functionality.
+alternate routing options or any specific multicast functionality.
 
 The standard ping utility that comes with Apple Mac OSX, such as
-macOS Sonoma, provides similar default capability to the Linux ping
-utility, but both differ considerably for more rarely used modes of
+macOS Sonoma, provides similar default capability to the ping
+utility from the iputils package that is typically used on linux,
+but both differ considerably for more rarely used modes of
 operation. Linux ping provides a timestamp (-T) and record route
 (-R) capability through IPv4 header options and macOS ping doesn't.
 However macOS ping provides a timestamp capability through ICMP
@@ -35,16 +35,19 @@ timestamp requests (-M time) and a netmask capability through
 ICMP mask requests (-M mask). Both modes require elevated priveleges
 via sudo, unless the "-s 0" option is included with the "-M time"
 or "-M mask" option. Linux ping has no ICMP timestamp or ICMP netmask
-capability.
+capability. The ping utility that comes with Microsoft Windows
+seems more like the iputils (linux) ping than the macOS ping.
 
 The ping3 utility provides timestamp or record route in the IPv4
 header options on a macOS system and provides ICMP timestamp or
 ICMP mask pings on a Linux system. On Linux ping3 requires the
 increased privelege via sudo to work, but it does not require
-sudo to work on macOS.
+sudo to work on macOS. In the Cygwin environment on Windows the
+ping3 utility provides timestamp and record route, but doesn't
+currently provide ICMP timestamp or mask pings.
 
-The default output of ping3 is somewhat similar to ping utility
-output, but with a different length number at the start of each
+The default output of ping3 is somewhat similar to the output of
+ping, but with a different length number at the start of each
 reply description. The ping3 length value is the total size of
 the IPv4 (ICMP) datagram, not the size of the ICMP message
 as is shown in the output lines from ping. In the following
