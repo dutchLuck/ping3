@@ -1,7 +1,7 @@
 /*
  * P I N G 3 . C
  *
- * ping3.c last edited Tue Dec 19 20:04:10 2023
+ * ping3.c last edited Wed Dec 20 19:15:48 2023
  * 
  * v0.9.7 Reworked include files, added icmpDefn.h to project, compiles on CYGWIN
  * v0.9.5 Increased ICMP_PAYLOAD_MAX_PATTERN_SIZE to 28
@@ -54,9 +54,6 @@
 #include <sys/socket.h>	/* sendto() recvfrom() setsockopt() legacy: inet_addr() inet_ntoa() */
 #include <signal.h>		/* signal() SIGUSR1 SIGALRM psignal() */
 #include <libgen.h>		/* basename() */
-#include <netinet/in.h>	/* legacy: inet_addr() inet_ntoa() */
-#include <arpa/inet.h>	/* inet_addr() inet_ntoa() */
-#include <netinet/ip_icmp.h>	/* struct icmp */
 #include <netdb.h>		/* gethostbyname() */
 #include <unistd.h>		/* gethostname() getopt() */
 #include <errno.h>		/* errno */
@@ -64,13 +61,11 @@
 #include <strings.h>	/* bzero() bcmp() */
 #include <float.h>		/* DBL_MAX */
 #include <math.h>		/* round() fmax() fmin() sqrt() */
-#include "genFun.h"	/* clearByteArray() convertOptionStringToInteger() TRUE FALSE */
-#include "dbgFun.h"	/* printNamedByteArray() */
+#include "genFun.h"		/* clearByteArray() convertOptionStringToInteger() TRUE FALSE */
+#include "dbgFun.h"		/* printNamedByteArray() */
 #include "ipFun.h"		/* calcCheckSum() display_ip() */
 #include "ipOptionsFun.h"	/* displayIpOptions() */
 #include "icmpFun.h"	/* ICMP_TYPE_* displayICMP() */
-#include <time.h>		/* clock_gettime() - implies that code only compiles on macOS 10.12 (Sierra) and later */
-#include <sys/time.h>	/* setitimer() */
 #include "timeFun.h"	/* convertMilliSecondsSinceMidnightToHMS_String() calcTimeSpecClockDifferenceInSeconds() */
 
 

@@ -11,11 +11,10 @@
 #define  IP_FUN_H
 
 
-/*
-#include  <netinet/in_systm.h>
-#include  <netinet/in.h> */
-#include  <arpa/inet.h>     /* struct in_addr */
-#include  <netinet/ip.h>
+#include  <netinet/in_systm.h>  /* n_long n_short n_time */
+#include  <netinet/in.h>    /* legacy: inet_addr() inet_ntoa() */
+#include  <arpa/inet.h>     /* struct in_addr inet_addr() inet_ntoa() */
+#include  <netinet/ip.h>    /* struct ip */
 
 
 /*

@@ -2,7 +2,7 @@
 #
 # C O N F I G U R E
 #
-# configure last edited Sat Dec 16 20:48:15 2023
+# configure last edited Wed Dec 20 19:15:16 2023
 #
 NAME1=ping3
 NAME2=genFun
@@ -12,6 +12,7 @@ NAME5=icmpFun
 NAME6=ipOptionsFun
 NAME7=timeFun
 NAME8=ipOptTS
+NAME9=icmpDefn
 #
 OP_FILE_NAME=Makefile
 COMPILER=cc
@@ -39,46 +40,56 @@ SRC7=$NAME7.c
 HDR7=$NAME7.h
 OBJ7=$NAME7.o
 HDR8=$NAME8.h
+HDR9=$NAME9.h
 #
 ## echo $OSTYPE
 #
 if [[ "$OSTYPE" == "cygwin" ]] ; then
   TRGT=$NAME1.exe
+  LNK_OPTIONS=-static
 elif [[ "$OSTYPE" == "msys" ]] ; then
   TRGT=$NAME1.exe
   COMPILER=gcc
+  LNK_OPTIONS=-static
 elif [[ "$OSTYPE" == "linux-gnu" ]] ; then
   LNK_OPTIONS=-lm
 fi
 #
-echo "$TRGT: $OBJ1 $OBJ2 $OBJ3 $OBJ4 $OBJ5 $OBJ6 $OBJ7 $LNK_OPTIONS" > $OP_FILE_NAME
-echo -e "\t$COMPILER -o "'$@ $^' >> $OP_FILE_NAME
+echo "$TRGT: $OBJ1 $OBJ2 $OBJ3 $OBJ4 $OBJ5 $OBJ6 $OBJ7" > $OP_FILE_NAME
+echo -e "\t$COMPILER -o "'$@ $^'" $LNK_OPTIONS" >> $OP_FILE_NAME
 echo "" >> $OP_FILE_NAME
 #
+# ping3 compile
 echo "$OBJ1: $SRC1 $HDR2 $HDR3 $HDR4 $HDR5 $HDR6 $HDR7" >> $OP_FILE_NAME
 echo -e "\t$COMPILER $OPTIONS -c -UDEBUG "'$<' >> $OP_FILE_NAME
 echo "" >> $OP_FILE_NAME
 #
+# genFun compile
 echo "$OBJ2: $SRC2 $HDR2" >> $OP_FILE_NAME
 echo -e "\t$COMPILER $OPTIONS -c -UDEBUG "'$<' >> $OP_FILE_NAME
 echo "" >> $OP_FILE_NAME
 #
+# dbgFun compile
 echo "$OBJ3: $SRC3 $HDR2 $HDR3" >> $OP_FILE_NAME
 echo -e "\t$COMPILER $OPTIONS -c -UDEBUG "'$<' >> $OP_FILE_NAME
 echo "" >> $OP_FILE_NAME
 #
+# ipFun compile
 echo "$OBJ4: $SRC4 $HDR2 $HDR6" >> $OP_FILE_NAME
 echo -e "\t$COMPILER $OPTIONS -c -UDEBUG "'$<' >> $OP_FILE_NAME
 echo "" >> $OP_FILE_NAME
 #
-echo "$OBJ5: $SRC5 $HDR2 $HDR3 $HDR4 $HDR5 $HDR7" >> $OP_FILE_NAME
+# icmpFun compile
+echo "$OBJ5: $SRC5 $HDR2 $HDR3 $HDR4 $HDR5 $HDR7 $HDR9" >> $OP_FILE_NAME
 echo -e "\t$COMPILER $OPTIONS -c -UDEBUG "'$<' >> $OP_FILE_NAME
 echo "" >> $OP_FILE_NAME
 #
+# ipOptionsFun compile
 echo "$OBJ6: $SRC6 $HDR6 $HDR7 $HDR8" >> $OP_FILE_NAME
 echo -e "\t$COMPILER $OPTIONS -c -UDEBUG "'$<' >> $OP_FILE_NAME
 echo "" >> $OP_FILE_NAME
 #
+# timeFun compile
 echo "$OBJ7: $SRC7 $HDR7" >> $OP_FILE_NAME
 echo -e "\t$COMPILER $OPTIONS -c -UDEBUG "'$<' >> $OP_FILE_NAME
 echo "" >> $OP_FILE_NAME

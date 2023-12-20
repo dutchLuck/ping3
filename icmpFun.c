@@ -12,14 +12,10 @@
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/file.h>
-#include <sys/time.h>
 
-#include <netinet/in_systm.h>
-#include <netinet/in.h>
-#include <netinet/ip.h>
 #include "genFun.h"		/* FALSE */
 #include "dbgFun.h"		/* printNamedByteArray() */
-#include "ipFun.h"
+#include "ipFun.h"		/* n_long n_short n_time */
 #include "timeFun.h"	/* printMilliSecondsSinceMidnightInHMS_Format() */
 #include "icmpFun.h"	/* ICMP_TYPE_* */
 

@@ -10,8 +10,9 @@
 #ifndef  TIME_FUN_H
 #define  TIME_FUN_H
 
-#include  <time.h>  /* struct timespec */
-#include  <sys/time.h>  /* struct timeval */
+/* NB use of clock_gettime() implies that code only compiles on macOS 10.12 (Sierra) and later */
+#include  <time.h>  /* struct timespec clock_gettime() */
+#include  <sys/time.h>  /* struct timeval setitimer() */
 
 double  calcTimeSpecClockDifferenceInSeconds( struct timespec *, struct timespec * );
 void  printTimeSpecTimeInStructForm( struct timespec * );
