@@ -1,8 +1,9 @@
 /*
  * P I N G 3 . C
  *
- * ping3.c last edited Wed Dec 20 19:15:48 2023
+ * ping3.c last edited Wed Jan 10 23:28:48 2024
  * 
+ * v0.9.8 Added attempt to turn target given as an IPv4 address into a named host
  * v0.9.7 Reworked include files, added icmpDefn.h to project, compiles on CYGWIN
  * v0.9.5 Increased ICMP_PAYLOAD_MAX_PATTERN_SIZE to 28
  * v0.9.4 Fix compile error in Don't Fragment processing on macOS before Big Sur
@@ -69,7 +70,7 @@
 #include "timeFun.h"	/* convertMilliSecondsSinceMidnightToHMS_String() calcTimeSpecClockDifferenceInSeconds() */
 
 
-#define VERSION_STRING "0.9.7"	/* version */
+#define VERSION_STRING "0.9.8"	/* version */
 #define MIN_PING_ATTEMPTS  0	/* smallest number of ICMP requests sent (limits X for -cX option) */
 #define DEFAULT_PING_COUNT  3	/* default number of pings to send */
 #define MAX_PING_ATTEMPTS  100	/* largest number of ICMP requests sent (limits X for -cX option) */
@@ -120,7 +121,7 @@ const char  optionStr[] = "abc:Dhi:l:M:p:qRs:t:T:v:w:";
 int	 quietFlag;		/* when TRUE minimise the output info */
 int	 helpFlag;		/* when TRUE help message is printed and program exits */
 int	 debugFlag;		/* when TRUE output lots of info */
-int	 haveLocalHostNameFlag;	/* Local host name is known if true */
+int	 haveLocalHostNameFlag;			/* Local host name is known if true */
 int  a_Flag;						/* Audible flag was found in the command line options */
 int  b_Flag;						/* allow Broadcast flag was found in the command line options */
 int  c_Flag;						/* Ping count was found in the command line options */
@@ -860,7 +861,30 @@ int  setUpIP_AddressAndName( struct sockaddr_in *  devInfoPtr, char *  devNameOr
      /* Try to convert command line Remote Network Device specifier as dotted quad (decimals) address, */
      /* else if that fails assume it's a Network Device name */
 	resultOK = (( devInfoPtr->sin_addr.s_addr = inet_addr( devNameOrIP_Str )) != (u_int) -1 );	/* attempt to set address from a Dotted Quad IP address */
-	if( ! resultOK )  {	/* test for failure to set address through inet_addr() */
+	if( resultOK )  {
+		if(( hostEntPtr = gethostbyaddr( &devInfoPtr->sin_addr.s_addr, 4, AF_INET )) == NULL )  {
+			if( verbosityLevel > 1 )  {
+				fprintf( stderr, "Warning: gethostbyaddr() put h_errno = %d for target IPv4 address \"%s\"\n",
+					h_errno, inet_ntoa( *(struct in_addr *) &devInfoPtr->sin_addr.s_addr ));
+				fprintf( stderr, "Warning: Network Device IPv4 address \"%s\": %s\n", devNameOrIP_Str, hstrerror( h_errno ));
+			}
+		}
+		else  {
+			devInfoPtr->sin_family = hostEntPtr->h_addrtype;
+			bcopy( hostEntPtr->h_addr, (caddr_t)&devInfoPtr->sin_addr, hostEntPtr->h_length);
+			*nameBfrPtr = strdup( hostEntPtr->h_name );	/* copy official name of remote Network Device */
+			if( verbosityLevel > 0 )  {
+				printf( "Remote Network Device has official name: \"%s\"\n", *nameBfrPtr );
+				if( verbosityLevel > 1 )  {
+			 /* Print other names of same Network Device if there are any */
+					for( i = 0; hostEntPtr->h_aliases[ i ] != NULL; i++ )  {
+						printf( "Remote Network Device name alias %d is: \"%s\"\n", i + 1, hostEntPtr->h_aliases[ i ] );
+					}
+				}
+			}
+		}
+	}
+	else  {	/* Failed to set address through inet_addr() */
 		resultOK = (( hostEntPtr = gethostbyname( devNameOrIP_Str )) != NULL );	
 		if( ! resultOK )  {
 			if( verbosityLevel > 0 )  fprintf( stderr, "Warning: gethostbyname() put h_errno = %d for target \"%s\"\n", h_errno, devNameOrIP_Str );
@@ -871,20 +895,25 @@ int  setUpIP_AddressAndName( struct sockaddr_in *  devInfoPtr, char *  devNameOr
 			bcopy( hostEntPtr->h_addr, (caddr_t)&devInfoPtr->sin_addr, hostEntPtr->h_length);
 			*nameBfrPtr = strdup( hostEntPtr->h_name );	/* copy official name of remote Network Device */
 			if( verbosityLevel > 0 )  {
-				printf( "Remote Network Device official name is: \"%s\"\n", *nameBfrPtr );
+				printf( "Remote Network Device has official name: \"%s\"\n", *nameBfrPtr );
+				if( verbosityLevel > 1 )  {
 			 /* Print other names of same Network Device if there are any */
-				for( i = 0; hostEntPtr->h_aliases[ i ] != NULL; i++ )  {
-					printf( "Remote Network Device name alias %d is: \"%s\"\n", i + 1, hostEntPtr->h_aliases[ i ] );
+					for( i = 0; hostEntPtr->h_aliases[ i ] != NULL; i++ )  {
+						printf( "Remote Network Device name alias %d is: \"%s\"\n", i + 1, hostEntPtr->h_aliases[ i ] );
+					}
 				}
 			}
 		}
 	}
 	if( resultOK && ( verbosityLevel > 0 ))  {
-		printf( "Remote Network Device is: %s\n", inet_ntoa( *(struct in_addr *) &devInfoPtr->sin_addr.s_addr ));
-	 /* Print other addresses if there are any */
-	    if( hostEntPtr != NULL )  {
-			for( i = 1; hostEntPtr->h_addr_list[ i ] != NULL; i++ )  {
-				printf( "Remote Network Device alias %d is: \"%s\"\n", i, inet_ntoa( *(struct in_addr *) hostEntPtr->h_addr_list[ i ] ));
+		printf( "Remote Network Device has IPv4 address: %s\n", inet_ntoa( *(struct in_addr *) &devInfoPtr->sin_addr.s_addr ));
+	 /* Print other IP addresses if there are any */
+		if( verbosityLevel > 1 )  {
+		    if( hostEntPtr != NULL )  {
+				for( i = 1; hostEntPtr->h_addr_list[ i ] != NULL; i++ )  {
+					printf( "Remote Network Device alias %d is: \"%s\"\n",
+						i, inet_ntoa( *(struct in_addr *) hostEntPtr->h_addr_list[ i ] ));
+				}
 			}
 		}
 	}
@@ -1269,10 +1298,10 @@ int  main( int  argc, char *  argv[] )  {
 /* Attempt to get the name of the Local network device */	
 	haveLocalHostNameFlag = getLocalDeviceName( &localDeviceNameBuffer );
 	if( ! haveLocalHostNameFlag )  {
-		if( verbosityLevel > 0 )  printf( "? unable to get actual Local host name, using 'localhost' instead.\n" );
+		if( verbosityLevel > 0 )  printf( "Warning: unable to get actual Local host name, using \"localhost\" instead.\n" );
 		localDeviceNameBuffer = strdup( "localhost" );
 	}
-	else if( verbosityLevel > 0 )  printf( "Local Network Device name is: '%s'\n", localDeviceNameBuffer );
+	else if( verbosityLevel > 0 )  printf( "Local Network Device has name: \"%s\"\n", localDeviceNameBuffer );
 
 /* Set up the address to send the icmp echo request */
 	to = ( struct sockaddr_in *) &remoteDeviceToPingInfo;
