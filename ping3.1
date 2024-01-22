@@ -74,10 +74,6 @@ defaults to a sequence of incrementing bytes and if the size of the echo request
 is greater than 16 bytes then the time in seconds and nanoseconds is stored at the start of
 the payload data.
 .TP
-\fB\-q\fR
-specifies quiet mode to output a minimum of information. The -q option over-rides the -v
-( verbose ) option if both are specified on the command line.
-.TP
 \fB\-R\fR
 Sends pings with IPv4 header option requesting Record Route information. The -T option
 over-rides the -R option if both are specified on the command line.
@@ -100,7 +96,7 @@ is used then the list should be quoted. For example -T "tsprespec 192.168.1.1 19
 \fB\-v\fR
 \fB\-v \fI\,verbosity_level\/\fR
 Verbosity of output control. The \fI\,verbosity_level\/\fR is an integer in the range from -9
-to +9. Least information is provided by more negetive integers and more information is
+to +9. Less information is provided by more negetive integers and more information is
 provided by more positive integers. Information provided for levels greater than 0 includes
 the local device name and the names associated with the remote device. It also provides an
 estimate of time difference between the local and remote device clocks for ICMP Timestamp

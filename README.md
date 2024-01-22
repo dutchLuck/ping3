@@ -265,7 +265,6 @@ where options are; -
             if "time" then send milliseconds since midnight as the data payload,
             if "random" then send a random array of bytes as the data payload,
             if neither of the above then specifying up to 28 bytes in hexadecimal.
-        -q  forces quiet (minimum) output and forces -v level <= -5
         -R  specifies header option Record Route (N.B. -T overrides -R when both are specified)
         -s "XX [YY [ZZ]]" specifies ICMP Echo data section size (N.B. 16 <= XX <= 1472 works best on macOS)
           where XX is an integer number and YY, ZZ are optional integer numbers to specify a size sweep.
@@ -275,16 +274,39 @@ where options are; -
             If "tsonly" then record Time Stamp Only list of time stamps,
             if "tsandaddr" then record Address and Time Stamp pair list,
             if "tsprespec H.I.J.K [ L.M.N.O [ P.Q.R.S [ T.U.V.W ]]]" then Time Stamp prespecified Addresses.
-        -vX  sets a verbosity level ( -9 <= X <= 9 ) unless -q is active and then -9 <= X <= -5 applies.
-             X > 5 displays Debug as well as other verbose amounts of information.
+        -vX  sets a verbosity level ( -9 <= X <= 9 ) More positive values of X provide more information.
+             a verbosity level of zero ( -v 0 ) is equivalent to not using -v.
         -wX  wait for X seconds after last request for any replies ( 1 <= X <= 20 )
-
 
 %
 ```
 Note that the IPv4 header Don't Fragment setting manipulation is not available on early (before Big Sur? )
 macOS and so the -D option is not shown in the above ping3 useage message on versions of macOS that do not
 give access to the IP_DONTFRAG setting in the setsockopt function call.
+
+Further information about verbosity level follows; -
+```
+  -v -9 .. No output to stdout. DNS name lookup errors reported to stderr. Success / failure indicated by return value.
+  -v -8 .. Report requests sent and replies received separated by a comma. E.g. 3, 3
+  -v -7 .. Report summary line "X requests sent, Y replies received, ZZZ.Z% loss
+  -v -6 .. Report summary line "X requests sent, Y replies received, ZZZ.Z% loss in S.SS [S]"
+  -v -5 .. Report previous ( -v -6 ) line plus RTT stats, smallest, mean, largest and standard dev if enough samples
+  -v -4 .. Same as -v -5
+  -v -3 .. Same as -v -4
+  -v -2 .. Same as -v -3
+  -v -1 .. Same as -v -2
+  -v 0  or no -v option .. Same as -v -1
+  -v 1 .. Report Names of local and remote network devices in addition to data and summary provided by -v 0
+  -v 2 .. Report any remote network device name alias' in addition to data and summary provided by -v 1
+  -v 3 .. Timestamp the replies in addition to data and summary provided by -v 2
+  -v 4 .. List up to the last 100 ping attempt timestamps in addition to timestamped data and summary provided by -v 3
+  -v 5 .. Report version in addition to information provided by -v 4
+  -v 6 .. Report Don't Fragment & Broadcast Permission status in addition to information provided by -v 5
+  -v 7 .. Report request & reply timestamps in greater detail in addition to information provided by -v 6
+  -v 8 .. Display the headers in received reply datagrams in addition to information provided by -v 7
+  -v 9 .. Debug mode. Reports all manner of internal data. Compile with -DDEBUG flag to enable the most info output.
+```
+These verbosity level output indications are not to be considered as set-in-stone and may be altered in later versions of ping3.
 
 ping3 is released under the MIT license and must be used at your own risk.
 Therefore unless it provides some specific capability you need then it is

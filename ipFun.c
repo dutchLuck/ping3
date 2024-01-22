@@ -8,6 +8,8 @@
  */
 
 #include  <stdio.h>			/* printf() */
+#include  <string.h>		/* strspn() strncpy() */
+#include  <stdlib.h>		/* strtol() */
 #include  <sys/socket.h>	/* getsockopt() setsockopt() */
 #include  "genFun.h"		/* TRUE FALSE */
 #include  "ipFun.h"
@@ -47,6 +49,49 @@ u_short  calcCheckSum( unsigned short *  addr, int  len)  {
 	sum += (sum >> 16);			/* add carry */
 	answer = ( u_short ) ( ~sum & 0xffff );		/* complement and truncate to 16 bits */
 	return( answer );
+}
+
+
+int  strIsA_ValidDottedQuadIPv4_Address( char *  str )  {
+	int  strLength;
+	int  retVal;
+	int  cnt;
+	long  resultVal;
+	char *  strPtr;
+	char *  endPtrStore;
+	char **  ssPtr;
+	char *  tmpStrPtr;
+	char *  subStrPtrs[ 4 ];
+	char  tmpStr[ 16 ];
+
+	strLength = strlen( str );
+	/* Check if length is in the valid range i.e 7 (1.1.1.1) to 15 (255.255.255.255) */
+	if(( retVal = (( strLength > 6 ) && ( strLength < 16 ))))  {	/* leading or trailing spaces will make the str invalid */
+		/* Check if str only contains digits and full stops */
+		cnt = strspn( str, "0123456789." );
+		/* cnt should be the index of the terminating '\0' if only digits and . */
+		if(( retVal = ( cnt == strLength )))  {
+			/* Check if exactly 3 full stops in the str */
+			for( cnt = 0, strPtr = str; *strPtr != '\0'; strPtr++ )  if( *strPtr == '.' )  cnt += 1;
+			retVal = ( cnt == 3 );
+			if( retVal )  {
+				strncpy( tmpStr, str, sizeof( tmpStr ));	/* make copy to avoid changing original str */
+				for( tmpStrPtr = tmpStr, ssPtr = subStrPtrs; retVal && (( *ssPtr = strsep( &tmpStrPtr, "." )) != NULL ); )
+					if(( retVal = ( **ssPtr != '\0' )))  {
+			    		resultVal = strtol( *ssPtr, &endPtrStore, 10 );		/* base 10 conversion of sub string to long integer */
+						if(( retVal = ( *endPtrStore == '\0' )))	/* Did the whole sub string get converted ? */
+							retVal = (( resultVal >= ( long ) 0 ) && ( resultVal <= ( long ) 255 ));
+						if( ++ssPtr >= &subStrPtrs[4] )
+							break;
+					}
+			}
+		}
+	}
+#ifdef  DEBUG
+	printf( "strIsA_ValidDottedQuadIPv4_Address( %s ): About to return a%svalid IPv4 address result\n",
+		str, ( retVal ) ? " " : "n in" );
+#endif
+	return( retVal );
 }
 
 

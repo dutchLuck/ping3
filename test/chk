@@ -42,7 +42,7 @@ fi
 #
 #
 echo "Obtaining Local Interface IP Address"
-LOCAL_INTERFACE=`$PRIV ../$PROGRAM -v5 -c1 $TARGET | awk '/Destination Address/{print $4}'`
+LOCAL_INTERFACE=`$PRIV ../$PROGRAM -v8 -c1 $TARGET | awk '/Destination Address/{print $4}'`
 echo "Local interface IP Address is $LOCAL_INTERFACE"
 echo
 #
@@ -368,18 +368,6 @@ echo
 #
 echo "$PRIV ../$PROGRAM -c1 -v9 192.168.1.1"
 $PRIV ../$PROGRAM -c1 -v9 192.168.1.1
-RESULT=$?
-if [[ "$RESULT" != "0" ]] ; then
-  echo
-  echo "Non zero ($RESULT) return value passed back to this ($0) shell script"
-fi
-sleep 1
-echo
-#
-# Test quiet mode ( over-rides verbose mode )
-#
-echo "$PRIV ../$PROGRAM -v9 -q 192.168.1.1"
-$PRIV ../$PROGRAM -v9 -q 192.168.1.1
 RESULT=$?
 if [[ "$RESULT" != "0" ]] ; then
   echo

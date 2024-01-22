@@ -42,6 +42,7 @@
 
 u_short  calcCheckSum( unsigned short *, int );
 void  printIPv4_AddressAsDottedQuad( struct in_addr * );
+int  strIsA_ValidDottedQuadIPv4_Address( char *  str );
 void  display_ip( struct ip  *, int );
 void  printPingCommonInfo( struct ip  *, int );
 void  printIPv4_TimeToLiveInfo( struct ip  * );
