@@ -323,3 +323,13 @@ These verbosity level output indications are not to be considered as set-in-ston
 ping3 is released under the MIT license and must be used at your own risk.
 Therefore unless it provides some specific capability you need then it is
 almost certainly better to use your operating systems standard ping utility.
+
+Further reading; -
+1. IP Header  (section 3.2 from TCP/IP Illustrated Vol 1 by W.R. Stevens)
+( viewed at https://flylib.com/books/en/3.223.1.46/1/ on 2024-Mar-11 )
+2. ICMP Address Mask Request and Reply  (section 6.3 from TCP/IP Illustrated Vol 1 by W.R. Stevens)
+( viewed at https://flylib.com/books/en/3.223.1.78/1/ on 2024-Mar-11 )
+3. ICMP Timestamp Request and Reply  (section 6.4 from TCP/IP Illustrated Vol 1 by W.R. Stevens)
+( viewed at https://flylib.com/books/en/3.223.1.79/1/ on 2024-Mar-11 )
+4. Ping program  (section 7.2 from TCP/IP Illustrated Vol 1 by W.R. Stevens)
+( viewed at https://flylib.com/books/en/3.223.1.86/1/ on 2024-Mar-11 )
