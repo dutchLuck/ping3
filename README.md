@@ -1,10 +1,12 @@
 # ping3
 The "ping3" utility program can be used to send multiple
 Internet Protocol version 4 (IPv4) Internet Control Message
-Protocol (ICMP) Echo requests or multiple IPv4 ICMP Time Stamp
+Protocol (
+<a href="https://datatracker.ietf.org/doc/html/rfc792">ICMP</a>
+) Echo requests or multiple IPv4 ICMP Time Stamp
 requests or multiple IPv4 ICMP Address Mask requests to a
 remote network device and display information about the round
-trip time (RTT) if corresponding ICMP replies are received back.
+trip time if corresponding ICMP replies are received back.
 
 This utility program is named "ping3" because it has the ability
 to ping a network device with any one of three types of ICMP
@@ -24,19 +26,29 @@ version 6 (IPv6) capability. It doesn't provide flood or preload
 options for congestion testing, alternate interface specification,
 alternate routing options or any specific multicast functionality.
 
-The standard ping utility that comes with Apple Mac OSX, such as
-macOS Sonoma, provides similar default capability to the ping
+The standard ping utility that comes with Apple Mac operating systems,
+such as macOS Sonoma, provides similar default capability to the ping
 utility from the iputils package that is typically used on linux,
 but both differ considerably for more rarely used modes of
 operation. Linux ping provides a timestamp (-T) and record route
 (-R) capability through IPv4 header options and macOS ping doesn't.
-However macOS ping provides a timestamp capability through ICMP
-timestamp requests (-M time) and a netmask capability through
+(N.B. In the past macOS ping did have a working -R option and still
+lists a -R option if you look at the output of ping -h, but the man
+page for ping states "This option is deprecated and is now a no-op.")
+However, even though -T and -R capability are missing from macOS ping,
+it provides other capability such as a timestamp capability through
+ICMP timestamp requests (-M time) and a netmask capability through
 ICMP mask requests (-M mask). Both modes require elevated priveleges
 via sudo, unless the "-s 0" option is included with the "-M time"
-or "-M mask" option. Linux ping has no ICMP timestamp or ICMP netmask
-capability. The ping utility that comes with Microsoft Windows
-seems more like the iputils (linux) ping than the macOS ping.
+or "-M mask" option. (N.B. macOS ping does not output the full
+timestamp information as it truncates the time it displays to
+whole seconds and thus doesn't show the millisecond values. The
+ICMP timestamp reply has milliseconds since midnight information,
+so it is available. I have submitted feedback to Apple in FB13523685
+about this lack of millisecond information.) Linux ping has no ICMP
+timestamp or ICMP netmask capability. The ping utility that comes
+with Microsoft Windows seems more like the iputils (linux) ping than
+the macOS ping.
 
 The ping3 utility provides timestamp or record route in the IPv4
 header options on a macOS system and provides ICMP timestamp or

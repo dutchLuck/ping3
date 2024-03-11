@@ -55,11 +55,11 @@ void  fillByteArrayWithPseudoRandomData( unsigned char *  array, int  arraySize 
 	intPtr = ( int * ) array;
 	for( cnt = 0; cnt < arraySize; )  {
 		pseudoRandomInt = ( int )( random() & 0xffffffff );	/* use of random() is far from perfect  */
-		if(( cnt + 4 ) <= arraySize )  {
-			*intPtr++ = pseudoRandomInt;	/* put an pseudo reandom integer into the array */
-			cnt += 4;
+		if(( cnt + sizeof( int ) ) <= arraySize )  {	/* will a whole int fit or are we too close to full */
+			*intPtr++ = pseudoRandomInt;	/* put an pseudo random integer into the array */
+			cnt += sizeof( int );
 		}
-		else  {
+		else  {		/* fill last part of array if the array wasn't an exact multiple of integer in size */
 			chrPtr = ( unsigned char * ) intPtr;
 			for( ; cnt < arraySize; cnt++ )  {
 				*chrPtr++ = ( unsigned char )( pseudoRandomInt & 0xff );

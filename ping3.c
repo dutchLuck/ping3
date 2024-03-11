@@ -1007,8 +1007,23 @@ int  setUpIP_AddressAndName( struct sockaddr_in *  devInfoPtr, char *  devNameOr
 	else  {	/* Failed to set address through inet_addr() */
 		resultOK = (( hostEntPtr = gethostbyname( devNameOrIP_Str )) != NULL );	
 		if( ! resultOK )  {
-			if( verbosityLevel > 0 )  fprintf( stderr, "Warning: gethostbyname() put h_errno = %d for target \"%s\"\n", h_errno, devNameOrIP_Str );
 			fprintf( stderr, "Warning: Network Device name \"%s\": %s\n", devNameOrIP_Str, hstrerror( h_errno ));
+			if( verbosityLevel > 1 )  {
+				switch( h_errno )  {
+					case  HOST_NOT_FOUND :
+						fprintf( stderr, "Warning: no such Network Device as \"%s\"\n", devNameOrIP_Str ); break;
+					case  TRY_AGAIN :
+						fprintf( stderr, "Warning: Network Device \"%s\", try again later\n", devNameOrIP_Str ); break;
+					case  NO_RECOVERY :
+						fprintf( stderr, "Warning: Network Device \"%s\" DNS error\n", devNameOrIP_Str ); break;
+					case  NO_ADDRESS :
+						fprintf( stderr, "Warning: no IP address for \"%s\"\n", devNameOrIP_Str ); break;
+					default :
+						fprintf( stderr, "Warning: unrecognized error with error number: %d for \"%s\"\n", h_errno, devNameOrIP_Str );
+						break;
+				}
+			}
+			if( verbosityLevel > 2 )  fprintf( stderr, "Warning: gethostbyname() put h_errno = %d for target \"%s\"\n", h_errno, devNameOrIP_Str );
 		}
 		else  {
 			devInfoPtr->sin_family = hostEntPtr->h_addrtype;
