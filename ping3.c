@@ -1,7 +1,7 @@
 /*
  * P I N G 3 . C
  *
- * ping3.c last edited Mon Apr  1 22:40:01 2024
+ * ping3.c last edited Mon Apr  1 22:57:24 2024
  * 
  * v0.9.9 Added arrays indexed by sequence ID to track missing replies
  * v0.9.8 Added attempt to turn target given as an IPv4 address into a named host
@@ -247,7 +247,7 @@ void  printVersion( void )  {
 
 
 /*
- * provide standardized access into wrap around array sequenceID_Array */
+ * provide standardized access into wrap around array sequenceID_Array
  */
 n_short *  returnPtrToSeqID_ArrayForSeqID( n_short *  basePtr, n_short  sequenceID )  {
 	return( basePtr + ( sequenceID % MAX_PING_ATTEMPTS ));
@@ -255,7 +255,7 @@ n_short *  returnPtrToSeqID_ArrayForSeqID( n_short *  basePtr, n_short  sequence
 
 
 /*
- * provide standardized access into wrap around arrays timeSentArray and timeReceivedArray */
+ * provide standardized access into wrap around arrays timeSentArray and timeReceivedArray
  */
 struct timespec *  returnPtrToTimeStampForSeqID( struct timespec *  basePtr, n_short  sequenceID )  {
 	return( basePtr + ( sequenceID % MAX_PING_ATTEMPTS ));
