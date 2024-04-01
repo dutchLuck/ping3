@@ -16,7 +16,7 @@ NAME9=icmpDefn
 #
 OP_FILE_NAME=Makefile
 COMPILER=cc
-OPTIONS=-Wall
+OPTIONS="-Wall -pedantic"
 LNK_OPTIONS=
 TRGT=$NAME1
 SRC1=$NAME1.c

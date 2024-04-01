@@ -1,7 +1,7 @@
 /*
  * P I N G 3 . C
  *
- * ping3.c last edited Mon Jan 22 22:43:49 2024
+ * ping3.c last edited Mon Apr  1 22:40:01 2024
  * 
  * v0.9.9 Added arrays indexed by sequence ID to track missing replies
  * v0.9.8 Added attempt to turn target given as an IPv4 address into a named host
@@ -20,6 +20,14 @@
  */
 
 /*
+ * May be compiled with gcc compatible compiler as follows; -
+ *  cc -Wall -UDEBUG -o ping3 ping3.c genFun.c dbgFun.c ipFun.c icmpFun.c ipOptionsFun.c timeFun.c
+ */
+
+/*
+ * Verify output of  ./ping3 -v1 NetworkDevice  on macOS
+ * by comparing with the output of  ping -c3 NetworkDevice
+ *
  * Verify output of  ./ping3 -M mask LocalNetworkDevice  on macOS
  * by comparing with the output of  ping -c3 -Mm -s0 LocalNetworkDevice
  * 
@@ -77,44 +85,44 @@
  */
 
 
-#include <stdlib.h> 	/* exit() atexit() arc4random() srandom() */
-#include <stdio.h>		/* printf() sprintf() fprintf() fflush() perror() */
-#include <sys/types.h>	/* legacy: sendto() setsockopt() inet_addr() inet_ntoa() */
-#include <sys/socket.h>	/* sendto() recvfrom() setsockopt() legacy: inet_addr() inet_ntoa() */
-#include <signal.h>		/* signal() SIGUSR1 SIGALRM psignal() */
-#include <libgen.h>		/* basename() */
-#include <netdb.h>		/* gethostbyname() */
-#include <unistd.h>		/* gethostname() getopt() */
-#include <errno.h>		/* errno */
-#include <string.h>		/* strncmp() strdup() */
-#include <strings.h>	/* bzero() bcmp() */
-#include <float.h>		/* DBL_MAX */
-#include <math.h>		/* round() fmax() fmin() sqrt() */
-#include "genFun.h"		/* clearByteArray() convertOptionStringToInteger() TRUE FALSE */
-#include "dbgFun.h"		/* printNamedByteArray() */
-#include "ipFun.h"		/* calcCheckSum() display_ip() */
+#include <stdlib.h> 		/* exit() atexit() arc4random() srandom() */
+#include <stdio.h>			/* printf() sprintf() fprintf() fflush() perror() */
+#include <sys/types.h>		/* legacy: sendto() setsockopt() inet_addr() inet_ntoa() */
+#include <sys/socket.h>		/* sendto() recvfrom() setsockopt() legacy: inet_addr() inet_ntoa() */
+#include <signal.h>			/* signal() SIGUSR1 SIGALRM psignal() */
+#include <libgen.h>			/* basename() */
+#include <netdb.h>			/* gethostbyname() */
+#include <unistd.h>			/* gethostname() getopt() */
+#include <errno.h>			/* errno */
+#include <string.h>			/* strncmp() strdup() */
+#include <strings.h>		/* bzero() bcmp() */
+#include <float.h>			/* DBL_MAX */
+#include <math.h>			/* round() fmax() fmin() sqrt() */
+#include "genFun.h"			/* clearByteArray() convertOptionStringToInteger() TRUE FALSE */
+#include "dbgFun.h"			/* printNamedByteArray() */
+#include "ipFun.h"			/* calcCheckSum() display_ip() */
 #include "ipOptionsFun.h"	/* displayIpOptions() */
-#include "icmpFun.h"	/* ICMP_TYPE_* displayICMP() */
-#include "timeFun.h"	/* convertMilliSecondsSinceMidnightToHMS_String() calcTimeSpecClockDifferenceInSeconds() */
+#include "icmpFun.h"		/* ICMP_TYPE_* displayICMP() */
+#include "timeFun.h"		/* convertMilliSecondsSinceMidnightToHMS_String() calcTimeSpecClockDifferenceInSeconds() */
 
 
-#define VERSION_STRING "0.9.9"	/* version */
-#define MIN_PING_ATTEMPTS  0	/* smallest number of ICMP requests sent (limits X for -cX option) */
-#define DEFAULT_PING_COUNT  3	/* default number of pings to send */
-#define MAX_PING_ATTEMPTS  100	/* largest number of ICMP requests sent (limits X for -cX option) */
+#define VERSION_STRING "0.9.9"			/* ping3 reported version */
+#define MIN_PING_ATTEMPTS  0			/* smallest number of ICMP requests sent (limits X for -cX option) */
+#define DEFAULT_PING_COUNT  3			/* default number of pings to send */
+#define MAX_PING_ATTEMPTS  100			/* largest number of ICMP requests sent (limits X for -cX option) */
 #define MIN_INTERVAL_BW_PINGS  0.1		/* smallest interval between pings in seconds (limits X.X for -iX.X option) */
 #define DEFAULT_INTERVAL_BW_PINGS  1.0	/* default interval between pings in seconds */
 #define MAX_INTERVAL_BW_PINGS  60.0		/* largest interval between pings in seconds (limits X.X for -iX.X option) */
-#define MIN_WAIT_PERIOD  1		/* smallest wait period in seconds (limits X for -wX option) */
-#define DEFAULT_WAIT_PERIOD  2	/* default wait after last ping time out period in seconds */
-#define MAX_WAIT_PERIOD  20		/* largest wait after last ping (limits X for -wX option) */
+#define MIN_WAIT_PERIOD  1				/* smallest wait period in seconds (limits X for -wX option) */
+#define DEFAULT_WAIT_PERIOD  2			/* default wait after last ping time out period in seconds */
+#define MAX_WAIT_PERIOD  20				/* largest wait after last ping (limits X for -wX option) */
 
-#define DEFAULT_ICMP_EXTRA_DATA  56	/* default ICMP Payload size for ICMP Echo */
-#define	MAX_IP4_PACKET_LEN	65535	/* max IP version 4 datagram size - i.e. length is specified by 16 bit word */
-#define	STD_IP4_HDR_LEN  20
-#define MAX_IP4_HDR_OPTION_LEN	40	/* max IP version 4 extra header option length */
-#define ICMP_HDR_LEN  8
-#define CONTRIVED_NUMBER  0		/* start number for ICMP message identifier */
+#define DEFAULT_ICMP_EXTRA_DATA  56		/* default ICMP Payload size for ICMP Echo */
+#define	MAX_IP4_PACKET_LEN	65535		/* max IP version 4 datagram size - i.e. length is specified by 16 bit word */
+#define	STD_IP4_HDR_LEN  20				/* The header part of a IP datagram without options is 20 bytes */
+#define MAX_IP4_HDR_OPTION_LEN	40		/* max IP version 4 extra header option length */
+#define ICMP_HDR_LEN  8					/* The header part of an ICMP message is 8 bytes */
+#define CONTRIVED_NUMBER  0				/* start number for ICMP message identifier */
 #define USEC_CONV_ULONG_CONST 1000000L
 
 #define ICMP_PAYLOAD_MAX_PATTERN_SIZE  28
@@ -146,9 +154,9 @@ extern int  errno;
 const char  optionStr[] = "abc:Dhi:l:M:p:Rs:t:T:v:w:";
 
 /* Command Line options that may or may not be set by the user */
-int	 quietFlag;		/* when TRUE minimise the output info */
-int	 helpFlag;		/* when TRUE help message is printed and program exits */
-int	 debugFlag;		/* when TRUE output lots of info */
+int	 quietFlag;					/* when TRUE minimise the output info */
+int	 helpFlag;					/* when TRUE help message is printed and program exits */
+int	 debugFlag;					/* when TRUE output lots of info */
 int	 haveLocalHostNameFlag;			/* Local host name is known if true */
 int  a_Flag;						/* Audible flag was found in the command line options */
 int  b_Flag;						/* allow Broadcast flag was found in the command line options */
@@ -172,7 +180,7 @@ char *  p_Strng = ( char * ) NULL;	/* ICMP payload data pattern spec */
 int  icmpPayloadPatternType;
 int  icmpPayloadPatternSize;
 u_char  icmpPayloadPattern[ ICMP_PAYLOAD_MAX_PATTERN_SIZE ];	/* Storage for the user specified pattern if there is one */
-int  R_Flag;	/* TRUE if IPv4 Header option Record Route was found in the command line options */
+int  R_Flag;						/* TRUE if IPv4 Header option Record Route was found in the command line options */
 int  s_Flag;						/* TRUE if ICMP payload size was found in the command line options */
 char *  s_Strng = ( char * ) NULL;	/* pointer to -s value */
 int  icmpExtraDataSizeValue;		/* Specifies the ICMP message payload size (i.e. NOT total length) */
@@ -192,8 +200,8 @@ int  w_Flag;						/* TRUE if Wait count was found in the command line options */
 char *  w_Strng = ( char * ) NULL;	/* pointer to -w value */
 int	 waitTimeInSec;					/* set to wait time value */
 
-int  pingsSent;		/* Keep track of ICMP requests that have been sent for stats */
-int  pingsReceived;	/* Keep track of ICMP replies that have been received for stats */
+int  pingsSent;			/* Keep track of ICMP requests that have been sent for stats */
+int  pingsReceived;		/* Keep track of ICMP replies that have been received for stats */
 
 int  statsSamplesReceived;		/* track number of samples in the stats */
 double  statsMinimumRTT;		/* track the minimum RTT */
@@ -210,26 +218,26 @@ int  txICMP_BfrSize;				/* Size of the transmit buffer. It specifies the largest
 u_char *  icmpMessageToTx = ( u_char * ) NULL;
 int  rxIPv4_BfrSize;
 u_char *  ip4_DatagramRxd = ( u_char * ) NULL;		/* pointer to buffer to contain received IP4 ICMP reply message */
-u_short  icmpHdrID;		/* The identifier to put in the ICMP header */
-u_short  process_id;	/* process ID */
+u_short  icmpHdrID;			/* The identifier to put in the ICMP header */
+u_short  process_id;		/* process ID */
 
 struct timespec	 timeToBeStoredInSentICMP;	/* time stamp put in the sent Echo Request */
 struct timespec	 timeStoredInReceivedICMP;	/* time stamp retrieved from the Echo Reply */
-struct timespec  recvTime;	/* receive time stamp */
+struct timespec  recvTime;			/* receive time stamp */
 struct timespec  timeOfFirstPing;	/* 1st transmit time stamp */
-long  tsorig;	/* originate timestamp in millisec since midnight UTC s */
-long  tsrecv; 	/* receive timestamp in millisec since midnight UTC */
+long  tsorig;		/* originate timestamp in millisec since midnight UTC s */
+long  tsrecv; 		/* receive timestamp in millisec since midnight UTC */
 
 struct sockaddr	 remoteDeviceToPingInfo;	/* target network device to ping */
-struct sockaddr	 preSpecDevice[ 4 ];	/* get timestamp from network up to 4 interfaces */
-struct sockaddr_in *  to;	/* pointer to remote network device info */
+struct sockaddr	 preSpecDevice[ 4 ];		/* get timestamp from network up to 4 interfaces */
+struct sockaddr_in *  to;					/* pointer to remote network device info */
 
 char *  remoteDeviceNameBuffer = ( char * ) NULL;
 char *  localDeviceNameBuffer = ( char * ) NULL;
 char *  prespecDeviceNameBuffer[ 4 ];
 char  timeOutMessage[ 256 ];
 n_short  sequenceID_Array[ MAX_PING_ATTEMPTS ];		/* Array of sequence ID numbers - not really needed until continuous ping mode is used */
-struct timespec	 timeSentArray[ MAX_PING_ATTEMPTS ];		/* Array of send time stamps indexed by sequence id */
+struct timespec	 timeSentArray[ MAX_PING_ATTEMPTS ];	/* Array of send time stamps indexed by sequence id */
 struct timespec	 timeReceivedArray[ MAX_PING_ATTEMPTS ];	/* Array of receive time stamps indexed by sequence id */
 
 
@@ -238,12 +246,18 @@ void  printVersion( void )  {
 }
 
 
-struct timespec *  returnPtrToTimeStampForSeqID( struct timespec *  basePtr, n_short  sequenceID )  {
+/*
+ * provide standardized access into wrap around array sequenceID_Array */
+ */
+n_short *  returnPtrToSeqID_ArrayForSeqID( n_short *  basePtr, n_short  sequenceID )  {
 	return( basePtr + ( sequenceID % MAX_PING_ATTEMPTS ));
 }
 
 
-n_short *  returnPtrToSeqID_ArrayForSeqID( n_short *  basePtr, n_short  sequenceID )  {
+/*
+ * provide standardized access into wrap around arrays timeSentArray and timeReceivedArray */
+ */
+struct timespec *  returnPtrToTimeStampForSeqID( struct timespec *  basePtr, n_short  sequenceID )  {
 	return( basePtr + ( sequenceID % MAX_PING_ATTEMPTS ));
 }
 
@@ -251,7 +265,6 @@ n_short *  returnPtrToSeqID_ArrayForSeqID( n_short *  basePtr, n_short  sequence
 /*
  * Code adapted from; -
  * https://dsp.stackexchange.com/questions/811/determining-the-mean-and-standard-deviation-in-real-time
- * 
  */
 void  trackStats( double  latestRTT )  {
 	double  previousMeanRTT;
@@ -327,7 +340,7 @@ int  computeCheckSumAndSendIPv4_ICMP_Datagram( int  socketID, u_char *  icmpMsg,
 
 
 /*
- * Send the icmp mask request (RFC 950).
+ * Send the icmp mask request (RFC 950 Appendix I.).
  */
 int  sendICMP_MaskRequest( int  socketID, u_char *  icmpMsgBfr, int  icmpMsgSize, u_short  seqID )  {
 	ssize_t	 numberOfBytesSent = 0;
@@ -353,7 +366,7 @@ int  sendICMP_MaskRequest( int  socketID, u_char *  icmpMsgBfr, int  icmpMsgSize
 
 
 /*
- * Send the icmp timestamp request.
+ * Send the icmp timestamp request (RFC 792 pages 16-17).
  */
 int  sendICMP_TimestampRequest( int  socketID, u_char *  icmpMsgBfr, int  icmpMsgSize, u_short  seqID )  {
 	ssize_t	 numberOfBytesSent = 0;
@@ -380,7 +393,7 @@ int  sendICMP_TimestampRequest( int  socketID, u_char *  icmpMsgBfr, int  icmpMs
 
 
 /*
- * Send the icmp echo request.
+ * Send the icmp echo request (RFC 792 page 14).
  */
 int  sendICMP_EchoRequest( int  socketID, u_char *  icmpMsgBfr, int  icmpMsgSize, u_short  seqID )  {
 	ssize_t	 numberOfBytesSent = 0;
@@ -752,7 +765,7 @@ int  sendICMP_RequestWithTimeStampOptionInTheIP4_Hdr( struct sockaddr_in *  to, 
 		tsPtr->ipt_timestamp.ipt_ta[0].ipt_time = 0;
 		ipt_taPtr = &tsPtr->ipt_timestamp.ipt_ta[0];
 		ipt_taPtr += 1;
-		ipt_taPtr->ipt_addr = ( struct in_addr ) ( rxdIP4_Packet->ip_dst );		/* This requires Local interface is known from a received the reply */
+		ipt_taPtr->ipt_addr = rxdIP4_Packet->ip_dst;		/* This requires Local interface is known from a received the reply */
 		if( ipt_taPtr->ipt_addr.s_addr == 0 )  ipt_taPtr->ipt_addr = to->sin_addr;		/* if not known i.e. 0, then fudge with target */
 		ipt_taPtr->ipt_time = 0;
 		ip4_HdrOptionSize = 20;	/* Over-ride option size to 4 octets for option header + 16 for two address + time pairs */
