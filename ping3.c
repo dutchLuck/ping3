@@ -81,7 +81,7 @@
  * -v 6 .. Report Don't Fragment & Broadcast Permission status in addition to information provided by -v 5
  * -v 7 .. Report request & reply timestamps in greater detail in addition to information provided by -v 6
  * -v 8 .. Display the headers in received reply datagrams in addition to information provided by -v 7
- * -v 9 .. Debug mode. Reports all manner of internal data. Compile with -DDEBUG flag to enable the most info output.
+ * -v 9 .. Reports copious amounts of information. Compile with -DDEBUG to enable Debug mode and the most info output.
  */
 
 

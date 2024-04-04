@@ -19,13 +19,18 @@ If the device replies then ping3 outputs information on the time
 taken between the request being sent and the reply being received.
 This time is known as the round-trip-time (RTT).
 
-The "ping3" utility provides a cut down version of the standard
+The "ping3" utility provides a subset of the capability of the
 "ping" utility that is included in all major computer operating
-systems. Unlike ping it does not provide any Internet Protocol
-version 6 (IPv6) capability. It doesn't provide flood or preload
+systems. Like ping on major operating systems it can send a pre-
+specified number of IPv4 echo requests of a pre-specified size at a
+pre-specified rate to a local network interface or a remote network
+device, display the responses and a provide a statistical summary.
+Unlike ping it does not provide any Internet Protocol version 6
+(IPv6) capability. It also doesn't provide flood or preload
 options for congestion testing, alternate interface specification,
 alternate routing options or any specific multicast functionality.
 
+## Comparison between ping3 and other ping utility capabilities
 The standard ping utility that comes with Apple Mac operating systems,
 such as macOS Sonoma, provides similar default capability to the ping
 utility from the iputils package that is typically used on linux,
@@ -48,7 +53,9 @@ so it is available. I have submitted feedback to Apple in FB13523685
 about this lack of millisecond information.) Linux ping has no ICMP
 timestamp or ICMP netmask capability. The ping utility that comes
 with Microsoft Windows seems more like the iputils (linux) ping than
-the macOS ping.
+the macOS ping. The Window's ping -r option provides a record route
+capability and its -s option is somewhat similar to the linux
+-T tsonly IPv4 header timestamp option.
 
 The ping3 utility provides timestamp or record route in the IPv4
 header options on a macOS system and provides ICMP timestamp or
@@ -58,6 +65,7 @@ sudo to work on macOS. In the Cygwin environment on Windows the
 ping3 utility provides timestamp and record route, but doesn't
 currently provide ICMP timestamp or mask pings.
 
+## Comparison of information output to the user
 The default output of ping3 is somewhat similar to the output of
 ping, but with a different length number at the start of each
 reply description. The ping3 length value is the total size of
@@ -94,6 +102,7 @@ of the macOS ping. This is a deliberate choice as ping3 only
 shows a StdDev value when it has 10 or more RTT values to put
 into the standard deviation calculation.
 
+## Comparison of data sent in echo requests
 The default echo request sent by ping3 is much the same as the
 echo request sent by the linux ping utility, but differs from the
 macOS ping echo request because the ICMP Echo message payload data
@@ -104,19 +113,23 @@ bytes to time and then has 48 bytes incrementing byte values.
 The manual pages (man ping) for ping on both linux and macOS
 state that the ICMP header is followed by a "struct timeval"
 (i.e. structured time data) and then "pad" bytes to fill out
-the packet. (?? It is not clear to me why the apparent size
-of the time is 16 bytes on 64 bit linux and only 8 bytes on
-64 bit macOS. I also note that both linux and macOS ping do
-not show any RTT time values for operation with -s option
-smaller than 16 (i.e. ping -s 15 www.apple.com), so maybe
-apple ping does sometimes use 16 bytes of time - just not
-when I captured the echo request shown below. ( I have
+the packet. (Since I became aware of reference 8 (see Further
+reading) it has become clear to me why the apparent size
+of the time is 16 bytes on 64 bit linux, but only 8 bytes on
+64 bit macOS. The macOS ping.c source code defines a time
+structure containing two unsigned 32 bit (4 byte) values.
+It copies this 8 byte structure into the ICMP echo request.
+I also note that both linux and macOS ping do not show any
+round trip time values for operation with the -s option
+smaller than 16 (i.e. ping -s 15 www.apple.com). (I have
 lodged feedback with Apple about the man page information
 for macOS ping in regard to the size of the timestamp size
-through feedback item FB13453152 ) N.B. the ping3
-utility does not rely on the time being sent in echo requests
+through feedback item FB13453152) N.B. the ping3 utility
+does not rely on the time being sent in echo requests
 and so does not suffer the no RTT time shown problem for pings
-with very small datagram size.)
+with very small datagram size. Windows ping also provides
+RTT irrespective of the size specified with the -l option.)
+
 The following datagram capture and display from tcpdump
 illustrates an example of the default ping3 echo request
 followed by an example of the default macOS ping echo request; -
@@ -139,6 +152,8 @@ followed by an example of the default macOS ping echo request; -
 	0x0040:  2425 2627 2829 2a2b 2c2d 2e2f 3031 3233
 	0x0050:  3435 3637
 ```
+
+## Timestamp Information from remote network devices
 There doesn't appear to be equivalent options on the macOS ping
 that give "tsonly" (time stamp only) timestamps in the following fashion; -
 ```
@@ -225,6 +240,8 @@ PING 192.168.1.121 (192.168.1.121): 0 data bytes
 3 packets transmitted, 3 packets received, 0.0% packet loss
 % 
 ```
+
+## Netmask Information from remote network devices
 Successful ICMP Netmask request pings produce the following output (N.B. Normally
 Network Devices do not respond to ICMP Netmask requests. However, as noted in the
 Apple macOS man page for ping, macOS can reply to Netmask requests after a change
@@ -248,6 +265,8 @@ PING 192.168.1.103 (192.168.1.103): 0 data bytes
 3 packets transmitted, 3 packets received, 0.0% packet loss
 %
 ```
+
+## Help Information
 The help / usage information for ping3 can be seen by using the "-h"
 command line option as follows; -
 ```
@@ -316,15 +335,16 @@ Further information about verbosity level follows; -
   -v 6 .. Report Don't Fragment & Broadcast Permission status in addition to information provided by -v 5
   -v 7 .. Report request & reply timestamps in greater detail in addition to information provided by -v 6
   -v 8 .. Display the headers in received reply datagrams in addition to information provided by -v 7
-  -v 9 .. Debug mode. Reports all manner of internal data. Compile with -DDEBUG flag to enable the most info output.
+  -v 9 .. Reports copious amounts of information. Compile with -DDEBUG to enable Debug mode and the most info output.
 ```
 These verbosity level output indications are not to be considered as set-in-stone and may be altered in later versions of ping3.
 
+## License and Disclaimer
 ping3 is released under the MIT license and must be used at your own risk.
 Therefore unless it provides some specific capability you need then it is
 almost certainly better to use your operating systems standard ping utility.
 
-Further reading; -
+## Further reading; -
 1. IP Header  (section 3.2 from TCP/IP Illustrated Vol 1 by W.R. Stevens)
 ( viewed at https://flylib.com/books/en/3.223.1.46/1/ on 2024-Mar-11 )
 2. ICMP Address Mask Request and Reply  (section 6.3 from TCP/IP Illustrated Vol 1 by W.R. Stevens)
@@ -333,3 +353,11 @@ Further reading; -
 ( viewed at https://flylib.com/books/en/3.223.1.79/1/ on 2024-Mar-11 )
 4. Ping program  (section 7.2 from TCP/IP Illustrated Vol 1 by W.R. Stevens)
 ( viewed at https://flylib.com/books/en/3.223.1.86/1/ on 2024-Mar-11 )
+5. Story of original ping by its originator Mike Muuss
+( viewed at https://ftp.arl.army.mil/~mike/ping.html on 2024-Apr-03 )
+6. Wikipedia summary of ping information
+( viewed at https://en.wikipedia.org/wiki/Ping_(networking_utility) on 2024-Apr-03 )
+7. Apple open source release of an early version of ping.c code
+( viewed at https://opensource.apple.com/source/network_cmds/network_cmds-77/ping.tproj/ping.c.auto.html on 2024-Apr-03 )
+8. Apple open source release of the latest? version of ping.c code
+( viewed at https://opensource.apple.com/source/network_cmds/network_cmds-606.140.1/ping.tproj/ping.c.auto.html on 2024-Apr-04 )
