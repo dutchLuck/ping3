@@ -1,7 +1,7 @@
 /*
  * P I N G 3 . C
  *
- * ping3.c last edited Mon Apr  1 22:57:24 2024
+ * ping3.c last edited Mon Apr  8 22:07:33 2024
  * 
  * v0.9.9 Added arrays indexed by sequence ID to track missing replies
  * v0.9.8 Added attempt to turn target given as an IPv4 address into a named host
@@ -995,11 +995,11 @@ int  setUpIP_AddressAndName( struct sockaddr_in *  devInfoPtr, char *  devNameOr
 		(( devInfoPtr->sin_addr.s_addr = inet_addr( devNameOrIP_Str )) != (u_int) -1 ));	/* attempt to set address from a Dotted Quad IP address */
 	if( resultOK )  {
 		if(( hostEntPtr = gethostbyaddr( &devInfoPtr->sin_addr.s_addr, 4, AF_INET )) == NULL )  {
-			if( verbosityLevel > 1 )  {
+			if( debugFlag )
 				fprintf( stderr, "Warning: gethostbyaddr() put h_errno = %d for target IPv4 address \"%s\"\n",
 					h_errno, inet_ntoa( *(struct in_addr *) &devInfoPtr->sin_addr.s_addr ));
-				fprintf( stderr, "Warning: Network Device IPv4 address \"%s\": %s\n", devNameOrIP_Str, hstrerror( h_errno ));
-			}
+			if( verbosityLevel > 1 )
+				fprintf( stderr, "Warning: Unable to get name for IPv4 address \"%s\": %s\n", devNameOrIP_Str, hstrerror( h_errno ));
 			*nameBfrPtr = strdup( inet_ntoa( *(struct in_addr *) &devInfoPtr->sin_addr.s_addr ));	/* copy IPv4 address of remote Network Device as the name */
 		}
 		else  {
@@ -1145,7 +1145,9 @@ int  processCommandLineOptions( int  argc, char *  argv[] )  {
 	/* -v level processing to set verbosity level and set quietFlag and debugFlag */
 	verbosityLevel = convertOptionStringToInteger( 0, v_Strng, "-v", &v_Flag, TRUE );
 	verbosityLevel = limitIntegerValueToEqualOrWithinRange( verbosityLevel, -9, 9 );
-	debugFlag = ( verbosityLevel >= 9 );	/* Report all information */
+#ifdef DEBUG
+	debugFlag = ( verbosityLevel >= 9 );	/* Report all debug information only if compiled with DEBUG defined */
+#endif
 	quietFlag = ( verbosityLevel <= -5 );
 	/* -c count of requests to be sent */
 	pingSendAttemptsLeft = convertOptionStringToInteger( DEFAULT_PING_COUNT, c_Strng, "-c", &c_Flag, TRUE );
@@ -1464,6 +1466,9 @@ int  main( int  argc, char *  argv[] )  {
 	}
 	else if(( sckt = socket( AF_INET, SOCK_TYPE_TO_USE, proto->p_proto )) < 0 ) {
 		perror("Error: Unable to create socket to send ICMP packets");
+		/* Make suggestion of using sudo if not invoked as root or setuid root or with sudo privilege */
+		if(( SOCK_TYPE_TO_USE == SOCK_RAW ) && ( getuid() != 0 ) && ( geteuid() != 0 ))
+			fprintf( stderr, "This utility uses raw sockets and requires privilege to do so. Try using sudo" );
 	}
 	else  {
 		signal( SIGINT, finishOnUserInterrupt );	/* Trap Control C user interrupt */
@@ -1479,6 +1484,10 @@ int  main( int  argc, char *  argv[] )  {
 		if( t_Flag )  {	/* is the TTL Flag active ? */
 			if( setIPv4_TimeToLive( sckt, ip4_HeaderTTL_Value, verbosityLevel ) < 0 )
 				fprintf( stderr, "Error: Unable to set Time to Live to %d\n", ( int ) ip4_HeaderTTL_Value );
+			else if( getIPv4_TimeToLive( sckt, &scktOpt, verbosityLevel ) < 0 )
+				printf( "Warning: unable to get current TTL value\n" );
+			else if( ip4_HeaderTTL_Value != scktOpt )
+				printf( "Warning: IPv4 header Time-To-Live value remains %d\n", scktOpt );
 		}
 		if( debugFlag )  {
 			if( getIPv4_TimeToLive( sckt, &scktOpt, verbosityLevel ) < 0 )  printf( "Warning: unable to get current TTL value\n" );
