@@ -1,7 +1,7 @@
 /*
  * P I N G 3 . C
  *
- * ping3.c last edited Mon Apr  8 22:07:33 2024
+ * ping3.c last edited Tue Apr  9 20:58:27 2024
  * 
  * v0.9.9 Added arrays indexed by sequence ID to track missing replies
  * v0.9.8 Added attempt to turn target given as an IPv4 address into a named host
@@ -86,7 +86,7 @@
 
 
 #include <stdlib.h> 		/* exit() atexit() arc4random() srandom() */
-#include <stdio.h>			/* printf() sprintf() fprintf() fflush() perror() */
+#include <stdio.h>			/* printf() fprintf() fflush() perror() */
 #include <sys/types.h>		/* legacy: sendto() setsockopt() inet_addr() inet_ntoa() */
 #include <sys/socket.h>		/* sendto() recvfrom() setsockopt() legacy: inet_addr() inet_ntoa() */
 #include <signal.h>			/* signal() SIGUSR1 SIGALRM psignal() */
@@ -235,7 +235,6 @@ struct sockaddr_in *  to;					/* pointer to remote network device info */
 char *  remoteDeviceNameBuffer = ( char * ) NULL;
 char *  localDeviceNameBuffer = ( char * ) NULL;
 char *  prespecDeviceNameBuffer[ 4 ];
-char  timeOutMessage[ 256 ];
 n_short  sequenceID_Array[ MAX_PING_ATTEMPTS ];		/* Array of sequence ID numbers - not really needed until continuous ping mode is used */
 struct timespec	 timeSentArray[ MAX_PING_ATTEMPTS ];	/* Array of send time stamps indexed by sequence id */
 struct timespec	 timeReceivedArray[ MAX_PING_ATTEMPTS ];	/* Array of receive time stamps indexed by sequence id */
@@ -449,21 +448,18 @@ int sendICMP_Request( int  socketID, u_char *  icmpMsgBfr, int  icmpMsgSize, u_s
 
 	successFlag = FALSE;
 	if( M_Flag && ( icmpType >= ICMP_TYPE_TIME ))  {
-		sprintf( timeOutMessage, "seq %d ICMP TIMESTAMP Request/Reply", seqID );
 		bytesSent = sendICMP_TimestampRequest( socketID, icmpMsgBfr, 20, seqID );	/* ICMP Time stamp is 8 byte Header + 12 byte Data */
 		successFlag = ( bytesSent == 20 );
 		if( ! successFlag )
 			fprintf( stderr, "Warning: Unable to send 20 byte ICMP Timestamp Request in the network datagram?\n" );
 	}
 	else if( M_Flag && ( icmpType == ICMP_TYPE_MASK ))  {
-		sprintf( timeOutMessage, "seq %d ICMP MASK Request/Reply", seqID );
 		bytesSent = sendICMP_MaskRequest( socketID, icmpMsgBfr, 12, seqID );	/* ICMP Mask is 8 byte Header + 4 byte Data */
 		successFlag = ( bytesSent == 12 );
 		if( ! successFlag )
 			fprintf( stderr, "Warning: Unable to send 12 byte ICMP Mask Request in the network datagram?\n" );
 	}
 	else  {
-		sprintf( timeOutMessage, "seq %d ICMP ECHO Request/Reply", seqID );
 		bytesSent = sendICMP_EchoRequest( socketID, icmpMsgBfr, icmpMsgSize, seqID );
 		successFlag = ( bytesSent == icmpMsgSize );
 		if( ! successFlag )
@@ -1113,8 +1109,8 @@ void  useage( char *  name )  {
 
 int  processCommandLineOptions( int  argc, char *  argv[] )  {
 	int  i, result, returnValue, icmpMessageSize;
-	char ** argPtr;
-	char *  argArray[ 5 ];
+	char ** argPtr = NULL;
+	char *  argArray[ 5 ] = { NULL, NULL, NULL, NULL, NULL };
 
 	/* Set all the global flags from command line options */
 	opterr = 0;	/* Suppress error messages from getopt() to stderr */
@@ -1378,7 +1374,6 @@ void  setGlobalFlagDefaults( char *  argv[] )  {	/* Set up any Global variables 
 	}
 	remoteDeviceNameBuffer = ( char * ) NULL;
 	localDeviceNameBuffer = ( char * ) NULL;
-	bzero( timeOutMessage, sizeof( timeOutMessage ));
 	process_id = (u_short)( getpid() & 0xffff );
     /* Isolate the name of the executable */
     exeName = argv[0];	/* set global variable to default */
@@ -1468,7 +1463,7 @@ int  main( int  argc, char *  argv[] )  {
 		perror("Error: Unable to create socket to send ICMP packets");
 		/* Make suggestion of using sudo if not invoked as root or setuid root or with sudo privilege */
 		if(( SOCK_TYPE_TO_USE == SOCK_RAW ) && ( getuid() != 0 ) && ( geteuid() != 0 ))
-			fprintf( stderr, "This utility uses raw sockets and requires privilege to do so. Try using sudo" );
+			fprintf( stderr, "This utility uses raw sockets and requires privilege to do so. Try using sudo\n" );
 	}
 	else  {
 		signal( SIGINT, finishOnUserInterrupt );	/* Trap Control C user interrupt */

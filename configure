@@ -2,7 +2,7 @@
 #
 # C O N F I G U R E
 #
-# configure last edited Wed Dec 20 19:15:16 2023
+# configure last edited Tue Apr  9 20:58:48 2024
 #
 NAME1=ping3
 NAME2=genFun
@@ -17,7 +17,7 @@ NAME9=icmpDefn
 OP_FILE_NAME=Makefile
 COMPILER=cc
 OPTIONS="-Wall -pedantic"
-LNK_OPTIONS=
+LNK_OPTIONS=-lm
 TRGT=$NAME1
 SRC1=$NAME1.c
 OBJ1=$NAME1.o
@@ -51,8 +51,6 @@ elif [[ "$OSTYPE" == "msys" ]] ; then
   TRGT=$NAME1.exe
   COMPILER=gcc
   LNK_OPTIONS=-static
-elif [[ "$OSTYPE" == "linux-gnu" ]] ; then
-  LNK_OPTIONS=-lm
 fi
 #
 echo "$TRGT: $OBJ1 $OBJ2 $OBJ3 $OBJ4 $OBJ5 $OBJ6 $OBJ7" > $OP_FILE_NAME
@@ -107,17 +105,15 @@ echo -e "\trm -f $TRGT *.o" >> $OP_FILE_NAME
 echo "" >> $OP_FILE_NAME
 #
 echo "debug: clean" >> $OP_FILE_NAME
-echo -e "\t$COMPILER $OPTIONS -DDEBUG -c $SRC1" >> $OP_FILE_NAME
-echo -e "\t$COMPILER $OPTIONS -DDEBUG -c $SRC2" >> $OP_FILE_NAME
-echo -e "\t$COMPILER $OPTIONS -DDEBUG -c $SRC3" >> $OP_FILE_NAME
-echo -e "\t$COMPILER $OPTIONS -DDEBUG -c $SRC4" >> $OP_FILE_NAME
-echo -e "\t$COMPILER $OPTIONS -DDEBUG -c $SRC5" >> $OP_FILE_NAME
-echo -e "\t$COMPILER $OPTIONS -DDEBUG -c $SRC6" >> $OP_FILE_NAME
-echo -e "\t$COMPILER $OPTIONS -DDEBUG -c $SRC7" >> $OP_FILE_NAME
-echo -e "\t$COMPILER -o $TRGT $OBJ1 $OBJ2 $OBJ3 $OBJ4 $OBJ5 $OBJ6 $OBJ7 $LNK_OPTIONS" >> $OP_FILE_NAME
-#
-echo "valgrind: clean" >> $OP_FILE_NAME
-echo -e "\t$COMPILER $OPTIONS -DDEBUG -g -o $TRGT $SRC1 $SRC2 $SRC3 $SRC4 $SRC5 $SRC6 $SRC7 $LNK_OPTIONS" >> $OP_FILE_NAME
-#
+echo -e "\t$COMPILER $OPTIONS -DDEBUG -o $TRGT $SRC1 $SRC2 $SRC3 $SRC4 $SRC5 $SRC6 $SRC7 $LNK_OPTIONS" >> $OP_FILE_NAME
 echo "" >> $OP_FILE_NAME
 #
+echo "valgrind: clean" >> $OP_FILE_NAME
+echo -e "\t$COMPILER $OPTIONS -UDEBUG -g -o $TRGT $SRC1 $SRC2 $SRC3 $SRC4 $SRC5 $SRC6 $SRC7 $LNK_OPTIONS" >> $OP_FILE_NAME
+echo "" >> $OP_FILE_NAME
+#
+echo "debug_vg: clean" >> $OP_FILE_NAME
+echo -e "\t$COMPILER $OPTIONS -DDEBUG -g -o $TRGT $SRC1 $SRC2 $SRC3 $SRC4 $SRC5 $SRC6 $SRC7 $LNK_OPTIONS" >> $OP_FILE_NAME
+echo "" >> $OP_FILE_NAME
+#
+
