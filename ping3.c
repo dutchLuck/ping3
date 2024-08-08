@@ -1,7 +1,7 @@
 /*
  * P I N G 3 . C
  *
- * ping3.c last edited Tue Apr  9 20:58:27 2024
+ * ping3.c last edited Thu Aug  8 21:10:19 2024
  * 
  * v0.9.9 Added arrays indexed by sequence ID to track missing replies
  * v0.9.8 Added attempt to turn target given as an IPv4 address into a named host
@@ -146,7 +146,6 @@ typedef  struct ip_timestamp  IP_TIMESTAMP;
 #define SOCK_TYPE_TO_USE SOCK_RAW
 #endif
 
-extern int  errno;
 
 /* Command line Optional Switches: */
 /*  count, Debug, help, interval, length, Mask/Timestamp, quiet,  */
