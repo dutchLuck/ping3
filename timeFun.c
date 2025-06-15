@@ -1,7 +1,7 @@
 /*
  * T I M E F U N . C
  *
- * timeFun.c last edited on Sat Dec  9 16:25:45 2023
+ * timeFun.c last edited on Sun Jun 15 14:16:07 2025
  *
  * Functions to handle time
  * 
@@ -168,6 +168,7 @@ void  displayDeltaTimeInMultipleFormats( int  deltaTimeStamp, int  verboseFlag )
 		convertMilliSecondsToHMS_String( deltaTimeStamp, tmpStrDelta );
 		printf( "%s [h:m:s]", tmpStrDelta );
 	}
+	if( verboseFlag )  printf( "( %d [mS] ( 0x%08x )) ", deltaTimeStamp, deltaTimeStamp );
 }
 
 

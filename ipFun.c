@@ -1,7 +1,7 @@
 /*
  * I P F U N . C
  *
- * ipFun.c last edited Wed Dec 20 19:15:35 2023
+ * ipFun.c last edited Sun Jun 15 15:45:12 2025
  *
  * Functions to handle aspects of IP datagrams
  *
@@ -88,7 +88,7 @@ int  strIsA_ValidDottedQuadIPv4_Address( char *  str )  {
 		}
 	}
 #ifdef  DEBUG
-	printf( "strIsA_ValidDottedQuadIPv4_Address( %s ): About to return a%svalid IPv4 address result\n",
+	printf( "DEBUG: strIsA_ValidDottedQuadIPv4_Address( %s ): About to return a%svalid IPv4 address result\n",
 		str, ( retVal ) ? " " : "n in" );
 #endif
 	return( retVal );

@@ -2,7 +2,7 @@
 #
 # C O N F I G U R E
 #
-# configure last edited Tue Apr  9 20:58:48 2024
+# configure last edited Sun Jun 15 14:52:31 2025
 #
 NAME1=ping3
 NAME2=genFun
@@ -16,7 +16,7 @@ NAME9=icmpDefn
 #
 OP_FILE_NAME=Makefile
 COMPILER=cc
-OPTIONS="-Wall -pedantic"
+OPTIONS="-Wall -pedantic -Wextra"
 LNK_OPTIONS=-lm
 TRGT=$NAME1
 SRC1=$NAME1.c

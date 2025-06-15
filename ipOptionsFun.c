@@ -1,7 +1,7 @@
 /*
  * I P O P T I O N S F U N . C
  *
- * ipOptionsFun.c  last edited Mon Dec 18 23:06:51 2023
+ * ipOptionsFun.c  last edited Sun Jun 15 13:55:33 2025
  *
  * Functions to handle IP Header Options in the IP packet.
  *
@@ -49,7 +49,7 @@ void  displayOnlyGreaterThanZeroTimeStampOverflowCount( unsigned char *  ptr )  
 }
 
 
-void  displayTimeStamps( unsigned char *  ptr, int  len, int  startingTimeStamp, int  verboseFlag )  {
+void  displayTimeStamps( unsigned char *  ptr, int  startingTimeStamp, int  verboseFlag )  {
 	int  byteCnt;
 	unsigned int  timeStamp;
 	int  deltaTimeStamp;
@@ -68,7 +68,7 @@ void  displayTimeStamps( unsigned char *  ptr, int  len, int  startingTimeStamp,
 }
 
 
-void  displayAddrTimeTimeStamps( unsigned char *  ptr, int  len, int  startingTimeStamp, int  verboseFlag )  {
+void  displayAddrTimeTimeStamps( unsigned char *  ptr, int  startingTimeStamp, int  verboseFlag )  {
 	int  byteCnt, sizeofStructIpt_ta;
 	unsigned int  timeStamp;
 	int  deltaTimeStamp;
@@ -89,13 +89,13 @@ void  displayAddrTimeTimeStamps( unsigned char *  ptr, int  len, int  startingTi
 }
 
 
-void  displayIpOptionTimeStamps( unsigned char *  ptr, int  len, int  startingTimeStamp, int  verboseFlag )  {
+void  displayIpOptionTimeStamps( unsigned char *  ptr, int  startingTimeStamp, int  verboseFlag )  {
 	IP_TIMESTAMP *  tsPtr;
 
 	tsPtr = ( IP_TIMESTAMP * ) ptr;
-	if( tsPtr->ipt_flg == 0x3 )  displayAddrTimeTimeStamps( ptr, len, startingTimeStamp, verboseFlag );
-	else if( tsPtr->ipt_flg == 0x1 )  displayAddrTimeTimeStamps( ptr, len, startingTimeStamp, verboseFlag );
-	else if( tsPtr->ipt_flg == 0x0 )  displayTimeStamps( ptr, len, startingTimeStamp, verboseFlag );
+	if( tsPtr->ipt_flg == 0x3 )  displayAddrTimeTimeStamps( ptr, startingTimeStamp, verboseFlag );
+	else if( tsPtr->ipt_flg == 0x1 )  displayAddrTimeTimeStamps( ptr, startingTimeStamp, verboseFlag );
+	else if( tsPtr->ipt_flg == 0x0 )  displayTimeStamps( ptr, startingTimeStamp, verboseFlag );
 	else  {
 		printf( "?? Unknown IP4 option time stamp flag %d\n", tsPtr->ipt_flg );
 	}
@@ -116,7 +116,7 @@ void  displayTimeStampOptionInHex( unsigned char *  bytePtr, int  optLen )  {
 }
 
 
-void  displayIpOptionRecordRoute( unsigned char *  ptr, int  len, int  verboseFlag )  {
+void  displayIpOptionRecordRoute( unsigned char *  ptr, int  verboseFlag )  {
 	int  byteCnt, loopCnt;
 	IP_TIMESTAMP *  tsPtr;
 	struct ipt_ta *  addr_timePtr;
@@ -125,6 +125,7 @@ void  displayIpOptionRecordRoute( unsigned char *  ptr, int  len, int  verboseFl
 	loopCnt = 0;
 	for( byteCnt = tsPtr->ipt_ptr - 4; byteCnt > 0; byteCnt -= 4 )  {
 		addr_timePtr = ( struct ipt_ta * )( ptr + 3 + 4 * loopCnt++ );
+		if ( verboseFlag )  printf( "%d: ", loopCnt );
 		printf( "%s\n", inet_ntoa( addr_timePtr->ipt_addr ));
 	}
 }
@@ -216,7 +217,7 @@ void  displayIpOptions( unsigned char *  ptr, int  len, int  verboseFlag )  {
 						default : printf( "( ? unknown timestamp type)" ); break;
 					}
 					printf( "\n" );
-					displayIpOptionTimeStamps( ptr, len, 0, verboseFlag );
+					displayIpOptionTimeStamps( ptr, 0, verboseFlag );
 					if( verboseFlag )  {
 						printf( "Time Stamp Option formatted as Hex; -\n");
 						displayTimeStampOptionInHex( ptr, tsPtr->ipt_len );

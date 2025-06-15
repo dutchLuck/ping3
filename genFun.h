@@ -1,7 +1,7 @@
 /*
  * G E N F U N . H
  *
- * genFun.h last edited Sat Dec  2 21:30:27 2023
+ * genFun.h last edited Wed Jul 31 13:21:53 2024
  * 
  */
 
@@ -29,6 +29,15 @@ long  convertOptionStringToLong( long, char *, char *, int *, int );
 int  convertOptionStringToInteger( int, char *, char *, int *, int );
 double  convertOptionStringToDouble( double, char *, char *, int *, int );
 int  convertHexByteStringToByteArray( char *, unsigned char *, int );
+int  convertHexChrNibbleToInt( char * );
+int  convert2HexChrNibblesToInt( char * );
+int  convert4HexChrNibblesToInt( char * );
+int ringBffrFull( int, int );
+int ringBffrEmpty( int, int, int );
+void  dumpRingBffr( unsigned char [], size_t );
+void  zeroRingBffr( unsigned char [], size_t );
+int  ringBffrUsed( int, int, int );
+int  loadRingBffrWithBytesFromLineOfAsciiHex( char *, int, unsigned char [], int *, int *, int );
 
 #ifndef  FALSE
 #define  FALSE  ((int)0)

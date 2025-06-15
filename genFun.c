@@ -1,12 +1,12 @@
 /*
  * G E N F U N . C
  *
- * genFun.c last edited Sat Dec  2 21:30:25 2023
+ * genFun.c last edited Mon May  5 20:47:31 2025
  * 
  */
 
 #include <stdio.h>		/* printf() */
-#include <stdlib.h>		/* atoi() malloc() free() atol() strtod() strtol() random() */
+#include <stdlib.h>		/* atoi() malloc() free() atol() strtod() strtol() rand() */
 #include <limits.h>		/* LONG_MIN LONG_MAX INT_MIN strtol() */
 #include <ctype.h>		/* touppper() */
 #include "genFun.h"
@@ -54,10 +54,10 @@ void  fillByteArrayWithPseudoRandomData( unsigned char *  array, int  arraySize 
 
 	intPtr = ( int * ) array;
 	for( cnt = 0; cnt < arraySize; )  {
-		pseudoRandomInt = ( int )( random() & 0xffffffff );	/* use of random() is far from perfect  */
-		if(( cnt + sizeof( int ) ) <= arraySize )  {	/* will a whole int fit or are we too close to full */
+		pseudoRandomInt = ( int )( rand() & 0xffffffff );	/* use of random() is far from perfect  */
+		if(( cnt + __SIZEOF_INT__ ) <= arraySize )  {	/* will a whole int fit or are we too close to full */
 			*intPtr++ = pseudoRandomInt;	/* put an pseudo random integer into the array */
-			cnt += sizeof( int );
+			cnt += __SIZEOF_INT__;
 		}
 		else  {		/* fill last part of array if the array wasn't an exact multiple of integer in size */
 			chrPtr = ( unsigned char * ) intPtr;
@@ -290,4 +290,74 @@ int  convertHexByteStringToByteArray( char *  hexStrng, unsigned char *  storage
 		}
 	}
 	return( byteCount );
+}
+
+
+int  convert2HexChrNibblesToInt( char *  hexChr )  {
+	int  intChr1;
+	int  intChr2;
+
+	if (( intChr1 = convertHexChrNibbleToInt( hexChr )) < 0 )  return( -1 );
+	else if (( intChr2 = convertHexChrNibbleToInt( hexChr + 1 )) < 0 )  return( -1 );
+	return( 16 * intChr1 + intChr2 );
+}
+
+
+int  convert4HexChrNibblesToInt( char *  hexChr )  {
+	int  intChr1;
+	int  intChr2;
+
+	if (( intChr1 = convert2HexChrNibblesToInt( hexChr )) < 0 )  return( -1 );
+	else if (( intChr2 = convert2HexChrNibblesToInt( hexChr + 2 )) < 0 )  return( -1 );
+	return( 256 * intChr1 + intChr2 );
+}
+
+/* The following Circular (Ring) buffer is an expedient version that sacrifices 1 data */
+/* storage location to allow an easy buffer full indication, even though when "full" */
+/* the buffer is actually 1 location short of completely full. The buffer must be a */
+/* power of two in size (e.g. 256 or 512 or 1024 or 2048 etc) for the AND mask to work. */
+
+int ringBffrFull( int  inIndx, int  outIndx ) {
+	return( inIndx == outIndx );
+}
+
+
+int ringBffrEmpty( int  inIndx, int  outIndx, int  ringMask ) {
+	return((( outIndx + 1 ) & ringMask ) == inIndx );
+}
+
+
+int  ringBffrUsed( int  inIndex, int  outIndex, int  ringMask )  {
+	int  diff;
+
+	if( inIndex == outIndex )  return( ringMask );	/* if equal then circular buffer is deemed to be full */
+	else if(( diff = ( inIndex - outIndex )) > 0 )  return( diff - 1 );
+	else return( diff + ringMask );
+}
+
+
+void  zeroRingBffr( unsigned char  data[], size_t  dataBufferSize )  {
+	for (size_t i = 0; i < dataBufferSize; i++ )
+		data[ i ] = ( unsigned char ) 0;
+}
+
+
+void  dumpRingBffr( unsigned char  data[], size_t  dataBufferSize )  {
+	for (size_t i = 0; i < dataBufferSize; i++)  {
+		if (( i % 32 ) == 0 )  fprintf( stdout, "\n%02x", data[ i ] );
+		else  fprintf( stdout, " %02x", data[ i ]);
+	}
+	fprintf( stdout, "\n\n" );
+}
+
+
+int  loadRingBffrWithBytesFromLineOfAsciiHex( char *  linePtr, int  byteCount,
+	unsigned char  ringBffr[], int *  inIndx, int *  outIndx, int  circMask ) {
+	int  i;
+
+	for ( i = 0; (! ringBffrFull( *inIndx, *outIndx )) && ( i < byteCount ); i++) {
+		ringBffr[ *inIndx ] = ( unsigned char )( convert2HexChrNibblesToInt( linePtr + i * 2 ) & 0xff );
+		*inIndx = ( *inIndx + 1 ) & circMask;
+	}
+	return( i );	/* return number of bytes loaded */
 }

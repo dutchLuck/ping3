@@ -1,8 +1,9 @@
 /*
  * P I N G 3 . C
  *
- * ping3.c last edited Thu Aug  8 21:10:19 2024
+ * ping3.c last edited Sun Jun 15 15:39:47 2025
  * 
+ * v0.9.10 Fixed warnings from -Wextra compiler option. Added -V (version) option
  * v0.9.9 Added arrays indexed by sequence ID to track missing replies
  * v0.9.8 Added attempt to turn target given as an IPv4 address into a named host
  * v0.9.7 Reworked include files, added icmpDefn.h to project, compiles on CYGWIN
@@ -21,7 +22,7 @@
 
 /*
  * May be compiled with gcc compatible compiler as follows; -
- *  cc -Wall -UDEBUG -o ping3 ping3.c genFun.c dbgFun.c ipFun.c icmpFun.c ipOptionsFun.c timeFun.c
+ *  cc -Wall -Wextra -pedantic -UDEBUG -o ping3 ping3.c genFun.c dbgFun.c ipFun.c icmpFun.c ipOptionsFun.c timeFun.c
  */
 
 /*
@@ -106,7 +107,7 @@
 #include "timeFun.h"		/* convertMilliSecondsSinceMidnightToHMS_String() calcTimeSpecClockDifferenceInSeconds() */
 
 
-#define VERSION_STRING "0.9.9"			/* ping3 reported version */
+#define VERSION_STRING "0.9.10"			/* ping3 reported version */
 #define MIN_PING_ATTEMPTS  0			/* smallest number of ICMP requests sent (limits X for -cX option) */
 #define DEFAULT_PING_COUNT  3			/* default number of pings to send */
 #define MAX_PING_ATTEMPTS  100			/* largest number of ICMP requests sent (limits X for -cX option) */
@@ -149,8 +150,8 @@ typedef  struct ip_timestamp  IP_TIMESTAMP;
 
 /* Command line Optional Switches: */
 /*  count, Debug, help, interval, length, Mask/Timestamp, quiet,  */
-/*  Record route, Time tp Live, Time stamp, verbosity, wait */
-const char  optionStr[] = "abc:Dhi:l:M:p:Rs:t:T:v:w:";
+/*  Record route, Time tp Live, Time stamp, verbosity, Version, wait */
+const char  optionStr[] = "abc:Dhi:l:M:p:Rs:t:T:v:Vw:";
 
 /* Command Line options that may or may not be set by the user */
 int	 quietFlag;					/* when TRUE minimise the output info */
@@ -195,6 +196,7 @@ int  ip4_OptionTS_Value;			/* Specifies the type of time stamp request and is -1
 int  v_Flag;						/* TRUE if Wait count was found in the command line options */
 char *  v_Strng = ( char * ) NULL;	/* pointer to -w value */
 int	 verbosityLevel;				/* when TRUE more info is output */
+int  V_Flag;						/* TRUE if Version flag was found in the command line options */
 int  w_Flag;						/* TRUE if Wait count was found in the command line options */
 char *  w_Strng = ( char * ) NULL;	/* pointer to -w value */
 int	 waitTimeInSec;					/* set to wait time value */
@@ -295,7 +297,7 @@ void  setSendTimer( u_long  seconds, u_long  uSec )  {
 	old.it_interval.tv_usec = ( long ) 0;
 	setitimer( ITIMER_REAL, &val, &old );
 #ifdef DEBUG	
-	if( debugFlag )  printf( "Debug: Timer set to: %lu [S]: %lu [uS]\n", seconds, uSec );
+	if( debugFlag )  printf( "DEBUG: Timer set to: %lu [S]: %lu [uS]\n", seconds, uSec );
 #endif
 }
 
@@ -311,7 +313,7 @@ int  computeCheckSumAndSendIPv4_ICMP_Datagram( int  socketID, u_char *  icmpMsg,
 	icmpHdrPtr->icmp_cksum = calcCheckSum((u_short *) icmpHdrPtr, icmpMsgSize );
 #ifdef DEBUG	
 	if( debugFlag )  {
-		printf( "Debug: ICMP Message size to transmit is %d\n", icmpMsgSize );
+		printf( "DEBUG: ICMP Message size to transmit is %d\n", icmpMsgSize );
 		printNamedByteArray( icmpMsg, icmpMsgSize, 20, "ICMP request messsage (send array contents)" );
 		printf( "\n" );
 	}
@@ -346,7 +348,7 @@ int  sendICMP_MaskRequest( int  socketID, u_char *  icmpMsgBfr, int  icmpMsgSize
 	u_int32_t *  icmpMaskPtr;
 
 #ifdef DEBUG	
-	if( debugFlag )  printf( "Debug: About to send %d byte ICMP Mask Request Message with Sequence ID 0x%04x\n", icmpMsgSize, seqID );
+	if( debugFlag )  printf( "DEBUG: About to send %d byte ICMP Mask Request Message with Sequence ID 0x%04x\n", icmpMsgSize, seqID );
 #endif
 	/* Set up the ICMP info if there is enough room in the ip_Data buffer */
 	if( icmpMsgSize > ICMP_HDR_LEN )  {
@@ -372,7 +374,7 @@ int  sendICMP_TimestampRequest( int  socketID, u_char *  icmpMsgBfr, int  icmpMs
 	u_int32_t *  icmpOrigTimestampPtr;
 
 #ifdef DEBUG	
-	if( debugFlag )  printf( "Debug: About to send %d byte ICMP Time Stamp Request Message with Sequence ID 0x%04x\n", icmpMsgSize, seqID );
+	if( debugFlag )  printf( "DEBUG: About to send %d byte ICMP Time Stamp Request Message with Sequence ID 0x%04x\n", icmpMsgSize, seqID );
 #endif
 	/* Set up the ICMP info if there is enough room in the ip_Data buffer */
 	if( icmpMsgSize > ICMP_HDR_LEN )  {
@@ -400,7 +402,7 @@ int  sendICMP_EchoRequest( int  socketID, u_char *  icmpMsgBfr, int  icmpMsgSize
 	int *  intPtr;
 
 #ifdef DEBUG	
-	if( debugFlag )  printf( "Debug: About to send %d byte ICMP Echo Request Message with Sequence ID 0x%04x\n", icmpMsgSize, seqID );
+	if( debugFlag )  printf( "DEBUG: About to send %d byte ICMP Echo Request Message with Sequence ID 0x%04x\n", icmpMsgSize, seqID );
 #endif
 	/* Set up the ICMP info if there is enough room in the buffer */
 	if( icmpMsgSize < ICMP_HDR_LEN )
@@ -431,7 +433,7 @@ int  sendICMP_EchoRequest( int  socketID, u_char *  icmpMsgBfr, int  icmpMsgSize
 		}
 		else  {		/* -p hasn't been specified so setup default payload pattern */
 			fillByteArrayWithIncByOne( 0, icmpDataPtr, icmpMsgSize - 8 );	/* Incrementing byte pattern is the default for macOS & linux ping */
-			if( icmpMsgSize >= ( ICMP_HDR_LEN + sizeof( struct timespec )))  {	/* no pattern specified so put nS time in the icmp data section if there is space */
+			if (( size_t) icmpMsgSize >= ( ICMP_HDR_LEN + sizeof( struct timespec )))  {	/* no pattern specified so put nS time in the icmp data section if there is space */
 				memcpy( (void *) icmpDataPtr, ( void * ) &timeToBeStoredInSentICMP, sizeof( struct timespec )); /* Don't worry about endianess */	
 	    	}
 		}
@@ -533,8 +535,8 @@ void  printTimeDifferenceFromHeaderOption( IP_TIMESTAMP *  tsPntr, int  hdrLen, 
 		ipt_taPtr2 = ipt_taPtr + 1;
 #ifdef DEBUG
 		printNamedByteArray(( u_char *) tsPntr, hdrLen - STD_IP4_HDR_LEN, 20, "processReceivedDatagram(): IP4 option received" );
-		displayIpOptions(( u_char *) tsPntr, hdrLen - STD_IP4_HDR_LEN, verbosityLvl );
 #endif
+		if ( debugFlag )  displayIpOptions(( u_char *) tsPntr, hdrLen - STD_IP4_HDR_LEN, verbosityLvl );
 		 /* Now get time according to target when reply message left */
 		 /* Assume reply travel time was same speed as request travel time */
  		 /* Thus time here when request was actually processed by target */
@@ -588,7 +590,7 @@ int  processReceivedDatagram( char *  buf, int  datagramSize, struct sockaddr_in
 	icmpHdrPtr = (struct icmp *)( buf + hdrLen );	/* point to the start of the datagram payload (i.e. ICMP message) */
 #ifdef DEBUG	
 	if( debugFlag )  {
-		printf( "Debug: Datagram Length is %d - Header Length is %d\n", datagramSize, hdrLen );
+		printf( "DEBUG: Datagram Length is %d - Header Length is %d\n", datagramSize, hdrLen );
 		printNamedByteArray(( u_char *) ip, datagramSize, 20, "processReceivedDatagram(): Complete IP4 datagram received" );
 	}
 #endif
@@ -626,10 +628,10 @@ int  processReceivedDatagram( char *  buf, int  datagramSize, struct sockaddr_in
 		return( -1 );
 	}
 	if( verbosityLevel >= 8 )  {
-		printf( "\nInfo: Received IP4 datagram IPv4 & ICMP headers\n" );
+		printf( "\nINFO: Received IP4 datagram IPv4 & ICMP headers\n" );
 		display_ip( ip, datagramSize );
 		if( verbosityLevel > 8)
-			printNamedByteArray(( u_char *) ip, datagramSize, 20, "Info: Received IP4 datagram" );
+			printNamedByteArray(( u_char *) ip, datagramSize, 20, "INFO: Received IP4 datagram" );
 		else  printf( "\n");
 	}
  /* Now the ICMP message + header options (if there are any) */
@@ -696,7 +698,7 @@ int  processReceivedDatagram( char *  buf, int  datagramSize, struct sockaddr_in
 					calcMillisecondsSinceMidnightFromTimeSpec( tsOrigPtr ), ( verbosityLevel > 0 ));
 			}
 			else if( R_Flag )  {
-				displayIpOptionRecordRoute(( u_char * ) tsPntr, hdrLen - STD_IP4_HDR_LEN, ( verbosityLevel > 0 ) );
+				displayIpOptionRecordRoute(( u_char * ) tsPntr, ( verbosityLevel > 0 ) );
 			}
 			if( verbosityLevel > 0 )  {	/* print extra line about Local receive time */
 				printf( " Local Rx time:" );
@@ -806,7 +808,7 @@ int  sendICMP_RequestWithTimeStampOptionInTheIP4_Hdr( struct sockaddr_in *  to, 
 /*
  * IP Header Options are in RFC 791, but also see RFC 1349, RFC 2474, RFC 6864
  */
-int  sendICMP_RequestWithRecordRouteOptionInTheIP4_Hdr( struct sockaddr_in *  to, u_short  ip4_HdrID )  {
+int  sendICMP_RequestWithRecordRouteOptionInTheIP4_Hdr( u_short  ip4_HdrID )  {
 	int  returnValue = 1;
 	u_char  inetRecordRoute[ MAX_IP4_HDR_OPTION_LEN ];	/* Storage for optional IP4 header options */
 	u_char *  rrPtr;		/* record route pointer */
@@ -868,7 +870,7 @@ void  printStats( void )  {
 		if( verbosityLevel > 4 )  printf( "\n" );	/* space it out a bit when more info is being output */
 		for( indx = 0; indx < MAX_PING_ATTEMPTS; indx++ )  {
 			if(( timeSentArray[ indx ].tv_nsec != 0 ) || ( timeSentArray[ indx ].tv_sec != 0 ))  {
-				printf( "Info: ICMP " );
+				printf( "INFO: ICMP " );
 				if( M_Flag && ( icmpType >= ICMP_TYPE_TIME ))  printf( "TIMESTAMP" );
 				else if( M_Flag && ( icmpType == ICMP_TYPE_MASK ))  printf( "MASK" );
 				else  printf( "ECHO" );
@@ -910,7 +912,7 @@ void  finishOnUserInterrupt( int signo )  {
 		printStats();	/* Unless super quiet print the stats about requests sent, replies received etc */
 	}
 	if( debugFlag )
-		printf( "Debug: ping3 terminating with %s status from finishOnUserInterrupt( %d )\n",
+		printf( "DEBUG: ping3 terminating with %s status from finishOnUserInterrupt( %d )\n",
 			( pingsReceived < pingsSent ) ? "EXIT_FAILURE" : (( pingsSent == 0 ) ? "EXIT_FAILURE" : "EXIT_SUCCESS" ), signo );
 	fflush( stdout );	/* Ensure anything printed to stdout is output to the user terminal */
 	fflush( stderr );	/* Ensure anything printed is stderr output to the user terminal */
@@ -925,6 +927,7 @@ void  finishOnUserInterrupt( int signo )  {
 void  sendPing( int signo )  {
 	struct timespec  currentTime;
 
+	if ( verbosityLevel > 8 )  printf( "INFO: sendPing( signo %d ) triggered\n", signo );
 	/* Flag a request without a reply just before the next request is sent */
 	if(( verbosityLevel > -5 ) && ( pingsSent > pingsReceived ))  {
 		clock_gettime( CLOCK_REALTIME, &currentTime );	/* get current time */
@@ -956,7 +959,7 @@ void  sendPing( int signo )  {
 			pingsSent += 1;
 	}
 	else if( R_Flag )  {	/* Do IP4 header option requesting record route info */
-		if( sendICMP_RequestWithRecordRouteOptionInTheIP4_Hdr( to, icmpHdrID ) == 0 )
+		if( sendICMP_RequestWithRecordRouteOptionInTheIP4_Hdr( icmpHdrID ) == 0 )
 			pingsSent += 1;
 	}
    	else  {				/* Do pings without IP4 header options */
@@ -1101,6 +1104,7 @@ void  useage( char *  name )  {
 	printf( "            if \"tsprespec H.I.J.K [ L.M.N.O [ P.Q.R.S [ T.U.V.W ]]]\" then Time Stamp prespecified Addresses.\n" );
 	printf( "        -vX  sets a verbosity level ( -9 <= X <= 9 ) More positive values of X provide more information.\n" );
 	printf( "             a verbosity level of zero ( -v 0 ) is equivalent to not using -v.\n" );
+	printf( "        -V  switches on Version information output and then terminates %s\n", name );
 	printf( "        -wX  wait for X seconds after last request for any replies ( %d <= X <= %d )\n", MIN_WAIT_PERIOD, MAX_WAIT_PERIOD );
 	printf( "\n" );
 } 
@@ -1130,6 +1134,7 @@ int  processCommandLineOptions( int  argc, char *  argv[] )  {
     		case 't' :  t_Flag = TRUE; t_Strng = optarg; break;	/* IPv4 ttl */
     		case 'T' :  T_Flag = TRUE; T_Strng = optarg; break;	/* IPv4 header option Time Stamp */
     		case 'v' :  v_Flag = TRUE; v_Strng = optarg; break;	/* set up a verbosity level */
+    		case 'V' :  V_Flag = TRUE; break;					/* print Version string */
     		case 'w' :  w_Flag = TRUE; w_Strng = optarg; break;	/* Wait time */
     		default :
         		printf( "Warning: command line option -%c is unrecognised or incomplete and has been ignored\n", optopt );
@@ -1140,9 +1145,7 @@ int  processCommandLineOptions( int  argc, char *  argv[] )  {
 	/* -v level processing to set verbosity level and set quietFlag and debugFlag */
 	verbosityLevel = convertOptionStringToInteger( 0, v_Strng, "-v", &v_Flag, TRUE );
 	verbosityLevel = limitIntegerValueToEqualOrWithinRange( verbosityLevel, -9, 9 );
-#ifdef DEBUG
-	debugFlag = ( verbosityLevel >= 9 );	/* Report all debug information only if compiled with DEBUG defined */
-#endif
+	debugFlag = ( verbosityLevel >= 9 );	/* N.B. Only reports all debug information when compiled with DEBUG defined */
 	quietFlag = ( verbosityLevel <= -5 );
 	/* -c count of requests to be sent */
 	pingSendAttemptsLeft = convertOptionStringToInteger( DEFAULT_PING_COUNT, c_Strng, "-c", &c_Flag, TRUE );
@@ -1283,9 +1286,9 @@ int  processCommandLineOptions( int  argc, char *  argv[] )  {
 	}
 #ifdef  DEBUG
 	if( debugFlag )  {
-		printf( "Debug: First ( start ) -s value %d\n", icmpFirstExtraDataSizeValue );
-		printf( "Debug: Second ( finish ) -s value %d\n", icmpSecondExtraDataSizeValue );
-		printf( "Debug: Third ( step ) -s value %d\n", icmpStepExtraDataSizeValue );
+		printf( "DEBUG: First ( start ) -s value %d\n", icmpFirstExtraDataSizeValue );
+		printf( "DEBUG: Second ( finish ) -s value %d\n", icmpSecondExtraDataSizeValue );
+		printf( "DEBUG: Third ( step ) -s value %d\n", icmpStepExtraDataSizeValue );
 	}
 #endif
 	/* make sure TX buffer is big enough to hold max amount of payload data */
@@ -1293,30 +1296,31 @@ int  processCommandLineOptions( int  argc, char *  argv[] )  {
 	rxIPv4_BfrSize = txICMP_BfrSize + STD_IP4_HDR_LEN + ip4_HdrOptionSize;	/* Receive Buffer must be bigger than Transmit Buffer */
 	/* Provide feedback on what options are in play in Debug mode */
 	if( debugFlag )  {
-		printf( "Debug: -a option ( audible ) is %s\n", ( a_Flag ) ? "active" : "inactive" );
-		printf( "Debug: -b option ( broadcast ) is %s\n", ( b_Flag ) ? "active" : "inactive" );
-		printf( "Debug: -c option ( count ) is %s\n", ( c_Flag ) ? "active" : "inactive" );
+		printf( "DEBUG: -a option ( audible ) is %s\n", ( a_Flag ) ? "active" : "inactive" );
+		printf( "DEBUG: -b option ( broadcast ) is %s\n", ( b_Flag ) ? "active" : "inactive" );
+		printf( "DEBUG: -c option ( count ) is %s\n", ( c_Flag ) ? "active" : "inactive" );
 	}
 	if( isIPv4_DontFragmentManipulatableOnThisOS_Version())  {
-		if( debugFlag )	printf( "Debug: -D option ( don't fragment ) is %s\n", ( D_Flag ) ? "active" : "inactive" );
+		if( debugFlag )	printf( "DEBUG: -D option ( don't fragment ) is %s\n", ( D_Flag ) ? "active" : "inactive" );
 	}
 	else if( D_Flag )  {
 		printf( "Warning: IPv4 header Don't Fragment manipulation is not available on this version of the OS" );
 	}
 	if( debugFlag )  {
-		printf( "Debug: -h option ( help ) is %s\n", ( helpFlag ) ? "active" : "inactive" );
-		printf( "Debug: -i option ( interval ) is %s\n", ( i_Flag ) ? "active" : "inactive" );
-		printf( "Debug: -l option ( header option length ) is %s\n", ( l_Flag ) ? "active" : "inactive" );
-		printf( "Debug: IPv4 Header Option length is %d bytes\n", ip4_HdrOptionSize );
-		printf( "Debug: -M option ( ICMP Mode type ) is %s\n", ( M_Flag ) ? "active" : "inactive" );
-		printf( "Debug: -p option ( pattern ) is %s\n", ( p_Flag ) ? "active" : "inactive" );
-		printf( "Debug: -R option ( header Record Route ) is %s\n", ( R_Flag ) ? "active" : "inactive" );
-		printf( "Debug: -s option ( echo payload size ) is %s\n", ( s_Flag ) ? "active" : "inactive" );
-		printf( "Debug: -T option ( header time-stamp ) is %s\n", ( T_Flag ) ? "active" : "inactive" );
-		printf( "Debug: -t option ( time-to-live ) is %s\n", ( t_Flag ) ? "active" : "inactive" );
-		printf( "Debug: -v option ( verbosity level ) is %s\n", ( v_Flag ) ? "active" : "inactive" );
-		printf( "Debug: -w option ( wait ) is %s\n", ( w_Flag ) ? "active" : "inactive" );
-		printf( "Debug: Transmit Buffer Size is %d, Receive Buffer Size is %d\n", txICMP_BfrSize, rxIPv4_BfrSize );
+		printf( "DEBUG: -h option ( help ) is %s\n", ( helpFlag ) ? "active" : "inactive" );
+		printf( "DEBUG: -i option ( interval ) is %s\n", ( i_Flag ) ? "active" : "inactive" );
+		printf( "DEBUG: -l option ( header option length ) is %s\n", ( l_Flag ) ? "active" : "inactive" );
+		printf( "DEBUG: IPv4 Header Option length is %d bytes\n", ip4_HdrOptionSize );
+		printf( "DEBUG: -M option ( ICMP Mode type ) is %s\n", ( M_Flag ) ? "active" : "inactive" );
+		printf( "DEBUG: -p option ( pattern ) is %s\n", ( p_Flag ) ? "active" : "inactive" );
+		printf( "DEBUG: -R option ( header Record Route ) is %s\n", ( R_Flag ) ? "active" : "inactive" );
+		printf( "DEBUG: -s option ( echo payload size ) is %s\n", ( s_Flag ) ? "active" : "inactive" );
+		printf( "DEBUG: -T option ( header time-stamp ) is %s\n", ( T_Flag ) ? "active" : "inactive" );
+		printf( "DEBUG: -t option ( time-to-live ) is %s\n", ( t_Flag ) ? "active" : "inactive" );
+		printf( "DEBUG: -v option ( verbosity level ) is %s\n", ( v_Flag ) ? "active" : "inactive" );
+		printf( "DEBUG: -V option ( version information ) is %s\n", ( V_Flag ) ? "active" : "inactive" );
+		printf( "DEBUG: -w option ( wait ) is %s\n", ( w_Flag ) ? "active" : "inactive" );
+		printf( "DEBUG: Transmit Buffer Size is %d, Receive Buffer Size is %d\n", txICMP_BfrSize, rxIPv4_BfrSize );
 	}
 	/* return the option index of the first positional argument (i.e. network device name or IPv4 address?) */
 	return( optind );
@@ -1357,6 +1361,7 @@ void  setGlobalFlagDefaults( char *  argv[] )  {	/* Set up any Global variables 
 	ip4_OptionTS_Value = -1;	/* -1 means NO IP header option time stamp */
 	v_Flag = FALSE;		/* Verbosity Level setting */
 	verbosityLevel = 0;	/* not verbose */
+	V_Flag = FALSE;		/* Version output setting */
 	w_Flag = FALSE;		/* Wait time */
 	waitTimeInSec = DEFAULT_WAIT_PERIOD;
 	pingsSent = 0;		/* track pings requests sent */
@@ -1427,7 +1432,10 @@ int  main( int  argc, char *  argv[] )  {
 	commandLineIndex = processCommandLineOptions( argc, argv );
 
 /* Version information */
-	if( verbosityLevel > 4 )  printVersion();
+	if ( V_Flag || ( verbosityLevel > 4 ))  {
+		printVersion();
+		if ( V_Flag )  return( 3 );		/* terminate after version info is printed if V_Flag is active */
+	}
 
 /* Print useage message and exit if the "-h" flag was amongst the command line options */
 /*  or if no icmp echo target is specified ) */
@@ -1485,7 +1493,7 @@ int  main( int  argc, char *  argv[] )  {
 		}
 		if( debugFlag )  {
 			if( getIPv4_TimeToLive( sckt, &scktOpt, verbosityLevel ) < 0 )  printf( "Warning: unable to get current TTL value\n" );
-			else  printf( "Debug: IPv4 header Time-To-Live value is %d\n", scktOpt );
+			else  printf( "DEBUG: IPv4 header Time-To-Live value is %d\n", scktOpt );
 		}
 		if( isIPv4_DontFragmentManipulatableOnThisOS_Version())  {
 			/* Set or reset the Don't Fragment setting - Linux defaults on, macOS defaults off - so force it on or off */
@@ -1493,7 +1501,7 @@ int  main( int  argc, char *  argv[] )  {
 				fprintf( stderr, "Error: Unable to set Don't Fragment setting to %s\n", ( D_Flag ) ? "True" : "False" );
 			if( debugFlag )  {
 				if( getIPv4_DontFragment( sckt, &scktOpt, verbosityLevel ) < 0 )  printf( "Warning: unable to get current Don't Fragment value\n" );
-				else  printf( "Debug: IPv4 header Don't Fragment value is %s\n", ( scktOpt == 1 ) ? "True" : "False" );
+				else  printf( "DEBUG: IPv4 header Don't Fragment value is %s\n", ( scktOpt == 1 ) ? "True" : "False" );
 			}
 		}
 		if( ensureSocketBroadcastPermissionSettingIsTheRequiredValue( sckt, (( b_Flag ) ? 1 : 0 ), verbosityLevel ) < 0 )
@@ -1501,7 +1509,7 @@ int  main( int  argc, char *  argv[] )  {
 		if( debugFlag )  {
 			if( getSocketBroadcastPermission( sckt, &scktOpt, verbosityLevel ) < 0 )
 				printf( "Warning: unable to get current Socket Broadcast permission value\n" );
-			else  printf( "Debug: Socket broadcast value is %d\n", scktOpt );
+			else  printf( "DEBUG: Socket broadcast value is %d\n", scktOpt );
 		}
 		clock_gettime( CLOCK_REALTIME, &timeOfFirstPing );	/* get current time as the time of the first ping request */
 		sendPing( 0 );	/* Send first ping and start interrupt timer for further pings as necessary */
@@ -1510,7 +1518,7 @@ int  main( int  argc, char *  argv[] )  {
 	}
 	/* Probably will not terminate execution via this code as the interrupt signal code will kill it off */
 	if( debugFlag )
-		printf( "Debug: ping3 terminating with %s status from program end\n",
+		printf( "DEBUG: ping3 terminating with %s status from program end\n",
 			( pingsReceived < pingsSent ) ? "EXIT_FAILURE" : (( pingsSent == 0 ) ? "EXIT_FAILURE" : "EXIT_SUCCESS" ));
  /* report a Failure if no pings were sent or more requests were sent than replies received */
 	return( ( pingsReceived < pingsSent ) ? EXIT_FAILURE : (( pingsSent == 0 ) ? EXIT_FAILURE : EXIT_SUCCESS ) );

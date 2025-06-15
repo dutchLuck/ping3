@@ -352,6 +352,18 @@ fi
 sleep 1
 echo
 #
+# Test -V version flag used
+#
+echo "$PRIV ../$PROGRAM -V"
+$PRIV ../$PROGRAM -V
+RESULT=$?
+if [[ "$RESULT" != "0" ]] ; then
+  echo
+  echo "Non zero ($RESULT) return value passed back to this ($0) shell script"
+fi
+sleep 1
+echo
+#
 # Test set TTL 
 #
 echo "$PRIV ../$PROGRAM -c1 -t128 192.168.1.1"
